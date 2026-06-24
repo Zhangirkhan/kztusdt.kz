@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-background text-on-surface font-sans antialiased;
+        min-height: max(884px, 100dvh);
+    }
+
+    button,
+    [role='button'],
+    a.btn-primary,
+    a.btn-secondary {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+}
+
+@layer components {
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    .btn-primary,
+    .btn-secondary,
+    a.btn-primary,
+    a.btn-secondary {
+        @apply relative inline-flex cursor-pointer select-none items-center justify-center overflow-hidden;
+        @apply transition-all duration-150 ease-out;
+        @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+        @apply disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none;
+    }
+
+    .btn-primary {
+        @apply w-full rounded-xl bg-accent px-input-padding py-4 text-center text-sm font-bold text-on-accent shadow-lg shadow-accent/20;
+        @apply hover:brightness-110 active:scale-[0.96] active:brightness-95 active:shadow-md;
+    }
+
+    .btn-secondary {
+        @apply w-full rounded-xl border border-outline-variant bg-surface-container-low px-input-padding py-4 text-center text-sm font-semibold text-on-surface;
+        @apply hover:border-accent/30 hover:bg-surface-container-high active:scale-[0.96] active:bg-surface-container;
+    }
+
+    .btn-primary::after,
+    .btn-secondary::after,
+    a.btn-primary::after,
+    a.btn-secondary::after {
+        content: '';
+        @apply pointer-events-none absolute inset-0 bg-white opacity-0 transition-opacity duration-150;
+    }
+
+    .btn-primary:active::after,
+    .btn-secondary:active::after,
+    a.btn-primary:active::after,
+    a.btn-secondary:active::after {
+        @apply opacity-15;
+    }
+
+    .btn-chip {
+        @apply cursor-pointer select-none rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150;
+        @apply active:scale-95 active:opacity-80;
+    }
+
+    .btn-segment {
+        @apply flex-1 cursor-pointer select-none rounded-lg py-3 text-sm font-semibold transition-all duration-150;
+        @apply active:scale-[0.98];
+    }
+
+    .btn-icon {
+        @apply inline-flex cursor-pointer select-none items-center justify-center transition-all duration-150;
+        @apply active:scale-90 active:opacity-75;
+    }
+
+    .nav-item {
+        @apply flex cursor-pointer select-none flex-col items-center gap-1 rounded-xl px-3 py-1 text-xs transition-all duration-150;
+        @apply active:scale-95 active:opacity-70;
+    }
+
+    .input-field {
+        @apply w-full rounded-xl border border-input-border bg-surface-container-lowest px-input-padding py-4 text-base text-on-surface outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20;
+    }
+
+    .card {
+        @apply rounded-xl bg-surface-container p-4;
+    }
+
+    .bottom-nav {
+        @apply fixed bottom-0 left-0 right-0 z-50 border-t border-outline-variant/30 bg-surface/95 backdrop-blur-md;
+    }
+
+    .sheet-backdrop {
+        @apply fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-4 sm:items-center;
+        animation: fade-in 180ms ease-out;
+    }
+
+    .sheet-panel {
+        @apply w-full max-w-container-max rounded-2xl bg-surface-container p-5 shadow-2xl;
+        animation: slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+}
+
+@layer utilities {
+    .animate-press {
+        animation: press-pop 180ms ease-out;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(1.25rem) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes press-pop {
+    0% {
+        transform: scale(1);
+    }
+
+    45% {
+        transform: scale(0.96);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}

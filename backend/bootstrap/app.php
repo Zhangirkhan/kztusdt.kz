@@ -1,0 +1,63 @@
+<?php
+
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/internal/health',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectGuestsTo(function (Request $request): string {
+            if ($request->is('admin', 'admin/*')) {
+                return route('login');
+            }
+
+            return route('auth.phone');
+        });
+
+        $middleware->trustProxies(at: ['127.0.0.1', '::1']);
+        $middleware->web(prepend: [
+            \App\Http\Middleware\AttachRequestLogContext::class,
+            \App\Http\Middleware\SetLocale::class,
+        ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\HandleInertiaRequests::class,
+            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\HideTechnologyHeaders::class,
+            \App\Http\Middleware\LogHttpRequests::class,
+        ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'api/auth/telegram/webhook',
+            'api/kyc/sumsub/webhook',
+            'api/auth/aitu/logout',
+            'api/auth/aitu/validate',
+        ]);
+
+        $middleware->alias([
+            'role' => \App\Http\Middleware\EnsureRole::class,
+            'no_security_pwa' => \App\Http\Middleware\RedirectSecurityFromPwa::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request) => $request->is('api/*'),
+        );
+
+        $exceptions->reportable(function (\Throwable $exception): void {
+            if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                && $exception->getStatusCode() < 500) {
+                return;
+            }
+
+            \App\Support\AppLog::exception($exception, [
+                'url' => request()->fullUrl(),
+                'user_id' => auth()->id(),
+            ]);
+        });
+    })->create();

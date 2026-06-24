@@ -1,0 +1,359 @@
+<script setup>
+import SeoHead from '@/Components/SeoHead.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useBiometricAuth } from '@/composables/useBiometricAuth';
+import { navigateAfterAuth } from '@/utils/authNavigation';
+
+const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
+
+const props = defineProps({
+    loginCode: String,
+    phone: String,
+    status: String,
+    expiresAt: String,
+    codeLength: { type: Number, default: 6 },
+    initialStep: { type: String, default: 'telegram' },
+    kycStatus: { type: String, default: 'none' },
+    kyc: { type: Object, default: null },
+});
+
+const { t } = useI18n();
+const {
+    supported: biometricSupported,
+    busy: biometricBusy,
+    error: biometricError,
+    savePhone,
+    registerBiometric,
+} = useBiometricAuth();
+
+const step = ref(props.initialStep);
+const kycStatus = ref(props.kycStatus);
+const pendingRedirect = ref(null);
+
+const code = ref('');
+const codeInput = ref(null);
+const submitting = ref(false);
+const resending = ref(false);
+const errorMessage = ref('');
+const resendCooldown = ref(0);
+let cooldownTimer = null;
+
+const showInlineSumsub = ref(
+    props.kyc?.inline_sumsub === true && !['approved', 'pending_review'].includes(kycStatus.value),
+);
+
+const canSubmit = computed(() => code.value.length === props.codeLength && !submitting.value);
+const expiresAtLabel = computed(() =>
+    props.expiresAt ? new Date(props.expiresAt).toLocaleTimeString('ru-RU') : '',
+);
+
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+}
+
+function onCodeInput(event) {
+    code.value = event.target.value.replace(/\D/g, '').slice(0, props.codeLength);
+
+    if (codeInput.value) {
+        codeInput.value.value = code.value;
+    }
+
+    errorMessage.value = '';
+
+    if (canSubmit.value) {
+        submitCode();
+    }
+}
+
+async function submitCode() {
+    if (!canSubmit.value) {
+        return;
+    }
+
+    submitting.value = true;
+    errorMessage.value = '';
+
+    try {
+        const response = await fetch(`/api/auth/phone/verify/${props.loginCode}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ code: code.value }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            errorMessage.value = result.message ?? 'Неверный код.';
+            code.value = '';
+
+            if (codeInput.value) {
+                codeInput.value.value = '';
+                codeInput.value.focus();
+            }
+
+            return;
+        }
+
+        savePhone(props.phone);
+
+        if (biometricSupported && result.suggest_biometric) {
+            pendingRedirect.value = result;
+            step.value = 'biometric';
+
+            return;
+        }
+
+        continueAfterLogin(result);
+    } catch {
+        errorMessage.value = 'Не удалось отправить код. Попробуйте ещё раз.';
+    } finally {
+        submitting.value = false;
+    }
+}
+
+function startCooldown(seconds) {
+    resendCooldown.value = seconds;
+
+    if (cooldownTimer) {
+        clearInterval(cooldownTimer);
+    }
+
+    cooldownTimer = setInterval(() => {
+        resendCooldown.value -= 1;
+
+        if (resendCooldown.value <= 0) {
+            clearInterval(cooldownTimer);
+            cooldownTimer = null;
+        }
+    }, 1000);
+}
+
+async function resendCode() {
+    if (resending.value || resendCooldown.value > 0) {
+        return;
+    }
+
+    resending.value = true;
+    errorMessage.value = '';
+
+    try {
+        const response = await fetch('/api/auth/phone/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ phone: props.phone }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            errorMessage.value = result.message ?? 'Не удалось отправить код повторно.';
+
+            return;
+        }
+
+        startCooldown(60);
+
+        if (result.login_code && result.login_code !== props.loginCode) {
+            router.get(`/auth/telegram/${result.login_code}`, {}, { replace: true });
+        }
+    } catch {
+        errorMessage.value = 'Не удалось отправить код повторно.';
+    } finally {
+        resending.value = false;
+    }
+}
+
+function continueAfterLogin(result) {
+    if (result.kyc?.needs_verification) {
+        if (result.kyc?.inline_sumsub) {
+            step.value = 'kyc';
+            kycStatus.value = result.kyc_status ?? kycStatus.value;
+            showInlineSumsub.value = true;
+
+            return;
+        }
+
+        navigateAfterAuth('/kyc');
+
+        return;
+    }
+
+    navigateAfterAuth(result.redirect ?? '/home');
+}
+
+function finishBiometricStep() {
+    if (pendingRedirect.value) {
+        continueAfterLogin(pendingRedirect.value);
+    } else {
+        navigateAfterAuth('/home');
+    }
+}
+
+async function enableBiometric() {
+    try {
+        savePhone(props.phone);
+        await registerBiometric();
+        finishBiometricStep();
+    } catch {
+        // error shown via biometricError
+    }
+}
+
+function onKycApproved() {
+    navigateAfterAuth('/home');
+}
+
+function onKycPending() {
+    kycStatus.value = 'pending_review';
+    showInlineSumsub.value = false;
+}
+
+onMounted(() => {
+    if (step.value === 'telegram') {
+        startCooldown(60);
+        codeInput.value?.focus();
+    }
+});
+
+onUnmounted(() => {
+    if (cooldownTimer) {
+        clearInterval(cooldownTimer);
+    }
+});
+</script>
+
+<template>
+    <SeoHead />
+    <Head :title="step === 'kyc' ? 'Верификация документов' : step === 'biometric' ? 'Быстрый вход' : 'Код из Telegram'" />
+
+    <div class="mx-auto flex min-h-screen w-full max-w-container-max flex-col bg-background px-margin-page pb-8">
+        <div class="flex flex-1 flex-col justify-center py-stack-section">
+            <div v-if="step !== 'biometric'" class="mb-stack-element">
+                <div class="mb-6 flex items-center justify-center gap-3 text-xs font-semibold uppercase tracking-wide">
+                    <span :class="step === 'telegram' ? 'text-accent' : 'text-text-dim'">1. Telegram</span>
+                    <span class="text-text-dim">→</span>
+                    <span :class="step === 'kyc' ? 'text-accent' : 'text-text-dim'">2. Документ + видео</span>
+                </div>
+            </div>
+
+            <template v-if="step === 'telegram'">
+                <div class="mb-stack-section text-center">
+                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+                        <span class="material-symbols-outlined text-4xl text-accent">sms</span>
+                    </div>
+                    <h1 class="text-headline-xl">{{ t('auth.verify.heading') }}</h1>
+                    <p class="mt-3 text-body-sm text-text-muted">
+                        {{ t('auth.verify.subtitle', { phone }) }}
+                    </p>
+                </div>
+
+                <form class="space-y-stack-element" @submit.prevent="submitCode">
+                    <div>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.verify.codeLabel') }}</label>
+                        <input
+                            ref="codeInput"
+                            :value="code"
+                            type="text"
+                            class="input-field text-center text-2xl tracking-[0.5em]"
+                            :placeholder="'0'.repeat(codeLength)"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                            :maxlength="codeLength"
+                            @input="onCodeInput"
+                        />
+                        <p v-if="errorMessage" class="mt-2 text-sm text-error">{{ errorMessage }}</p>
+                        <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.verify.noCode') }}</p>
+                    </div>
+
+                    <button type="submit" class="btn-primary" :disabled="!canSubmit">
+                        {{ t('auth.verify.submit') }}
+                    </button>
+                </form>
+
+                <div class="mt-6 flex flex-col items-center gap-2 text-body-sm">
+                    <button
+                        type="button"
+                        class="text-accent hover:underline disabled:text-text-dim disabled:no-underline"
+                        :disabled="resending || resendCooldown > 0"
+                        @click="resendCode"
+                    >
+                        {{ resendCooldown > 0 ? t('auth.verify.resendIn', { seconds: resendCooldown }) : t('auth.verify.resend') }}
+                    </button>
+                    <Link href="/auth/phone" class="text-text-dim hover:underline">{{ t('auth.verify.wrongNumber') }}</Link>
+                    <p v-if="expiresAtLabel" class="text-text-dim">
+                        {{ t('auth.verify.expiresAt', { time: expiresAtLabel }) }}
+                    </p>
+                </div>
+            </template>
+
+            <template v-else-if="step === 'biometric'">
+                <div class="mb-stack-section text-center">
+                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+                        <span class="material-symbols-outlined text-4xl text-accent">fingerprint</span>
+                    </div>
+                    <h1 class="text-headline-xl">Быстрый вход</h1>
+                    <p class="mt-3 text-body-sm text-text-muted">
+                        Включите Face ID, Touch ID или отпечаток — чтобы не выходить из приложения и не подтверждать код каждый раз.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-primary mb-3 w-full"
+                    :disabled="biometricBusy"
+                    @click="enableBiometric"
+                >
+                    Включить биометрию
+                </button>
+
+                <button
+                    type="button"
+                    class="btn-secondary w-full"
+                    :disabled="biometricBusy"
+                    @click="finishBiometricStep"
+                >
+                    Пропустить
+                </button>
+
+                <p v-if="biometricError" class="mt-3 text-center text-sm text-error">{{ biometricError }}</p>
+            </template>
+
+            <template v-else>
+                <div class="mb-stack-section text-center">
+                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+                        <span class="material-symbols-outlined text-4xl text-accent">verified_user</span>
+                    </div>
+                    <h1 class="text-headline-xl">Верификация личности</h1>
+                    <p class="mt-3 text-body-sm text-text-muted">
+                        Телефон подтверждён. Сфотографируйте удостоверение и пройдите короткую видео-проверку — без перехода на другую страницу.
+                    </p>
+                </div>
+
+                <section v-if="showInlineSumsub" class="card">
+                    <SumsubKycWidget
+                        container-id="onboarding-sumsub"
+                        :kyc-status="kycStatus"
+                        @approved="onKycApproved"
+                        @pending="onKycPending"
+                    />
+                </section>
+
+                <section v-else-if="kycStatus === 'pending_review'" class="card text-center">
+                    <p class="font-semibold text-accent">Документы на проверке</p>
+                    <p class="mt-2 text-body-sm text-text-muted">Обычно это занимает 1–2 минуты. Можно перейти на главную.</p>
+                    <Link href="/home" class="btn-primary mt-4 inline-block text-center no-underline">На главную</Link>
+                </section>
+            </template>
+        </div>
+    </div>
+</template>

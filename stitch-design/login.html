@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Вход в систему | Crypto Exchange</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center p-4">
+<!-- Mobile Container (Simulating iOS) -->
+<div class="w-full max-w-[400px] bg-white dark:bg-gray-900 min-h-[812px] rounded-xl shadow-2xl overflow-hidden flex flex-col relative">
+<!-- Status Bar Mockup (iOS Style) -->
+<div class="h-12 w-full flex justify-between items-center px-8 pt-4">
+<span class="text-sm font-semibold text-gray-900 dark:text-white">9:41</span>
+<div class="flex space-x-1.5 items-center">
+<span class="material-icons-round text-sm text-gray-900 dark:text-white" style="font-size: 16px;">signal_cellular_alt</span>
+<span class="material-icons-round text-sm text-gray-900 dark:text-white" style="font-size: 16px;">wifi</span>
+<span class="material-icons-round text-sm text-gray-900 dark:text-white" style="font-size: 16px;">battery_full</span>
+</div>
+</div>
+<!-- Header Content -->
+<div class="px-8 pt-12 pb-8 flex flex-col items-center">
+<div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+<span class="material-icons-round text-primary text-4xl">account_balance_wallet</span>
+</div>
+<h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Вход в аккаунт</h1>
+<p class="text-gray-500 dark:text-gray-400 text-sm">Добро пожаловать в KZT/USDT биржу</p>
+</div>
+<!-- Login Form -->
+<form class="px-8 space-y-5 flex-grow" onsubmit="return false;">
+<div>
+<label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ml-1">Email или Телефон</label>
+<div class="relative">
+<span class="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">person_outline</span>
+<input class="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-full py-4 pl-12 pr-6 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-400" placeholder="example@mail.kz" type="text"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 ml-1">Пароль</label>
+<div class="relative">
+<span class="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">lock_outline</span>
+<input class="w-full bg-gray-50 dark:bg-gray-800 border-0 rounded-full py-4 pl-12 pr-12 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-400" placeholder="••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary" type="button">
+<span class="material-icons-round text-lg">visibility_off</span>
+</button>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-full shadow-lg shadow-primary/25 transition-all transform active:scale-[0.98]" type="submit">
+                    Войти
+                </button>
+</div>
+<div class="text-center">
+<a class="text-sm font-medium text-primary hover:underline" href="#">Забыли пароль?</a>
+</div>
+<!-- Divider -->
+<div class="flex items-center py-6">
+<div class="flex-grow h-px bg-gray-100 dark:bg-gray-800"></div>
+<span class="px-4 text-xs font-medium text-gray-400 uppercase tracking-widest">Или войти через</span>
+<div class="flex-grow h-px bg-gray-100 dark:bg-gray-800"></div>
+</div>
+<!-- Biometrics & Socials -->
+<div class="flex justify-center space-x-6">
+<button class="w-14 h-14 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+<span class="material-icons-round text-primary text-2xl">face_5</span>
+</button>
+<button class="w-14 h-14 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+<img alt="" class="w-6 h-6" data-alt="Google logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAg0ppU7N51qnrfUZHvJ1FTCGWQvrz56ac0RyUwv4-vyhI-FsyAXiZ0jvTtNMaxv0prgOLrpClpRl9_oafd1nnADvYMVLpdEMqG6Hqp1BA3-WXc3By63k_r8PaVKeilBIrBj17GBs8sJyBZE7qmrFwIDaNXbRhuSAwpTkN3Bld0Ijz_clFnQfG5p0k2p988NU3-iBIzq9RT-GUHa_IbgNE8XCIG83JOBV6XisrbsTjk6MwK7noA7Z7bnTK4e40bDKZKqNtheMWwMQOu"/>
+</button>
+<button class="w-14 h-14 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+<span class="material-icons-round text-gray-900 dark:text-white text-2xl">apple</span>
+</button>
+</div>
+</form>
+<!-- Footer -->
+<div class="p-8 text-center bg-gray-50/50 dark:bg-gray-800/20">
+<p class="text-sm text-gray-500 dark:text-gray-400">
+                Нет аккаунта? 
+                <a class="text-primary font-bold ml-1 hover:underline" href="#">Зарегистрироваться</a>
+</p>
+</div>
+<!-- iOS Home Indicator -->
+<div class="w-full flex justify-center pb-2 pt-4">
+<div class="w-32 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+</div>
+<!-- Background Decorative Element -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10"></div>
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10"></div>
+</div>
+</body></html>

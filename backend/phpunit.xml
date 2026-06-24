@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <!-- Never reuse the production config/route caches in tests. -->
+        <env name="APP_CONFIG_CACHE" value="cache/config-testing.php"/>
+        <env name="APP_ROUTES_CACHE" value="cache/routes-testing.php"/>
+        <env name="APP_EVENTS_CACHE" value="cache/events-testing.php"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <!-- Dedicated PostgreSQL test database (pdo_sqlite is not installed). -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_DATABASE" value="crypto_exchange_test"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+
+        <!-- Telegram: no token by default, tests enable it explicitly + Http::fake(). -->
+        <env name="TELEGRAM_BOT_TOKEN" value=""/>
+        <env name="TELEGRAM_BOT_USERNAME" value="TestExchangeBot"/>
+        <env name="TELEGRAM_LOGIN_CODE_TTL" value="10"/>
+        <env name="TELEGRAM_RATE_LIMIT_PHONE" value="5"/>
+
+        <!-- HD wallet: canonical BIP44 test vector mnemonic (never use in production). -->
+        <env name="WALLET_MNEMONIC" value="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"/>
+        <env name="WALLET_PASSPHRASE" value=""/>
+        <env name="WALLET_BASE_PATH" value="44'/60'/0'/0"/>
+        <env name="WALLET_NETWORK" value="BEP20"/>
+        <env name="WALLET_ASSET" value="USDT"/>
+
+        <!-- KYC -->
+        <env name="KYC_PROVIDER" value="manual"/>
+        <env name="SUMSUB_APP_TOKEN" value=""/>
+        <env name="SUMSUB_SECRET_KEY" value=""/>
+        <env name="SUMSUB_WEBHOOK_SECRET" value=""/>
+
+        <!-- Money flows: deterministic fees/limits, sending to chain disabled. -->
+        <env name="SWEEP_ENABLED" value="false"/>
+        <env name="WITHDRAWALS_ENABLED" value="false"/>
+        <env name="WITHDRAWAL_AUTO_LIMIT" value="0"/>
+        <env name="WITHDRAWAL_MIN_AMOUNT" value="1"/>
+        <env name="WITHDRAWAL_NETWORK_FEE_USDT" value="0.01"/>
+        <env name="WITHDRAWAL_CONFIRMATION_TTL" value="30"/>
+        <env name="FEE_PERCENT_DEFAULT" value="0.5"/>
+        <env name="FEE_PERCENT_SUBSCRIPTION" value="0.05"/>
+        <env name="EXCHANGE_MIN_BUY_KZT" value="1000"/>
+        <env name="EXCHANGE_MAX_BUY_KZT" value="5000000"/>
+        <env name="EXCHANGE_MIN_SELL_USDT" value="5"/>
+        <env name="EXCHANGE_MAX_SELL_USDT" value="10000"/>
+        <env name="RATE_MARKUP_BUY" value="1"/>
+        <env name="RATE_MARKUP_SELL" value="1"/>
+        <env name="RATE_CACHE_TTL" value="120"/>
+        <env name="RATE_FALLBACK" value="500"/>
+    </php>
+</phpunit>

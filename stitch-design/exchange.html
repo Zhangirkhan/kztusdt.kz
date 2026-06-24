@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html class="light" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Обмен Валют - USDT/KZT</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0052FF",
+                        "primary-dark": "#003EB3",
+                        "primary-soft": "#F0F5FF",
+                        "background": "#FFFFFF",
+                        "surface": "#F8FAFC",
+                        "border": "#E2E8F0",
+                        "text-main": "#0F172A",
+                        "text-muted": "#64748B",
+                        "text-blue": "#003399"
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "1.25rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+            background-color: #FFFFFF;
+        }
+        .ios-blur {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .rate-card {
+            background-color: #F0F5FF;
+            border: 1px solid #D1E0FF;
+        }
+        .input-group {
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            transition: all 0.2s ease;
+        }
+        .input-group:focus-within {
+            border-color: #0052FF;
+            background-color: #FFFFFF;
+            box-shadow: 0 0 0 1px #0052FF;
+        }
+        .bank-selector {
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-text-main font-display min-h-screen flex flex-col">
+<div class="h-12 w-full bg-background"></div>
+<header class="px-6 py-4 flex items-center justify-between sticky top-0 z-50 bg-background/80 backdrop-blur-md">
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface border border-border">
+<span class="material-icons-round text-text-blue">arrow_back_ios_new</span>
+</button>
+<h1 class="text-xl font-extrabold tracking-tight text-text-blue">Купить USDT</h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface border border-border">
+<span class="material-icons-round text-text-blue">history</span>
+</button>
+</header>
+<main class="flex-1 px-6 pt-4 pb-32 space-y-6">
+<section class="rate-card p-5 rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-xs font-bold uppercase tracking-widest text-text-blue/70">Live Курсы</span>
+</div>
+<span class="text-[10px] text-text-muted font-medium">Обновлено: 14:02:15</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white/60 p-3 rounded-lg border border-blue-100/50">
+<p class="text-[10px] text-text-muted uppercase font-bold mb-1">Покупка USDT</p>
+<p class="text-lg font-extrabold text-text-blue">450.20 <span class="text-primary text-xs">KZT</span></p>
+</div>
+<div class="bg-white/60 p-3 rounded-lg border border-blue-100/50">
+<p class="text-[10px] text-text-muted uppercase font-bold mb-1">Продажа USDT</p>
+<p class="text-lg font-extrabold text-text-blue">448.10 <span class="text-primary text-xs">KZT</span></p>
+</div>
+</div>
+</section>
+<section class="space-y-2 relative">
+<div class="input-group p-5 rounded-xl">
+<div class="flex justify-between items-center mb-2">
+<label class="text-sm font-semibold text-text-muted">Я отдаю</label>
+<span class="text-[11px] font-bold text-text-muted">Баланс: 1,240,000 KZT</span>
+</div>
+<div class="flex items-center justify-between">
+<input class="bg-transparent border-none p-0 text-2xl font-extrabold text-text-main focus:ring-0 w-2/3" placeholder="0.00" type="number" value="50000"/>
+<div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-border">
+<div class="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-blue-600">
+<img class="w-full h-full object-cover" data-alt="Flag of Kazakhstan" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_YMcDmCNVGUxhzemIhpaneIcjtf9J35RFjZ4PyPN-ZZrtrLBwSCyN8jHkxhjkqMSsx5ORXWglpF14hWkM8U0eqM-qvC_2fYu9ybQIvVHopG8gjid74TeXbP_cj6SygLwwVpaZNH9xutSVKhWL4Emp3In9dT8KjsMTwAArdEson9IsvWEsad-zVmrhr26SjSpYBM71ZrSJ4HBSjdcpEmcAAmopFbE0VysKyee6sJ3jOs1BBJEca4GvZfS6JrRk9mzRspSpylFHJmQl"/>
+</div>
+<span class="font-bold text-sm text-text-blue">KZT</span>
+<span class="material-icons-round text-text-muted text-sm">expand_more</span>
+</div>
+</div>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 top-[50%] -translate-y-1/2 z-10">
+<button class="w-12 h-12 bg-primary rounded-full shadow-lg shadow-primary/20 flex items-center justify-center border-4 border-white">
+<span class="material-icons-round text-white font-bold">swap_vert</span>
+</button>
+</div>
+<div class="input-group p-5 rounded-xl pt-8">
+<div class="flex justify-between items-center mb-2">
+<label class="text-sm font-semibold text-text-muted">Я получаю</label>
+<span class="text-[11px] font-bold text-primary">Мгновенное зачисление</span>
+</div>
+<div class="flex items-center justify-between">
+<input class="bg-transparent border-none p-0 text-2xl font-extrabold text-text-main focus:ring-0 w-2/3" placeholder="0.00" type="number" value="111.06"/>
+<div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-border">
+<div class="w-6 h-6 rounded-full bg-[#26a17b] flex items-center justify-center">
+<span class="text-[10px] font-bold text-white">T</span>
+</div>
+<span class="font-bold text-sm text-text-blue">USDT</span>
+<span class="material-icons-round text-text-muted text-sm">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<section class="space-y-2">
+<label class="text-sm font-bold text-text-blue px-1">Выберите банк</label>
+<button class="w-full bank-selector p-4 rounded-xl flex items-center justify-between transition-colors active:bg-slate-50">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center border border-border">
+<span class="material-symbols-outlined text-text-muted">account_balance</span>
+</div>
+<span class="text-text-muted text-sm font-medium">Выберите ваш банк для оплаты</span>
+</div>
+<span class="material-icons-round text-text-muted">chevron_right</span>
+</button>
+</section>
+<section class="space-y-3 pt-2">
+<div class="flex justify-between items-center text-sm px-1">
+<span class="text-text-muted">Текущий курс</span>
+<span class="text-text-blue font-semibold">1 USDT = 450.2 KZT</span>
+</div>
+<div class="flex justify-between items-center text-sm px-1">
+<span class="text-text-muted">Комиссия (0.1%)</span>
+<span class="text-primary font-bold">50 KZT</span>
+</div>
+<div class="h-px bg-border w-full"></div>
+<div class="flex justify-between items-center text-sm px-1">
+<span class="text-text-muted">Итого к оплате</span>
+<span class="text-text-main font-extrabold text-base">50,050 KZT</span>
+</div>
+</section>
+<div class="bg-primary-soft border border-blue-100 p-4 rounded-lg flex gap-3">
+<span class="material-icons-round text-primary text-xl">info</span>
+<p class="text-xs text-text-blue/80 leading-relaxed font-medium">Курс фиксируется на 10 минут после создания заявки. Пожалуйста, завершите оплату в указанное время.</p>
+</div>
+</main>
+<div class="fixed bottom-0 left-0 right-0 p-6 ios-blur border-t border-border">
+<button class="w-full bg-primary hover:bg-primary-dark text-white font-extrabold py-4 rounded-[20px] text-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+            Купить USDT
+            <span class="material-icons-round">arrow_forward</span>
+</button>
+</div>
+<div class="fixed top-[-5%] right-[-5%] w-[250px] h-[250px] bg-primary/5 blur-[80px] rounded-full -z-10"></div>
+<div class="fixed bottom-[15%] left-[-10%] w-[200px] h-[200px] bg-primary/5 blur-[80px] rounded-full -z-10"></div>
+
+</body></html>

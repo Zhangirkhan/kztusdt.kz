@@ -1,0 +1,29 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.cursor/
+
+# Laravel backend (see also backend/.gitignore)
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/vendor/
+backend/node_modules/
+backend/public/build/
+backend/public/hot
+backend/public/storage
+backend/storage/*.key
+backend/bootstrap/cache/*.php
+!backend/bootstrap/cache/.gitignore
+
+# Logs & caches
+*.log
+.phpunit.result.cache
+.phpunit.cache
+
+# Secrets & keys
+*.pem
+*.key
+auth.json
