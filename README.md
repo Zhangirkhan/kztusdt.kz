@@ -1,202 +1,230 @@
-# Crypto Exchange PWA
+# kztusdt.kz — Crypto Exchange PWA
 
-PWA крипто-обменник на Laravel 11 + Vue 3 (Inertia) с дизайном из [Stitch](https://stitch.withgoogle.com/projects/14310390296135004081).
+PWA крипто-обменник **KZT ↔ USDT** на Laravel 13 + Vue 3 (Inertia). Клиенты работают через мобильное приложение, персонал — через веб-админку.
 
-## URL
+**Репозиторий:** https://github.com/Zhangirkhan/kztusdt.kz
 
-- PWA: https://fin10117.ispiria.net/
-- Admin: https://fin10117.ispiria.net/admin
-- Admin login: https://fin10117.ispiria.net/login
+## Возможности
 
-## Учётные записи (seed)
+| Область | Что реализовано |
+|---------|-----------------|
+| **Клиенты** | Вход по телефону (+ OTP через Telegram Gateway), WebAuthn (Face ID / отпечаток), PWA, ru/kk/en |
+| **KYC** | `manual` · `sumsub` · **`aitu`** (вердикт pass/fail из Aitu Passport `id_token`) |
+| **OAuth** | [Aitu Passport](https://passport.aitu.io) — вход, logout webhook, client validation, подпись ИИН |
+| **Сети** | **BEP20** (BSC) и **TRC20** (TRON) — депозиты, sweep, выводы |
+| **Обмен** | Покупка / продажа USDT за KZT с ручным подтверждением оплаты админом |
+| **Кошелёк** | HD-деривация (BIP39/BIP44), двойная запись ledger, hot/gas wallet |
+| **Выводы** | Ручной апрув СБ → безопасная state machine → per-network broadcasters |
+| **Админка** | KYC, ордера, выводы, sweeps, кошельки, подписки и тарифы |
 
-| Роль | Email | Password |
-|------|-------|----------|
-| Суперадмин | admin@exchange.local | ChangeMeNow!2026 |
-| СБ | security@exchange.local | ChangeMeNow!2026 |
+## URL (production)
 
-Клиенты входят через `/auth/phone` + Telegram.
+| Сервис | Адрес |
+|--------|-------|
+| PWA | https://fin10117.ispiria.net/ |
+| Админка | https://fin10117.ispiria.net/admin |
+| Вход staff | https://fin10117.ispiria.net/login |
 
-## Telegram Bot
+## Стек
+
+- **Backend:** PHP 8.3+, Laravel 13, PostgreSQL (или SQLite для dev), Redis (рекомендуется в prod)
+- **Frontend:** Vue 3, Inertia.js, Tailwind CSS, Vite, Service Worker (PWA)
+- **Блокчейн:** BSC (USDT BEP-20), TRON (USDT TRC-20), `simplito/elliptic-php`, offline tx signing
+- **Тесты:** 214 feature/unit тестов (`php artisan test`)
+
+## Быстрый старт
 
 ```bash
-# .env
-TELEGRAM_BOT_TOKEN=your_token_from_botfather
-TELEGRAM_BOT_USERNAME=YourExchangeBot
-APP_URL=https://fin10117.ispiria.net
+git clone https://github.com/Zhangirkhan/kztusdt.kz.git
+cd kztusdt.kz/backend
 
-cd /var/www/crypto-exchange/backend
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate
+php artisan db:seed
+
+npm install
+npm run build
+```
+
+Локальная разработка (сервер + очередь + Vite):
+
+```bash
+composer dev
+```
+
+Подробная документация для разработчиков: [`backend/README.md`](backend/README.md).
+
+## Учётные записи (после seed)
+
+| Роль | Email | Пароль |
+|------|-------|--------|
+| Суперадмин | `admin@exchange.local` | `ChangeMeNow!2026` |
+| Служба безопасности | `security@exchange.local` | `ChangeMeNow!2026` |
+
+Клиенты входят через `/auth/phone`. **Смените пароли staff сразу после деплоя.**
+
+## Архитектура денежного контура
+
+```
+Депозит (BEP20/TRC20)
+  indexer (deposits:scan / deposits:scan-tron)
+    → detected → confirmed → credited (идемпотентно, lockForUpdate)
+
+Sweep (опционально)
+  sweep:run / TRON_SWEEP_ENABLED
+    → gas top-up → token transfer → hot wallet
+
+Обмен KZT ↔ USDT
+  lock / credit через LedgerService (bcmath, decimal:18)
+
+Вывод USDT
+  pending_review → approved → sending → sent → completed
+  (+ needs_reconcile при прерванном broadcast, failed, rejected, cancelled)
+```
+
+**Выводы** обрабатывает `WithdrawalService` (оркестрация) + `EvmWithdrawalBroadcaster` / `TronWithdrawalBroadcaster` (сетевая логика). После claim строки в `sending` повторная авто-отправка **запрещена** — только ручная сверка по блокчейну.
+
+## Сети USDT
+
+| Сеть | Индексатор | Sweep | Контракт USDT |
+|------|------------|-------|---------------|
+| BEP20 | `deposits:scan` | `SWEEP_ENABLED` | `0x55d398326f99059fF775485246999027B3197955` (18 dec) |
+| TRC20 | `deposits:scan-tron` | `TRON_SWEEP_ENABLED` | `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` (6 dec) |
+
+Включение сетей: `WALLET_NETWORKS=BEP20,TRC20` в `.env`.
+
+### RPC и API-ключи
+
+Публичный BSC RPC лимитирует `eth_getLogs`. Для production укажите keyed-провайдера:
+
+```env
+BSC_RPC_URL=https://rpc.ankr.com/bsc/<API_KEY>
+TRON_API_KEY=<TronGrid API key>
+```
+
+Инструкция: [`INSTRUKCIYA-RPC.md`](INSTRUKCIYA-RPC.md).
+
+## KYC-провайдеры
+
+```env
+KYC_PROVIDER=manual   # ручная проверка СБ (по умолчанию)
+KYC_PROVIDER=sumsub   # Sumsub WebSDK + webhook
+KYC_PROVIDER=aitu     # Aitu Passport — вердикт в id_token claims
+```
+
+| Провайдер | Документация |
+|-----------|--------------|
+| Manual / Sumsub | [`INSTRUKCIYA-KYC.md`](INSTRUKCIYA-KYC.md) |
+| Aitu Passport OAuth | [`INSTRUKCIYA-AITU-PASSPORT.md`](INSTRUKCIYA-AITU-PASSPORT.md) |
+| Aitu KYC | [`INSTRUKCIYA-KYC-AITU.md`](INSTRUKCIYA-KYC-AITU.md) |
+
+Для Aitu KYC задайте scope верификации в консоли партнёра, например: `openid phone CONFIDENCE_LEVEL`.
+
+## Ключевые переменные `.env`
+
+Скопируйте `backend/.env.example` → `backend/.env`. Минимум для production:
+
+```env
+APP_URL=https://your-domain.kz
+APP_DEBUG=false
+
+WALLET_MNEMONIC=...          # BIP-39, НИКОГДА не коммитить
+WALLET_NETWORKS=BEP20,TRC20
+
+BSC_RPC_URL=...              # keyed RPC
+TRON_API_KEY=...
+
+SWEEP_ENABLED=false          # включить после пополнения gas wallet
+TRON_SWEEP_ENABLED=false
+WITHDRAWALS_ENABLED=false    # kill-switch выводов
+
+KYC_PROVIDER=aitu
+AITU_CLIENT_ID=...
+AITU_CLIENT_SECRET=...
+AITU_ID_TOKEN_PUBLIC_KEY_PATH=...   # или JWKS URI
+AITU_LOGOUT_WEBHOOK_SECRET=...
+AITU_CLIENT_VALIDATION_SECRET=...
+
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_GATEWAY_TOKEN=...   # OTP-коды входа
+```
+
+## Планировщик (cron)
+
+```cron
+* * * * * cd /path/to/kztusdt.kz/backend && php artisan schedule:run >> /dev/null 2>&1
+```
+
+В расписании (`routes/console.php`):
+
+| Команда | Интервал | Условие |
+|---------|----------|---------|
+| `deposits:scan` | каждую минуту | BEP20 включён |
+| `deposits:scan-tron` | каждую минуту | TRC20 включён |
+| `sweep:run` | каждую минуту | `SWEEP_ENABLED=true` |
+| `withdrawals:process` | каждую минуту | `WITHDRAWALS_ENABLED=true` |
+| `rates:refresh` | каждую минуту | всегда |
+| `subscriptions:expire` | ежечасно | всегда |
+
+Альтернатива для BEP20: long-running `php artisan deposits:watch --interval=15`.
+
+## Artisan-команды
+
+```bash
+php artisan wallet:generate-mnemonic   # новая мнемоника (только dev)
+php artisan wallet:verify              # проверка деривации адресов
+php artisan wallet:system --balances   # hot/gas + on-chain балансы
+php artisan aitu:generate-iin-keys       # RSA для iin_signature
 php artisan telegram:set-webhook
+php artisan deposits:scan                # один проход BEP20
+php artisan deposits:scan-tron           # один проход TRC20
+php artisan sweep:run
+php artisan withdrawals:process
+php artisan rates:refresh
+php artisan test                         # 214 тестов
 ```
 
-## SSL
+## Безопасность (реализовано)
 
-Сейчас: self-signed (браузер покажет предупреждение).
+- Идемпотентное зачисление депозитов (`lockForUpdate` + повторная проверка статуса)
+- Безопасная state machine выводов с `needs_reconcile` (защита от double-send)
+- Атомарный счётчик попыток OTP
+- Валидация Aitu `id_token` (RS256, exp, iss, aud)
+- Fail-closed webhooks Aitu в production без секретов
+- `RateService::quoteForOrder()` — ордера не ценятся по fallback-курсу
+- Структурированное логирование через `AppLog`
+- `.env`, ключи и `vendor/` исключены из git
 
-Когда DNS укажет на сервер:
-```bash
-apt install certbot python3-certbot-nginx
-certbot --nginx -d fin10117.ispiria.net
+## Структура репозитория
+
+```
+kztusdt.kz/
+├── backend/                 # Laravel-приложение (основной код)
+│   ├── app/Services/        # бизнес-логика
+│   │   └── Withdrawals/     # EVM/TRON broadcasters
+│   ├── resources/js/        # Vue / Inertia PWA
+│   ├── tests/               # PHPUnit (214 тестов)
+│   └── .env.example
+├── INSTRUKCIYA-*.md         # инструкции по интеграциям
+├── scripts/                 # вспомогательные скрипты
+└── stitch-design/           # HTML-макеты дизайна
 ```
 
-## Этап 2 — KYC Admin
+## Production checklist
 
-- Клиент: `/kyc` — анкета + загрузка документов (лицевая, обратная, селфи)
-- СБ: `/admin/kyc` — список заявок, одобрение/отклонение
-- Telegram-уведомления при submit/approve/reject
-- Audit logs для всех KYC действий
+- [ ] `APP_DEBUG=false`, HTTPS, корректный `APP_URL`
+- [ ] Redis для сессий и кэша (WebAuthn, курсы)
+- [ ] Keyed BSC RPC + `TRON_API_KEY`
+- [ ] Gas wallet пополнен (BNB / TRX) перед включением sweep
+- [ ] Hot wallet пополнен USDT перед включением выводов
+- [ ] `SWEEP_ENABLED` / `TRON_SWEEP_ENABLED` / `WITHDRAWALS_ENABLED` — осознанно
+- [ ] Секреты Aitu, Telegram, Sumsub заданы
+- [ ] `php artisan config:cache route:cache view:cache`
+- [ ] Cron `schedule:run` + `npm run build` после изменений frontend
+- [ ] Пароли staff изменены, мнемоника только на сервере
 
-## API Auth
+## Лицензия
 
-| Method | Path |
-|--------|------|
-| POST | `/api/auth/phone/start` |
-| GET | `/api/auth/phone/status/{code}` |
-| POST | `/api/auth/telegram/webhook` |
-| POST | `/api/auth/telegram/complete/{code}` |
-
-## Этап 3 — HD-wallet (custodial)
-
-После `kyc_status = approved` job `CreateWalletAfterKycApproved` создаёт детерминированный адрес.
-
-- Деривация: BIP39 seed + BIP32/BIP44, путь `m/44'/60'/0'/0/{index}` (coin type 60 = BSC/ETH)
-- Реализация: `simplito/elliptic-php` (secp256k1) + `kornrunner/keccak` + EIP-55 checksum
-- Корректность проверена эталонным вектором: `php artisan wallet:verify`
-- `wallet_counters` — глобальный индекс с row-lock; `wallet_addresses` — выданные адреса
-- Адрес показывается на `/wallet`, дублируется уведомлением в Telegram
-
-### Безопасность seed
-
-- Master mnemonic — в `.env` (`WALLET_MNEMONIC`), вне VCS, не пишется в логи
-- Сгенерировать новый: `php artisan wallet:generate-mnemonic`
-- Проверить деривацию: `php artisan wallet:verify`
-
-### Queue worker
-
-Job выполняется через systemd-сервис `crypto-queue` (`queue:work`, БД-очередь):
-```bash
-systemctl status crypto-queue
-```
-
-## Этап 4 — BEP20 indexer депозитов
-
-- `BscRpcClient` — JSON-RPC к BSC (`eth_blockNumber`, `eth_getLogs`)
-- `DepositIndexerService` — сканирует `Transfer` события USDT-контракта на адреса пользователей
-- Статусы депозита: `detected` → `confirmed` → `credited`
-- Зачисление через `LedgerService` (двойная запись) при достижении `BSC_CONFIRMATIONS` (12)
-- Таблицы: `deposits`, `ledger_entries`, `balances`, `indexer_states`
-- Баланс и история депозитов на `/wallet` (ссылки на BscScan)
-- Telegram-уведомления: депозит найден / зачислен
-
-### RPC (важно)
-
-Публичный `bsc-dataseed.binance.org` лимитирует `eth_getLogs` (`-32005 limit exceeded`).
-Для рабочего сканирования укажите keyed-провайдера в `.env`:
-```
-BSC_RPC_URL=https://rpc.ankr.com/bsc/<API_KEY>   # или QuickNode / NodeReal
-php artisan config:clear && systemctl restart crypto-indexer
-```
-
-### Сервисы
-
-```bash
-systemctl status crypto-indexer   # deposits:watch (loop, interval 15s)
-systemctl status crypto-queue     # очередь job'ов
-php artisan deposits:scan         # один проход вручную
-```
-
-USDT BEP20 контракт: `0x55d398326f99059fF775485246999027B3197955` (18 decimals).
-
-## Этап 5 — Sweep на hot wallet (gas worker + sweeper)
-
-Собирает подтверждённые депозиты с пользовательских адресов на главный hot wallet.
-
-- Системные кошельки выводятся из той же мнемоники на отдельных BIP44-аккаунтах
-  (не пересекаются с пользовательскими `44'/60'/0'`):
-  - Hot wallet: `44'/60'/1'/0/0`
-  - Gas wallet: `44'/60'/2'/0/0`
-- `EthereumTxService` — офлайн-сборка и подпись legacy/EIP-155 транзакций
-  (`kornrunner/ethereum-offline-raw-tx`: RLP + secp256k1 + keccak), broadcast через `eth_sendRawTransaction`.
-- `SweepService` — конечный автомат:
-  `pending → waiting_gas → gas_sent → sweeping → swept` (`manual_review` / `failed` при проблемах).
-  1. gas worker докидывает BNB на адрес депозита (`SWEEP_GAS_TOPUP_WEI`);
-  2. sweeper отправляет BEP20 `transfer` на hot wallet;
-  3. подтверждение по receipt (`status 0x1`).
-- Таблица `sweeps`, audit-логи `sweep.gas_sent` / `sweep.broadcast` / `sweep.completed` / `sweep.manual_review`.
-- Админка `/admin/sweeps` — мониторинг + кнопка «Повторить» для застрявших.
-- Планировщик `crypto-scheduler` запускает `sweep:run` ежеминутно.
-
-### Безопасность / запуск
-
-Sweeper по умолчанию ВЫКЛЮЧЕН (`SWEEP_ENABLED=false`) — пока флаг false, транзакции не отправляются.
-
-```bash
-php artisan wallet:system            # показать адреса hot/gas
-php artisan wallet:system --balances # + on-chain BNB/USDT (нужен keyed RPC)
-```
-
-Перед включением:
-1. Пополнить **gas wallet** реальным BNB.
-2. Протестировать на BSC testnet (`BSC_CHAIN_ID=97`, testnet RPC/контракт).
-3. Указать keyed RPC (см. Этап 4) — публичный нода лимитирует вызовы.
-4. `SWEEP_ENABLED=true` → `php artisan config:cache` → `systemctl restart crypto-scheduler`.
-
-```bash
-php artisan sweep:run                # один проход вручную
-systemctl status crypto-scheduler    # schedule:work (sweep:run каждую минуту)
-```
-
-## Этап 6 — Покупка USDT за KZT
-
-- Клиент: `/exchange` → «Купить» → сумма KZT (или желаемые USDT) → заявка → реквизиты обменника → загрузка скрина оплаты (приватный storage) → ждёт подтверждения.
-- Админ: `/admin/orders` — просмотр proof-файла (`/admin/orders/{id}/proof`, только авторизованно), «Подтвердить оплату» (зачисление USDT через `LedgerService` с комиссией) или «Отклонить» (с причиной).
-- Таблицы: `exchange_orders` (статусы `created → awaiting_kzt_payment → payment_proof_uploaded → pending_admin_confirmation → completed | cancelled | failed | dispute | manual_review`), `fiat_payment_requests` (направление `user_to_exchange`/`exchange_to_user`, статусы `pending/proof_uploaded/manual_review/confirmed/rejected/cancelled`).
-- Реквизиты обменника: `.env` → `EXCHANGE_BANK_NAME`, `EXCHANGE_BANK_RECIPIENT`, `EXCHANGE_BANK_ACCOUNT`.
-- Audit log + Telegram-уведомления на каждый переход статуса.
-
-## Этап 7 — Продажа USDT за KZT
-
-- Клиент: «Продать» → сумма USDT + свои банковские реквизиты → USDT блокируются (`balances.locked`, двойная запись `user_available → user_locked`).
-- Админ: переводит KZT вручную → в заявке вводит банк/референс/комментарий → «KZT отправлены» → ledger списывает locked USDT (нетто → `external_fiat`, комиссия → `fee_revenue`), статус `completed`.
-- Отмена (клиентом или админом) — разблокировка USDT.
-
-## Этап 8 — Вывод USDT на внешний адрес
-
-- Клиент: `/withdraw` — адрес (валидация EVM + EIP-55 checksum, `EvmAddressValidator`), сумма; показываются комиссия сервиса (feePercent), комиссия сети (`WITHDRAWAL_NETWORK_FEE_USDT`) и итог; итог блокируется на балансе.
-- Telegram-подтверждение: бот шлёт inline-кнопки «Подтвердить»/«Отменить» (`callback_data` вида `wd:c|x:{id}:{token}`, обработка в `TelegramWebhookController::handleCallbackQuery`). Без подтверждения заявка не идёт дальше (TTL 30 мин).
-- Risk-check: сумма > `WITHDRAWAL_AUTO_LIMIT` (500 USDT) → статус `pending_review` + запись в `manual_approvals` → ручной апрув СБ в `/admin/withdrawals`.
-- Отправка: `php artisan withdrawals:process` (планировщик, ежеминутно) — BEP20 `transfer` с hot wallet (`44'/60'/1'/0/0`) через `EthereumTxService`, подтверждение по receipt, settle через ledger.
-- Статусы: `created → awaiting_telegram_confirmation → pending_review|approved → sending → sent → completed` (+ `cancelled/failed/rejected`).
-- **Kill-switch: `WITHDRAWALS_ENABLED=false` (по умолчанию)** — заявки доходят до `approved` и ждут; реальный broadcast только при `true`.
-
-## Живой курс USDT/KZT
-
-- `RateService`: Binance (`/api/v3/ticker/price?symbol=USDTKZT`) + fallback CoinGecko (tether→KZT), кэш `RATE_CACHE_TTL` (120 c), последний удачный курс хранится вечно (при недоступности API показывается со временем обновления и пометкой stale).
-- Наценка обменника: `RATE_MARKUP_BUY` / `RATE_MARKUP_SELL` (в %, по умолчанию 1.0). buy-курс выше базового, sell — ниже.
-- Резерв при полном отсутствии данных: `RATE_FALLBACK`.
-
-## Подписка (комиссия 0.05%)
-
-- Таблица `subscriptions` (`user_id, status, starts_at, expires_at, granted_by`). `User::feePercent()` учитывает активную подписку (и legacy-флаг `has_subscription`).
-- Суперадмин выдаёт/продлевает вручную: `/admin/subscriptions` (поиск клиента, число месяцев). Продление активной подписки добавляет месяцы к текущему сроку.
-- `php artisan subscriptions:expire` (планировщик, ежечасно) переводит просроченные в `expired`. Онлайн-оплаты нет (намеренно).
-
-## KYC-провайдер (manual | Sumsub)
-
-- `KYC_PROVIDER=manual` (по умолчанию) — ручная проверка СБ, как раньше.
-- `KYC_PROVIDER=sumsub` — страница `/kyc` встраивает Sumsub WebSDK; `SumsubService` создаёт applicant (HMAC-подпись запросов), выдаёт access token (`POST /kyc/sumsub/token`), webhook `POST /api/kyc/sumsub/webhook` (подпись `X-Payload-Digest` по `SUMSUB_WEBHOOK_SECRET`) маппит `applicantReviewed` GREEN/RED → `approved`/`rejected` и запускает `CreateWalletAfterKycApproved`.
-- `.env`: `SUMSUB_APP_TOKEN`, `SUMSUB_SECRET_KEY`, `SUMSUB_LEVEL_NAME` (по умолчанию `basic-kyc-level`), `SUMSUB_WEBHOOK_SECRET`. Пока ключи пустые — автоматически работает ручная анкета.
-- Инструкция для владельца: `/var/www/crypto-exchange/INSTRUKCIYA-KYC.md`.
-
-## SaaS-фундамент (этап 10, частично)
-
-- Таблица `tenants` + дефолтный tenant; `tenant_id` у заявок/платежей/выводов.
-- Роль `exchange_admin` видит в `/admin/orders` только заявки своего tenant. Полноценный SaaS (свои курсы/реквизиты/домены) — не реализован.
-
-## Следующие шаги
-
-- Перед включением выводов: пополнить hot wallet (USDT + BNB на газ), включить `WITHDRAWALS_ENABLED=true` → `php artisan config:cache` → `systemctl restart crypto-scheduler`.
-- Вписать реальные банковские реквизиты обменника в `.env`.
-- Полноценный SaaS (этап 10) и онлайн-оплата подписки — не реализованы.
-# kztusdt.kz
-# kztusdt.kz
+MIT (Laravel framework). Проприетарный код проекта — по согласованию с правообладателем.
