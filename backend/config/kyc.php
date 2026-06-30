@@ -8,6 +8,12 @@ return [
     // aitu   — identity verification via Aitu Passport (result delivered in the id_token).
     'provider' => env('KYC_PROVIDER', 'manual'),
 
+    /*
+    | Показывать заявки Sumsub в /admin/kyc. Код Sumsub остаётся в проекте;
+    | включите позже: KYC_ADMIN_SUMSUB_ENABLED=true
+    */
+    'admin_show_sumsub' => (bool) env('KYC_ADMIN_SUMSUB_ENABLED', false),
+
     'sumsub' => [
         'base_url' => env('SUMSUB_BASE_URL', 'https://api.sumsub.com'),
         'app_token' => env('SUMSUB_APP_TOKEN', ''),

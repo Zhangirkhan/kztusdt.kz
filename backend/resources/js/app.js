@@ -9,6 +9,12 @@ import { applyLocale, i18n } from './i18n';
 
 const appName = import.meta.env.VITE_APP_NAME || 'kztusdt.kz';
 
+function applyZiggy(ziggy) {
+    if (ziggy) {
+        globalThis.Ziggy = ziggy;
+    }
+}
+
 createInertiaApp({
     title: (title) => (title.includes(appName) ? title : `${title} - ${appName}`),
     resolve: (name) =>
@@ -18,9 +24,11 @@ createInertiaApp({
         ),
     setup({ el, App, props, plugin }) {
         applyLocale(props.initialPage.props.locale?.current ?? 'ru');
+        applyZiggy(props.initialPage.props.ziggy);
 
         router.on('navigate', (event) => {
             applyLocale(event.detail.page.props.locale?.current ?? 'ru');
+            applyZiggy(event.detail.page.props.ziggy);
         });
 
         return createApp({ render: () => h(App, props) })

@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Services\AuditLogService;
 use App\Services\PhoneAuthService;
-use App\Services\TelegramGatewayService;
+use App\Services\WhatsAppOtpService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +29,7 @@ final class PhoneNormalizationTest extends TestCase
     #[DataProvider('phones')]
     public function test_normalizes_phone(string $input, string $expected): void
     {
-        $service = new PhoneAuthService(new AuditLogService, new TelegramGatewayService);
+        $service = new PhoneAuthService(new AuditLogService, new WhatsAppOtpService);
 
         $this->assertSame($expected, $service->normalizePhone($input));
     }

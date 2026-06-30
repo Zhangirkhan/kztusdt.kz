@@ -15,7 +15,7 @@ final class VerifyPhoneAuthRequest extends FormRequest
 
     public function rules(): array
     {
-        $length = (int) config('telegram.gateway.code_length', 6);
+        $length = (int) config('otp.code_length', 6);
 
         return [
             'code' => ['required', 'string', 'regex:/^\d{4,8}$/', 'size:'.$length],

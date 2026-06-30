@@ -17,7 +17,7 @@
 
                         // Remove the legacy Workbox precache SW that caused stale
                         // assets, but keep the push SW served at /sw.js.
-                        if (url.indexOf('/build/') !== -1 || url.indexOf('workbox') !== -1) {
+                        if (url.indexOf('/build/') !== -1 || url.indexOf('workbox') !== -1 || url.endsWith('/build/sw.js')) {
                             registration.unregister();
                         }
                     });

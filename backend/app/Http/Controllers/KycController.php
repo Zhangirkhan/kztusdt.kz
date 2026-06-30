@@ -45,7 +45,10 @@ final class KycController extends Controller
             'rejectionReason' => $profile?->rejection_reason,
             'provider' => $provider,
             // Re-run the Aitu authorization to (re)deliver the verification verdict.
-            'aituVerifyUrl' => $provider === 'aitu' ? route('auth.aitu.redirect') : null,
+            'aituVerifyUrl' => $provider === 'aitu'
+                ? route('auth.aitu.redirect', ['intent' => 'kyc'])
+                : null,
+            'aituKycScopeConfigured' => $provider === 'aitu' && $this->aituPassport->kycScopeConfigured(),
         ]);
     }
 

@@ -57,6 +57,7 @@ export default defineConfig({
             workbox: {
                 globIgnores: ['**/Admin/**', '**/Welcome*', '**/Login*', '**/Register*', '**/ForgotPassword*'],
                 maximumFileSizeToCacheInBytes: 512 * 1024,
+                navigateFallback: null,
             },
         }),
     ],

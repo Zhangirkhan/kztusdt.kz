@@ -6,7 +6,7 @@ import {
     webAuthnRegister,
     webAuthnSign,
 } from '@/utils/webAuthnClient';
-import { parseNationalDigits } from '@/utils/phoneMask';
+import { extractKzDigits } from '@/utils/phoneMask';
 
 function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
@@ -47,9 +47,9 @@ async function postJson(url, body = {}) {
 }
 
 export function normalizePhoneForApi(maskedPhone) {
-    const digits = parseNationalDigits(maskedPhone);
+    const digits = extractKzDigits(maskedPhone);
 
-    if (digits.length !== 11 || ! digits.startsWith('7')) {
+    if (digits.length !== 11) {
         return null;
     }
 
@@ -70,7 +70,7 @@ export function useBiometricAuth() {
     }
 
     async function checkAvailability(phone) {
-        const normalized = normalizePhoneForApi(phone) ?? phone;
+        const normalized = normalizePhoneForApi(phone);
 
         if (! normalized) {
             return false;
@@ -86,7 +86,7 @@ export function useBiometricAuth() {
         error.value = null;
 
         try {
-            const normalized = normalizePhoneForApi(phone) ?? phone;
+            const normalized = normalizePhoneForApi(phone);
 
             if (! normalized) {
                 throw new Error('Введите корректный номер телефона.');
@@ -97,7 +97,7 @@ export function useBiometricAuth() {
             const result = await postJson('/webauthn/auth', {
                 ...credential,
                 phone: normalized,
-                remember: true,
+                remember: 'on',
             });
 
             savePhone(normalized);

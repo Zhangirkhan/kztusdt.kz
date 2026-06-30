@@ -88,13 +88,21 @@ trait ExchangeTestHelpers
             'api.coingecko.com/*' => Http::response(['tether' => ['kzt' => $binancePrice]]),
             'api.telegram.org/*' => Http::response(['ok' => true, 'result' => true]),
             'gatewayapi.telegram.org/*' => Http::response(['ok' => true, 'result' => ['request_id' => 'req_'.uniqid()]]),
+            '*/api/otp/send' => Http::response(['success' => true, 'expires_in' => 300]),
+            '*/api/otp/verify' => Http::response(['success' => true]),
         ]);
     }
 
-    protected function enableTelegram(): void
+    protected function enableOtp(): void
     {
         config([
-            'telegram.gateway.token' => 'test-gateway-token',
+            'otp.token' => 'test-otp-token',
         ]);
+    }
+
+    /** @deprecated use enableOtp() */
+    protected function enableTelegram(): void
+    {
+        $this->enableOtp();
     }
 }

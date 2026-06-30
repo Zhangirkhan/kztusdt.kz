@@ -8,10 +8,10 @@ import {
     isKzPhoneComplete,
     MIN_PHONE,
     parseNationalDigits,
-    updatePhoneMask,
 } from '@/utils/phoneMask';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { usePhoneMaskInput } from '@/composables/usePhoneMaskInput';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, toRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -38,39 +38,10 @@ const form = useForm({
     phone: initialPhone(),
 });
 
-const phoneInput = ref(null);
+const { phoneInput, onPhoneInput, onPhoneKeydown } = usePhoneMaskInput(toRef(form, 'phone'));
+
 const phoneError = computed(() => getKzPhoneError(form.phone, t));
 const canSubmit = computed(() => isKzPhoneComplete(form.phone) && form.name.trim() !== '' && !form.processing);
-
-function syncInput() {
-    if (phoneInput.value) {
-        phoneInput.value.value = form.phone;
-    }
-}
-
-function onPhoneInput(event) {
-    form.phone = updatePhoneMask(form.phone, event.target.value);
-    syncInput();
-}
-
-function onPhoneKeydown(event) {
-    if (event.key !== 'Backspace' && event.key !== 'Delete') {
-        return;
-    }
-
-    const input = event.target;
-    const { selectionStart, selectionEnd, value } = input;
-
-    if (selectionStart === null || selectionEnd === null || selectionStart !== selectionEnd) {
-        return;
-    }
-
-    if (event.key === 'Backspace' && selectionStart > 0 && /\D/.test(value[selectionStart - 1])) {
-        event.preventDefault();
-        form.phone = updatePhoneMask(form.phone, value.slice(0, selectionStart - 1) + value.slice(selectionStart));
-        syncInput();
-    }
-}
 
 function submit() {
     form.patch(route('profile.update'), { preserveScroll: true });
@@ -91,6 +62,14 @@ function formatDate(value) {
 }
 
 const kycLabel = computed(() => t(`profile.kyc.${props.profile.kyc_status}`, props.profile.kyc_status));
+
+function logout() {
+    if (! window.confirm(t('profile.logoutConfirm'))) {
+        return;
+    }
+
+    router.post(route('logout'));
+}
 </script>
 
 <template>
@@ -268,17 +247,13 @@ const kycLabel = computed(() => t(`profile.kyc.${props.profile.kyc_status}`, pro
         </section>
 
         <section class="mt-stack-element card">
-            <Link href="/auth/phone" class="btn-secondary mb-3 block text-center no-underline">
-                {{ t('profile.confirmPhoneTelegram') }}
-            </Link>
-            <Link
-                :href="route('logout')"
-                method="post"
-                as="button"
-                class="btn-secondary block w-full text-center text-red-400 no-underline"
+            <button
+                type="button"
+                class="btn-secondary block w-full text-center text-red-400"
+                @click="logout"
             >
                 {{ t('profile.logout') }}
-            </Link>
+            </button>
         </section>
     </ExchangeLayout>
 </template>

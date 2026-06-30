@@ -9,6 +9,7 @@ use App\Models\Withdrawal;
 use App\Services\LedgerService;
 use App\Services\WithdrawalService;
 use App\Support\NetworkRegistry;
+use App\Support\WalletAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,11 +23,13 @@ final class WithdrawalController extends Controller
         private readonly LedgerService $ledgerService,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
 
-        abort_unless($user->canUseWallet(), 403);
+        if ($deny = WalletAccess::denyResponse($user)) {
+            return $deny;
+        }
 
         $asset = (string) config('wallet.asset');
 

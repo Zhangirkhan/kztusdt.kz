@@ -133,6 +133,60 @@ final class KycReviewTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_admin_can_reset_approved_kyc_so_user_can_retry(): void
+    {
+        $officer = $this->createStaff('security_officer');
+        $profile = $this->makePendingProfile('approved');
+        $profile->user->update(['kyc_status' => 'approved']);
+
+        $this->actingAs($officer)
+            ->post("/admin/kyc/{$profile->id}/reset", ['comment' => 'Повторная верификация'])
+            ->assertRedirect(route('admin.kyc.show', $profile));
+
+        $profile->refresh();
+        $this->assertSame('draft', $profile->status);
+        $this->assertSame('none', $profile->user->kyc_status);
+        $this->assertNull($profile->rejection_reason);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'kyc.reset',
+            'user_id' => $officer->id,
+        ]);
+    }
+
+    public function test_cannot_reset_draft_profile(): void
+    {
+        $officer = $this->createStaff('security_officer');
+        $profile = $this->makePendingProfile('draft');
+        $profile->user->update(['kyc_status' => 'none']);
+
+        $this->actingAs($officer)
+            ->post("/admin/kyc/{$profile->id}/reset")
+            ->assertStatus(422);
+    }
+
+    public function test_sumsub_profiles_are_hidden_from_admin_when_disabled(): void
+    {
+        config(['kyc.admin_show_sumsub' => false]);
+
+        $officer = $this->createStaff('security_officer');
+        $manual = $this->makePendingProfile();
+        $sumsub = $this->makePendingProfile();
+        $sumsub->update(['provider' => 'sumsub', 'sumsub_applicant_id' => 'applicant-1']);
+
+        $this->actingAs($officer)
+            ->get('/admin/kyc?status=all')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('sumsubAdminEnabled', false)
+                ->has('profiles.data', 1)
+                ->where('profiles.data.0.id', $manual->id));
+
+        $this->actingAs($officer)
+            ->get("/admin/kyc/{$sumsub->id}")
+            ->assertNotFound();
+    }
+
     public function test_wallet_job_is_noop_when_kyc_not_approved(): void
     {
         $user = $this->createUnverifiedClient();

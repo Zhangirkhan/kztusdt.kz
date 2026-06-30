@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Actions\Webauthn\LoginUserRetrieval as AppLoginUserRetrieval;
 use App\Listeners\LogAuthenticationEvents;
 use App\Services\Withdrawals\EvmWithdrawalBroadcaster;
 use App\Services\Withdrawals\TronWithdrawalBroadcaster;
@@ -12,6 +13,7 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use LaravelWebauthn\Actions\LoginUserRetrieval;
 use LaravelWebauthn\Listeners\LoginViaRemember;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(LoginUserRetrieval::class, AppLoginUserRetrieval::class);
+
         $this->app->singleton(WithdrawalBroadcasterRegistry::class, function ($app): WithdrawalBroadcasterRegistry {
             $evm = $app->make(EvmWithdrawalBroadcaster::class);
             $tron = $app->make(TronWithdrawalBroadcaster::class);

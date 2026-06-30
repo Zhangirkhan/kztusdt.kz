@@ -10,6 +10,7 @@ use App\Support\LocaleManager;
 use App\Support\SeoPresenter;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Tighten\Ziggy\Ziggy;
 
 final class HandleInertiaRequests extends Middleware
 {
@@ -39,6 +40,7 @@ final class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'phone_verified' => (bool) $user->phone_verified,
                     'kyc_status' => (string) $user->kyc_status,
+                    'can_use_wallet' => $user->canUseWallet(),
                 ] : null,
                 'isStaff' => AdminNavPresenter::canAccessAdmin($user),
                 'canAccessPwa' => AdminNavPresenter::canAccessPwa($user),
@@ -56,6 +58,7 @@ final class HandleInertiaRequests extends Middleware
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
             ],
+            'ziggy' => fn () => (new Ziggy(AdminNavPresenter::ziggyGroup($user)))->toArray(),
         ];
     }
 }

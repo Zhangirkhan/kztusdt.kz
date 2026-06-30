@@ -8,6 +8,8 @@ import { computed } from 'vue';
 const page = usePage();
 const current = computed(() => page.url);
 const companyName = computed(() => page.props.company?.name ?? 'Crypto Exchange');
+const canUseWallet = computed(() => page.props.auth?.user?.can_use_wallet ?? false);
+const walletHref = computed(() => (canUseWallet.value ? '/wallet' : '/kyc'));
 </script>
 
 <template>
@@ -53,7 +55,7 @@ const companyName = computed(() => page.props.company?.name ?? 'Crypto Exchange'
                     Обмен
                 </Link>
                 <Link
-                    href="/wallet"
+                    :href="walletHref"
                     class="nav-item"
                     :class="current.startsWith('/wallet') ? 'text-accent' : 'text-text-dim'"
                 >

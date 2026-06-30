@@ -17,17 +17,32 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Environment
+    |--------------------------------------------------------------------------
+    |
+    | test       → https://passport.test.supreme-team.tech
+    | production → https://passport.aitu.io
+    |
+    | client_id из тестовой консоли (clients.passport.test.supreme-team.tech)
+    | не работает на прод-хосте — будет ошибка client_id_is_not_valid.
+    */
+    'environment' => env('AITU_ENV', 'production'),
+
     'client_id' => env('AITU_CLIENT_ID', ''),
 
     'client_secret' => env('AITU_CLIENT_SECRET', ''),
 
-    // Базовый хост Aitu Passport (без завершающего слэша).
-    'base_url' => rtrim((string) env('AITU_BASE_URL', 'https://passport.aitu.io'), '/'),
+    'base_url' => rtrim((string) env('AITU_BASE_URL', match (env('AITU_ENV', 'production')) {
+        'test' => 'https://passport.test.supreme-team.tech',
+        default => 'https://passport.aitu.io',
+    }), '/'),
 
-    // Пути эндпоинтов относительно base_url (можно переопределить в .env).
+    // Пути эндпоинтов относительно base_url (см. https://docs.passport.aitu.io/).
     'endpoints' => [
         'authorize' => env('AITU_AUTHORIZE_PATH', '/oauth2/auth'),
-        'token' => env('AITU_TOKEN_PATH', '/api/v1/oauth/token'),
+        'token' => env('AITU_TOKEN_PATH', '/oauth2/token'),
         'logout' => env('AITU_LOGOUT_PATH', '/sessions/logout'),
     ],
 
@@ -37,6 +52,12 @@ return [
      | по подписке через проектного менеджера Aitu Passport.
      */
     'scope' => env('AITU_SCOPE', 'openid phone'),
+
+    /*
+     | Дополнительные scope только для KYC (intent=kyc). Подключаются у менеджера Aitu.
+     | Пока не выданы — оставьте пустым, иначе Aitu сразу вернёт request_contains_invalid_scopes.
+     */
+    'kyc_scope' => env('AITU_KYC_SCOPE', ''),
 
     'locale' => env('AITU_LOCALE', 'ru'),
 
@@ -58,6 +79,8 @@ return [
      |
      | public_key / public_key_path — PEM открытого ключа Aitu (если выдан напрямую).
      | jwks_uri                      — JWKS-эндпоинт; ключ выбирается по `kid`.
+     |                               Пусто = {base_url}/oauth2/jwks (см. docs.passport.aitu.io).
+     | auto_jwks_uri                 — подставлять JWKS из base_url, если jwks_uri не задан.
      | issuer                        — ожидаемый iss (пусто = не проверять).
      | verify_audience               — проверять, что aud содержит client_id.
      | leeway                        — допустимый сдвиг часов в секундах.
@@ -67,6 +90,7 @@ return [
         'public_key' => env('AITU_ID_TOKEN_PUBLIC_KEY'),
         'public_key_path' => env('AITU_ID_TOKEN_PUBLIC_KEY_PATH'),
         'jwks_uri' => env('AITU_JWKS_URI'),
+        'auto_jwks_uri' => (bool) env('AITU_AUTO_JWKS_URI', true),
         'issuer' => env('AITU_ID_TOKEN_ISSUER'),
         'verify_audience' => (bool) env('AITU_ID_TOKEN_VERIFY_AUD', false),
         'leeway' => (int) env('AITU_ID_TOKEN_LEEWAY', 60),
@@ -77,14 +101,20 @@ return [
      | Подпись ИИН (oauth-параметр iin_signature).
      | Публичная часть RSA-ключа указывается в консоли Aitu Passport, приватная —
      | хранится только на сервере. Бэкенд подписывает ИИН алгоритмом SHA256withRSA
-     | и передаёт подпись в формате base64url. Это запрещает пользователю менять
-     | переданный ИИН на стороне Aitu Passport.
+     | и передаёт подпись в формате base64 (стандартный) или base64url.
+     | Тестовый контур Aitu ожидает стандартный base64 — base64url даёт
+     | «illegal base64 character 2d» (символ «-»).
+     |
+     | signing_enabled — включать только после загрузки публичного ключа в консоль Aitu.
+     | signature_encoding — base64 (по умолчанию) или base64url.
      |
      | Сгенерировать пару: php artisan aitu:generate-iin-keys
      | Приватный ключ задаётся либо инлайн (PEM с экранированными \n), либо путём
      | к файлу. Оставьте пустым, если защита ИИН не используется.
      */
     'iin' => [
+        'signing_enabled' => (bool) env('AITU_IIN_SIGNING_ENABLED', false),
+        'signature_encoding' => env('AITU_IIN_SIGNATURE_ENCODING', 'base64'),
         'private_key' => env('AITU_IIN_PRIVATE_KEY'),
         'private_key_path' => env('AITU_IIN_PRIVATE_KEY_PATH'),
     ],

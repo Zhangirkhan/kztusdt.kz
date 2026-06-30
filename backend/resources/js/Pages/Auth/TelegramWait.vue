@@ -78,6 +78,7 @@ async function submitCode() {
     try {
         const response = await fetch(`/api/auth/phone/verify/${props.loginCode}`, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
@@ -143,14 +144,13 @@ async function resendCode() {
     errorMessage.value = '';
 
     try {
-        const response = await fetch('/api/auth/phone/start', {
+        const response = await fetch(`/api/auth/phone/resend/${props.loginCode}`, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
-                'Content-Type': 'application/json',
                 Accept: 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
             },
-            body: JSON.stringify({ phone: props.phone }),
         });
 
         const result = await response.json();
@@ -234,13 +234,13 @@ onUnmounted(() => {
 
 <template>
     <SeoHead />
-    <Head :title="step === 'kyc' ? 'Верификация документов' : step === 'biometric' ? 'Быстрый вход' : 'Код из Telegram'" />
+    <Head :title="step === 'kyc' ? 'Верификация документов' : step === 'biometric' ? 'Быстрый вход' : t('auth.verify.heading')" />
 
     <div class="mx-auto flex min-h-screen w-full max-w-container-max flex-col bg-background px-margin-page pb-8">
         <div class="flex flex-1 flex-col justify-center py-stack-section">
             <div v-if="step !== 'biometric'" class="mb-stack-element">
                 <div class="mb-6 flex items-center justify-center gap-3 text-xs font-semibold uppercase tracking-wide">
-                    <span :class="step === 'telegram' ? 'text-accent' : 'text-text-dim'">1. Telegram</span>
+                    <span :class="step === 'telegram' ? 'text-accent' : 'text-text-dim'">{{ t('auth.verify.stepLabel') }}</span>
                     <span class="text-text-dim">→</span>
                     <span :class="step === 'kyc' ? 'text-accent' : 'text-text-dim'">2. Документ + видео</span>
                 </div>

@@ -6,6 +6,7 @@ defineProps({
     profiles: Object,
     filterStatus: String,
     stats: Object,
+    sumsubAdminEnabled: { type: Boolean, default: false },
 });
 
 function setFilter(status) {
@@ -50,7 +51,7 @@ function setFilter(status) {
                         </p>
                         <p class="mt-1 text-body-sm text-text-muted">
                             {{ profile.user?.phone ?? '—' }}
-                            <span v-if="profile.provider === 'sumsub'"> · Sumsub</span>
+                            <span v-if="sumsubAdminEnabled && profile.provider === 'sumsub'"> · Sumsub</span>
                             <span v-else-if="profile.document_type || profile.document_number">
                                 · {{ profile.document_type }} · {{ profile.document_number }}
                             </span>

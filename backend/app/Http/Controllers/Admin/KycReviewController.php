@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RejectKycRequest;
+use App\Http\Requests\ResetKycRequest;
 use App\Models\KycProfile;
 use App\Services\KycService;
 use App\Support\KycReviewPresenter;
@@ -31,26 +32,37 @@ final class KycReviewController extends Controller
 
         $profiles = KycProfile::query()
             ->with(['user:id,name,phone,kyc_status', 'documents'])
+            ->when(! $this->sumsubAdminEnabled(), fn ($q) => $q->where(fn ($q) => $q->whereNull('provider')->orWhere('provider', '!=', 'sumsub')))
             ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->latest('submitted_at')
             ->paginate(20)
             ->withQueryString();
 
+        $statsQuery = fn () => KycProfile::query()
+            ->when(! $this->sumsubAdminEnabled(), fn ($q) => $q->where(fn ($q) => $q->whereNull('provider')->orWhere('provider', '!=', 'sumsub')));
+
         return Inertia::render('Admin/Kyc/Index', [
             'profiles' => $profiles,
             'filterStatus' => $status,
+            'sumsubAdminEnabled' => $this->sumsubAdminEnabled(),
             'stats' => [
-                'pending' => KycProfile::query()->where('status', 'pending_review')->count(),
-                'approved' => KycProfile::query()->where('status', 'approved')->count(),
-                'rejected' => KycProfile::query()->where('status', 'rejected')->count(),
+                'pending' => $statsQuery()->where('status', 'pending_review')->count(),
+                'approved' => $statsQuery()->where('status', 'approved')->count(),
+                'rejected' => $statsQuery()->where('status', 'rejected')->count(),
             ],
         ]);
     }
 
     public function show(KycProfile $kycProfile): Response
     {
+        abort_if(
+            ! $this->sumsubAdminEnabled() && ($kycProfile->provider ?? 'manual') === 'sumsub',
+            404,
+        );
+
         return Inertia::render('Admin/Kyc/Show', [
             'profile' => $this->kycReviewPresenter->showPayload($kycProfile),
+            'sumsubAdminEnabled' => $this->sumsubAdminEnabled(),
         ]);
     }
 
@@ -80,6 +92,19 @@ final class KycReviewController extends Controller
         return redirect()->route('admin.kyc.show', $kycProfile)->with('success', 'KYC отклонён.');
     }
 
+    public function reset(KycProfile $kycProfile, ResetKycRequest $request): RedirectResponse
+    {
+        abort_unless(in_array($kycProfile->status, ['approved', 'rejected', 'pending_review'], true), 422);
+
+        $this->kycService->reset(
+            $kycProfile,
+            $request->user(),
+            $request->validated('comment'),
+        );
+
+        return redirect()->route('admin.kyc.show', $kycProfile)->with('success', 'Верификация сброшена. Клиент может пройти KYC заново.');
+    }
+
     public function document(KycProfile $kycProfile, string $type): StreamedResponse
     {
         abort_unless(in_array($type, self::DOCUMENT_TYPES, true), 404);
@@ -93,5 +118,10 @@ final class KycReviewController extends Controller
             $document->original_name,
             ['Content-Disposition' => 'inline'],
         );
+    }
+
+    private function sumsubAdminEnabled(): bool
+    {
+        return (bool) config('kyc.admin_show_sumsub', false);
     }
 }

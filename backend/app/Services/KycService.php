@@ -178,4 +178,48 @@ final class KycService
             );
         });
     }
+
+    /**
+     * Allow the client to pass KYC verification again (manual, Aitu, etc.).
+     * Does not remove an existing wallet or ledger balances.
+     */
+    public function reset(KycProfile $profile, User $reviewer, ?string $comment = null): void
+    {
+        DB::transaction(function () use ($profile, $reviewer, $comment): void {
+            $profile->update([
+                'status' => 'draft',
+                'rejection_reason' => null,
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+                'submitted_at' => null,
+            ]);
+
+            $profile->user->update(['kyc_status' => 'none']);
+
+            ManualApproval::query()
+                ->where('entity_type', 'kyc_profile')
+                ->where('entity_id', $profile->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'rejected',
+                    'rejected_by' => $reviewer->id,
+                    'rejected_at' => now(),
+                    'comment' => $comment ?: 'Верификация сброшена администратором',
+                ]);
+
+            $this->auditLogService->log(
+                action: 'kyc.reset',
+                userId: $reviewer->id,
+                entityType: 'kyc_profile',
+                entityId: $profile->id,
+                payload: ['comment' => $comment],
+                request: request(),
+            );
+
+            $this->notifier->notifyUser(
+                $profile->user,
+                "🔄 Верификация KYC сброшена.\n\nПройдите проверку заново на странице /kyc.",
+            );
+        });
+    }
 }

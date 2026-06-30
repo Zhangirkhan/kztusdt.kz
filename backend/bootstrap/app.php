@@ -20,8 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
             return route('auth.phone');
         });
 
-        $middleware->trustProxies(at: ['127.0.0.1', '::1']);
+        $middleware->trustProxies(at: '*');
         $middleware->web(prepend: [
+            \App\Http\Middleware\ResetZiggyRouteGenerator::class,
             \App\Http\Middleware\AttachRequestLogContext::class,
             \App\Http\Middleware\SetLocale::class,
         ]);
@@ -34,6 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'api/auth/telegram/webhook',
+            'api/auth/phone/start',
+            'api/auth/phone/resend/*',
+            'api/auth/phone/verify/*',
+            'api/auth/biometric/check',
             'api/kyc/sumsub/webhook',
             'api/auth/aitu/logout',
             'api/auth/aitu/validate',

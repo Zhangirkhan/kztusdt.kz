@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\AuthSession;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -15,20 +14,19 @@ final class PhoneAuthService
 {
     public function __construct(
         private readonly AuditLogService $auditLogService,
-        private readonly TelegramGatewayService $telegramGateway,
+        private readonly WhatsAppOtpService $whatsappOtp,
     ) {}
 
     /**
-     * Begin phone login: generate an OTP and deliver it to the user's Telegram
-     * account through the Telegram Gateway API.
+     * Begin phone login: request an OTP via WhatsApp (otp.kztusdt.kz).
      */
     public function start(string $phone, ?string $iin = null, ?string $ip = null): AuthSession
     {
         $normalizedPhone = $this->normalizePhone($phone);
         $normalizedIin = $iin !== null ? $this->normalizeIin($iin) : null;
 
-        if (! $this->telegramGateway->isConfigured()) {
-            throw new RuntimeException('Авторизация через Telegram временно недоступна.');
+        if (! $this->whatsappOtp->isConfigured()) {
+            throw new RuntimeException('Авторизация по номеру телефона временно недоступна.');
         }
 
         $recentAttempts = AuthSession::query()
@@ -46,23 +44,17 @@ final class PhoneAuthService
             ->update(['status' => 'expired']);
 
         $loginCode = Str::upper(Str::random(32));
-        $code = $this->generateNumericCode((int) config('telegram.gateway.code_length'));
-
-        $requestId = $this->telegramGateway->sendVerificationMessage(
-            $normalizedPhone,
-            $code,
-            payload: $loginCode,
-        );
+        $expiresIn = $this->whatsappOtp->send($normalizedPhone);
 
         $session = AuthSession::query()->create([
             'phone' => $normalizedPhone,
             'iin' => $normalizedIin,
             'login_code' => $loginCode,
-            'code_hash' => Hash::make($code),
-            'gateway_request_id' => $requestId,
+            'code_hash' => null,
+            'gateway_request_id' => null,
             'code_attempts' => 0,
             'status' => 'pending',
-            'expires_at' => now()->addSeconds((int) config('telegram.gateway.code_ttl_seconds')),
+            'expires_at' => now()->addSeconds($expiresIn),
         ]);
 
         $this->auditLogService->log(
@@ -72,6 +64,26 @@ final class PhoneAuthService
         );
 
         return $session;
+    }
+
+    public function resend(string $loginCode): AuthSession
+    {
+        $session = $this->findActiveSession($loginCode);
+        $expiresIn = $this->whatsappOtp->send($session->phone);
+
+        $session->update([
+            'expires_at' => now()->addSeconds($expiresIn),
+            'code_attempts' => 0,
+            'status' => 'pending',
+        ]);
+
+        $this->auditLogService->log(
+            action: 'auth.phone.resend',
+            payload: ['phone' => $session->phone],
+            request: request(),
+        );
+
+        return $session->fresh();
     }
 
     public function getStatus(string $loginCode): ?AuthSession
@@ -91,15 +103,10 @@ final class PhoneAuthService
 
     /**
      * Verify the OTP entered by the user and log them in.
-     *
-     * Failure-path writes (attempt counters, expiry, lockout) are committed
-     * immediately and must not be wrapped in the success transaction, otherwise
-     * a thrown exception would roll back the very counters we rely on.
      */
     public function verifyCode(string $loginCode, string $code): User
     {
-        $maxAttempts = (int) config('telegram.gateway.max_attempts');
-
+        $maxAttempts = (int) config('otp.max_attempts');
         $session = $this->findActiveSession($loginCode);
 
         if ($session->code_attempts >= $maxAttempts) {
@@ -108,9 +115,9 @@ final class PhoneAuthService
             throw new RuntimeException('Превышено число попыток. Запросите новый код.');
         }
 
-        if ($session->code_hash === null || ! Hash::check($code, $session->code_hash)) {
-            // Atomic DB-level increment so two concurrent wrong guesses can't both
-            // read the same counter and lose an attempt (weakening the lockout).
+        try {
+            $this->whatsappOtp->verify($session->phone, $code);
+        } catch (RuntimeException $exception) {
             $session->increment('code_attempts');
             $session->refresh();
             $attempts = (int) $session->code_attempts;
@@ -125,7 +132,7 @@ final class PhoneAuthService
                 request: request(),
             );
 
-            throw new RuntimeException('Неверный код. Попробуйте ещё раз.');
+            throw $exception;
         }
 
         $user = DB::transaction(function () use ($session): User {
@@ -140,7 +147,7 @@ final class PhoneAuthService
             if ($user === null) {
                 $user = User::query()->create([
                     'name' => 'User '.$locked->phone,
-                    'email' => 'tg_'.Str::lower(Str::random(16)).'@exchange.local',
+                    'email' => 'wa_'.Str::lower(Str::random(16)).'@exchange.local',
                     'password' => bcrypt(Str::random(32)),
                     'phone' => $locked->phone,
                     'iin' => $locked->iin,
@@ -154,8 +161,6 @@ final class PhoneAuthService
                     'phone_verified_at' => now(),
                 ];
 
-                // Backfill the IIN for returning users who registered before we
-                // started collecting it; never overwrite an existing value.
                 if ($locked->iin !== null && $user->iin === null) {
                     $attributes['iin'] = $locked->iin;
                 }
@@ -182,10 +187,6 @@ final class PhoneAuthService
             request: request(),
         );
 
-        if ($session->gateway_request_id !== null) {
-            $this->telegramGateway->reportVerificationStatus($session->gateway_request_id, $code);
-        }
-
         return $user;
     }
 
@@ -205,23 +206,8 @@ final class PhoneAuthService
         return preg_replace('/\D+/', '', $iin) ?? '';
     }
 
-    private function generateNumericCode(int $length): string
-    {
-        $length = max(4, min(8, $length));
-
-        $code = '';
-
-        for ($i = 0; $i < $length; $i++) {
-            $code .= (string) random_int(0, 9);
-        }
-
-        return $code;
-    }
-
     private function findActiveSession(string $loginCode): AuthSession
     {
-        // Read-only pre-checks; the authoritative claim (lock + isVerified recheck)
-        // happens inside the success transaction in verifyCode().
         $session = AuthSession::query()->where('login_code', $loginCode)->first();
 
         if ($session === null) {

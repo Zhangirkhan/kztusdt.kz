@@ -5,14 +5,19 @@ import { computed, ref } from 'vue';
 
 const props = defineProps({
     profile: Object,
+    sumsubAdminEnabled: { type: Boolean, default: false },
 });
 
 const rejectForm = useForm({ reason: '' });
 const approveForm = useForm({ comment: '' });
+const resetForm = useForm({ comment: '' });
 const showReject = ref(false);
+const showReset = ref(false);
+
+const canReset = computed(() => ['approved', 'rejected', 'pending_review'].includes(props.profile.status));
 
 const displayName = computed(() => {
-    const sumsub = props.profile.sumsub;
+    const sumsub = props.sumsubAdminEnabled ? props.profile.sumsub : null;
     if (sumsub?.first_name || sumsub?.last_name) {
         return [sumsub.first_name, sumsub.middle_name, sumsub.last_name].filter(Boolean).join(' ');
     }
@@ -21,7 +26,7 @@ const displayName = computed(() => {
 });
 
 const documentLine = computed(() => {
-    const sumsub = props.profile.sumsub;
+    const sumsub = props.sumsubAdminEnabled ? props.profile.sumsub : null;
     const type = props.profile.document_type ?? sumsub?.document_type;
     const number = props.profile.document_number ?? sumsub?.document_number;
 
@@ -40,6 +45,18 @@ function reject() {
     rejectForm.post(`/admin/kyc/${props.profile.id}/reject`, {
         onSuccess: () => {
             showReject.value = false;
+        },
+    });
+}
+
+function resetVerification() {
+    if (!window.confirm('Сбросить верификацию? Клиент сможет пройти KYC заново. Кошелёк и баланс не удаляются.')) {
+        return;
+    }
+
+    resetForm.post(`/admin/kyc/${props.profile.id}/reset`, {
+        onSuccess: () => {
+            showReset.value = false;
         },
     });
 }
@@ -83,10 +100,10 @@ function formatDate(value) {
                 <div>
                     <p class="text-label-caps uppercase text-text-dim">Документ</p>
                     <p class="mt-2">{{ documentLine }}</p>
-                    <p v-if="profile.sumsub?.dob" class="mt-1 text-sm text-text-muted">
+                    <p v-if="sumsubAdminEnabled && profile.sumsub?.dob" class="mt-1 text-sm text-text-muted">
                         Дата рождения: {{ profile.sumsub.dob }}
                     </p>
-                    <p v-if="profile.sumsub?.country" class="mt-1 text-sm text-text-muted">
+                    <p v-if="sumsubAdminEnabled && profile.sumsub?.country" class="mt-1 text-sm text-text-muted">
                         Страна: {{ profile.sumsub.country }}
                     </p>
                 </div>
@@ -102,7 +119,7 @@ function formatDate(value) {
                 </div>
             </section>
 
-            <section v-if="profile.provider === 'sumsub'" class="card space-y-4">
+            <section v-if="sumsubAdminEnabled && profile.provider === 'sumsub'" class="card space-y-4">
                 <div>
                     <p class="mb-2 text-label-caps uppercase text-text-dim">Sumsub</p>
                     <p v-if="profile.sumsub?.error" class="text-sm text-amber-300">{{ profile.sumsub.error }}</p>
@@ -161,14 +178,32 @@ function formatDate(value) {
             </section>
         </div>
 
-        <div v-if="profile.status === 'pending_review' && profile.provider !== 'sumsub'" class="mt-6 flex flex-wrap gap-3">
+        <div v-if="profile.status === 'pending_review' && (!sumsubAdminEnabled || profile.provider !== 'sumsub')" class="mt-6 flex flex-wrap gap-3">
             <button class="btn-primary w-auto px-8" @click="approve">Одобрить KYC</button>
             <button class="btn-secondary w-auto px-8" @click="showReject = !showReject">Отклонить</button>
         </div>
 
-        <p v-else-if="profile.status === 'pending_review' && profile.provider === 'sumsub'" class="mt-6 text-sm text-text-dim">
+        <p v-else-if="sumsubAdminEnabled && profile.status === 'pending_review' && profile.provider === 'sumsub'" class="mt-6 text-sm text-text-dim">
             Заявка проверяется в Sumsub автоматически. Решение придёт по webhook или после синхронизации статуса.
         </p>
+
+        <div v-if="canReset" class="mt-6 space-y-3">
+            <button class="btn-secondary w-auto px-8" type="button" @click="showReset = !showReset">
+                Сбросить верификацию
+            </button>
+            <p class="text-xs text-text-dim">
+                Клиент снова увидит шаг KYC и сможет пройти проверку (Aitu или документы).
+                Существующий кошелёк не удаляется.
+            </p>
+        </div>
+
+        <form v-if="showReset" class="mt-4 card space-y-3" @submit.prevent="resetVerification">
+            <label class="block text-sm text-text-dim">Комментарий (необязательно)</label>
+            <textarea v-model="resetForm.comment" class="input-field min-h-20" placeholder="Причина сброса для внутреннего учёта" />
+            <button type="submit" class="btn-primary w-auto px-8" :disabled="resetForm.processing">
+                Подтвердить сброс
+            </button>
+        </form>
 
         <form v-if="showReject" class="mt-4 card space-y-3" @submit.prevent="reject">
             <label class="block text-sm text-text-dim">Причина отклонения</label>

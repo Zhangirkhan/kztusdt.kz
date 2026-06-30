@@ -78,6 +78,10 @@ final class KycReviewPresenter
      */
     private function sumsubDetails(KycProfile $profile): ?array
     {
+        if (! (bool) config('kyc.admin_show_sumsub', false)) {
+            return null;
+        }
+
         if (($profile->provider ?? 'manual') !== 'sumsub' || $profile->sumsub_applicant_id === null) {
             return null;
         }
@@ -110,6 +114,7 @@ final class KycReviewPresenter
     {
         return match ($provider) {
             'sumsub' => 'Sumsub (внешняя верификация)',
+            'aitu' => 'Aitu Passport',
             default => 'Ручная проверка',
         };
     }

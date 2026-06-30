@@ -76,8 +76,8 @@ final class SeoTest extends TestCase
         $session = \App\Models\AuthSession::query()->create([
             'phone' => '+77071234567',
             'login_code' => 'SEO'.\Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(29)),
-            'code_hash' => bcrypt('123456'),
-            'gateway_request_id' => 'req_seo',
+            'code_hash' => null,
+            'gateway_request_id' => null,
             'status' => 'pending',
             'expires_at' => now()->addMinutes(5),
         ]);

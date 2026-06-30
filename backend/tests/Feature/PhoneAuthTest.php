@@ -12,7 +12,7 @@ use Tests\Concerns\ExchangeTestHelpers;
 use Tests\TestCase;
 
 /**
- * Этап 1: вход по номеру телефона через Telegram Gateway OTP.
+ * Этап 1: вход по номеру телефона через WhatsApp OTP (otp.kztusdt.kz).
  */
 final class PhoneAuthTest extends TestCase
 {
@@ -21,34 +21,49 @@ final class PhoneAuthTest extends TestCase
 
     private const VALID_IIN = '900101100014';
 
-    /** @var list<string> */
-    private array $sentCodes = [];
+    private const OTP_CODE = '123456';
 
-    /**
-     * Configure the Gateway and capture the OTP codes pushed through it so the
-     * tests can replay the exact code the server generated.
-     */
-    private function fakeGateway(): void
+    /** @var array<string, string> */
+    private array $otpCodesByPhone = [];
+
+    private function fakeOtp(): void
     {
-        config(['telegram.gateway.token' => 'test-gateway-token']);
-
-        $this->sentCodes = [];
+        config(['otp.token' => 'test-otp-token']);
+        $this->otpCodesByPhone = [];
 
         Http::fake([
-            'gatewayapi.telegram.org/sendVerificationMessage*' => function ($request) {
-                $this->sentCodes[] = (string) ($request['code'] ?? '');
+            '*/api/otp/send' => function ($request) {
+                $phone = (string) $request['phone'];
+                $this->otpCodesByPhone[$phone] = self::OTP_CODE;
 
-                return Http::response(['ok' => true, 'result' => [
-                    'request_id' => 'req_'.count($this->sentCodes),
-                ]]);
+                return Http::response([
+                    'success' => true,
+                    'message' => 'OTP отправлен на WhatsApp',
+                    'expires_in' => 300,
+                ]);
             },
-            'gatewayapi.telegram.org/*' => Http::response(['ok' => true, 'result' => []]),
+            '*/api/otp/verify' => function ($request) {
+                $phone = (string) $request['phone'];
+                $code = (string) $request['code'];
+
+                if (($this->otpCodesByPhone[$phone] ?? '') === $code) {
+                    return Http::response([
+                        'success' => true,
+                        'message' => 'Номер подтверждён',
+                    ]);
+                }
+
+                return Http::response([
+                    'success' => false,
+                    'message' => 'Неверный или просроченный код',
+                ], 422);
+            },
         ]);
     }
 
     private function lastCode(): string
     {
-        return (string) end($this->sentCodes);
+        return self::OTP_CODE;
     }
 
     public function test_root_redirects_to_phone_auth_page(): void
@@ -58,7 +73,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_start_sends_otp_and_creates_pending_session(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $response = $this->postJson('/api/auth/phone/start', [
             'iin' => self::VALID_IIN,
@@ -73,19 +88,17 @@ final class PhoneAuthTest extends TestCase
         $this->assertDatabaseHas('auth_sessions', [
             'phone' => '+77071234567',
             'status' => 'pending',
-            'gateway_request_id' => 'req_1',
+            'gateway_request_id' => null,
         ]);
 
-        $this->assertNotEmpty($this->lastCode());
-        $this->assertMatchesRegularExpression('/^\d{6}$/', $this->lastCode());
-
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'sendVerificationMessage')
-            && $request['phone_number'] === '+77071234567');
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/otp/send')
+            && $request['phone'] === '77071234567'
+            && $request['purpose'] === 'login');
     }
 
-    public function test_start_fails_gracefully_when_gateway_not_configured(): void
+    public function test_start_fails_gracefully_when_otp_not_configured(): void
     {
-        config(['telegram.gateway.token' => null]);
+        config(['otp.token' => null]);
 
         $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
             ->assertStatus(422);
@@ -93,7 +106,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_start_validates_phone(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '123'])
             ->assertUnprocessable()
@@ -102,19 +115,16 @@ final class PhoneAuthTest extends TestCase
 
     public function test_start_validates_iin(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
-        // Missing IIN.
         $this->postJson('/api/auth/phone/start', ['phone' => '+77071234567'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['iin']);
 
-        // Wrong length.
         $this->postJson('/api/auth/phone/start', ['iin' => '12345', 'phone' => '+77071234567'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['iin']);
 
-        // Right length, wrong checksum.
         $this->postJson('/api/auth/phone/start', ['iin' => '900101100015', 'phone' => '+77071234567'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['iin']);
@@ -122,7 +132,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_iin_is_stored_on_session_and_user(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
             ->json('login_code');
@@ -141,7 +151,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_start_is_rate_limited_per_phone(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         for ($i = 0; $i < 5; $i++) {
             $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
@@ -154,7 +164,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_new_start_expires_previous_pending_sessions(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $first = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
         $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->assertCreated();
@@ -162,9 +172,23 @@ final class PhoneAuthTest extends TestCase
         $this->assertSame('expired', AuthSession::query()->where('login_code', $first)->value('status'));
     }
 
+    public function test_resend_refreshes_otp_for_existing_session(): void
+    {
+        $this->fakeOtp();
+
+        $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
+            ->json('login_code');
+
+        $this->postJson("/api/auth/phone/resend/{$code}")
+            ->assertOk()
+            ->assertJsonPath('login_code', $code);
+
+        Http::assertSentCount(2);
+    }
+
     public function test_full_login_flow_with_correct_code(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
 
@@ -187,7 +211,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_existing_user_logs_in_with_same_phone(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $existing = $this->createUnverifiedClient(['phone' => '+77071234567', 'phone_verified' => false]);
 
@@ -205,7 +229,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_wrong_code_is_rejected_and_counts_attempts(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
 
@@ -219,7 +243,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_session_fails_after_max_attempts(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
 
@@ -230,7 +254,6 @@ final class PhoneAuthTest extends TestCase
 
         $this->assertSame('failed', AuthSession::query()->where('login_code', $code)->value('status'));
 
-        // Even the correct code no longer works once the session is locked.
         $this->postJson("/api/auth/phone/verify/{$code}", ['code' => $this->lastCode()])
             ->assertStatus(422);
 
@@ -239,7 +262,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_expired_code_cannot_be_used(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
 
@@ -254,7 +277,7 @@ final class PhoneAuthTest extends TestCase
 
     public function test_verified_code_cannot_be_reused(): void
     {
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
         $otp = $this->lastCode();
@@ -277,7 +300,7 @@ final class PhoneAuthTest extends TestCase
             'kyc.sumsub.secret_key' => 'test-secret',
         ]);
 
-        $this->fakeGateway();
+        $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
 

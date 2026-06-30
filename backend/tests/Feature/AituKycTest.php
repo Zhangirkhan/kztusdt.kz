@@ -147,8 +147,20 @@ final class AituKycTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('provider', 'aitu')
-                ->where('aituVerifyUrl', route('auth.aitu.redirect'))
+                ->where('aituVerifyUrl', route('auth.aitu.redirect', ['intent' => 'kyc']))
+                ->where('aituKycScopeConfigured', false)
                 ->etc());
+    }
+
+    public function test_scope_for_kyc_includes_extra_when_configured(): void
+    {
+        config(['aitu.scope' => 'openid phone', 'aitu.kyc_scope' => 'CONFIDENCE_LEVEL']);
+
+        $service = app(\App\Services\AituPassportService::class);
+
+        $this->assertSame('openid phone', $service->scopeForIntent('phone'));
+        $this->assertSame('openid phone CONFIDENCE_LEVEL', $service->scopeForIntent('kyc'));
+        $this->assertTrue($service->kycScopeConfigured());
     }
 
     public function test_kyc_page_falls_back_to_manual_when_aitu_not_configured(): void
@@ -161,5 +173,16 @@ final class AituKycTest extends TestCase
             ->get('/kyc')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('provider', 'manual')->etc());
+    }
+
+    public function test_aitu_callback_error_from_kyc_returns_to_kyc_page(): void
+    {
+        $user = $this->createUnverifiedClient();
+
+        $this->actingAs($user)
+            ->withSession(['aitu.return_to' => 'kyc'])
+            ->get('/auth/aitu/callback?error=invalid_request&error_description=client_id_is_not_valid')
+            ->assertRedirect(route('kyc'))
+            ->assertSessionHasErrors('form');
     }
 }

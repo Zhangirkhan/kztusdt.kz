@@ -125,7 +125,7 @@ final class AdminAccessTest extends TestCase
     {
         $user = $this->createUnverifiedClient();
 
-        $this->actingAs($user)->get('/wallet')->assertForbidden();
-        $this->actingAs($user)->get('/withdraw')->assertForbidden();
+        $this->actingAs($user)->get('/wallet')->assertRedirect(route('kyc'));
+        $this->actingAs($user)->get('/withdraw')->assertRedirect(route('kyc'));
     }
 }

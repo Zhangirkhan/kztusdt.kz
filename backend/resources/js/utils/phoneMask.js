@@ -89,13 +89,23 @@ export function parseNationalDigits(raw) {
         return digits.slice(1);
     }
 
-    if (digits.length === 10) {
-        if (KZ_MOBILE_PREFIXES.includes(digits.slice(0, 3))) {
-            return digits;
+    if (digits.length === 10 && digits.startsWith('7')) {
+        const operatorAt0 = digits.slice(0, 3);
+        const operatorAt1 = digits.slice(1, 4);
+        const prefixAt0 = KZ_MOBILE_PREFIXES.includes(operatorAt0);
+        const prefixAt1 = KZ_MOBILE_PREFIXES.includes(operatorAt1);
+
+        if (prefixAt1 && ! prefixAt0) {
+            return digits.slice(1);
         }
 
-        if (digits.startsWith('7') && KZ_MOBILE_PREFIXES.includes(digits.slice(1, 4))) {
+        if (prefixAt0 && prefixAt1) {
+            // 10 digits with both 7XX at [0:3] and [1:4] means "+7" + 9 national digits while typing.
             return digits.slice(1);
+        }
+
+        if (prefixAt0) {
+            return digits;
         }
     }
 
@@ -104,19 +114,69 @@ export function parseNationalDigits(raw) {
             return '';
         }
 
-        const asNational = digits.slice(1);
-        if (asNational.length <= 10 && isPartialKzMobilePrefix(asNational)) {
-            return asNational;
-        }
-
-        if (digits.length > 1 && digits.length <= 10 && isPartialKzMobilePrefix(digits)) {
-            return digits;
-        }
-
-        return asNational.slice(0, 10);
+        return digits.slice(1, 11);
     }
 
     return digits.slice(0, 10);
+}
+
+/**
+ * How many national digits (after +7) are before the caret.
+ */
+export function nationalDigitIndexBefore(formatted, caret) {
+    const digits = formatted.slice(0, Math.max(0, caret)).replace(/\D/g, '');
+
+    if (digits.length <= 1) {
+        return 0;
+    }
+
+    return digits.length - 1;
+}
+
+/**
+ * Caret position after the given count of national digits.
+ */
+export function caretForNationalDigitIndex(formatted, nationalDigitIndex) {
+    if (nationalDigitIndex <= 0) {
+        return Math.min(formatted.length, MIN_PHONE.length);
+    }
+
+    let nationalCount = 0;
+    let skippedCountry = false;
+
+    for (let i = 0; i < formatted.length; i++) {
+        if (!/\d/.test(formatted[i])) {
+            continue;
+        }
+
+        if (!skippedCountry) {
+            skippedCountry = true;
+            continue;
+        }
+
+        nationalCount++;
+
+        if (nationalCount === nationalDigitIndex) {
+            return i + 1;
+        }
+    }
+
+    return formatted.length;
+}
+
+/**
+ * Remove one national digit by 1-based index (as used before caret).
+ */
+export function removeNationalDigitAt(formatted, nationalIndex) {
+    const national = parseNationalDigits(formatted);
+
+    if (national.length === 0 || nationalIndex <= 0) {
+        return MIN_PHONE;
+    }
+
+    const index = Math.min(nationalIndex, national.length) - 1;
+
+    return formatNational(national.slice(0, index) + national.slice(index + 1));
 }
 
 /**
@@ -133,25 +193,45 @@ export function extractKzDigits(value) {
 }
 
 /**
- * Update formatted phone on input/delete.
+ * Update formatted phone on input/paste.
  */
 export function updatePhoneMask(previousValue, inputValue) {
-    const previousNational = parseNationalDigits(previousValue);
-    const raw = String(inputValue).replace(/\D/g, '');
-    const isDeleting = String(inputValue).length < String(previousValue).length
-        || raw.length < previousNational.length + 1;
+    const prevNational = parseNationalDigits(previousValue);
+    const raw = String(inputValue);
+    const nextDigits = raw.replace(/\D/g, '');
 
-    if (raw.length === 0 || String(inputValue).trim() === '+') {
+    if (nextDigits.length === 0 || nextDigits === '7') {
         return MIN_PHONE;
     }
 
+    const prevDigits = previousValue.replace(/\D/g, '');
     let national = parseNationalDigits(raw);
 
-    if (isDeleting && national.length > previousNational.length) {
-        national = previousNational.slice(0, Math.max(0, previousNational.length - 1));
+    if (
+        nextDigits.length === 10
+        && prevNational.length === 0
+        && KZ_MOBILE_PREFIXES.includes(nextDigits.slice(0, 3))
+    ) {
+        national = nextDigits;
+    } else if (nextDigits.length < prevDigits.length) {
+        national = parseNationalDigits(nextDigits);
+    } else if (raw.length < previousValue.length && national.length >= prevNational.length) {
+        national = prevNational.slice(0, -1);
+    } else if (
+        nextDigits.length > prevDigits.length
+        && nextDigits.startsWith('7')
+        && prevDigits.startsWith('7')
+        && prevNational.length > 0
+    ) {
+        const added = nextDigits.slice(prevDigits.length);
+        const incremental = (prevNational + added).slice(0, 10);
+
+        if (isPartialKzMobilePrefix(incremental)) {
+            national = incremental;
+        }
     }
 
-    while (national.length > 0 && !isPartialKzMobilePrefix(national)) {
+    while (national.length > 0 && ! isPartialKzMobilePrefix(national)) {
         national = national.slice(0, -1);
     }
 

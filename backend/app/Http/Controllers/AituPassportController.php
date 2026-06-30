@@ -8,6 +8,7 @@ use App\Services\AituKycService;
 use App\Services\AituPassportService;
 use App\Support\AdminNavPresenter;
 use App\Support\AppLog;
+use App\Support\AituErrorPresenter;
 use App\Support\RequestLogContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,10 @@ final class AituPassportController extends Controller
 
     private const ID_TOKEN_KEY = 'aitu.id_token';
 
+    private const RETURN_TO_KEY = 'aitu.return_to';
+
+    private const USER_ID_KEY = 'aitu.user_id';
+
     public function __construct(
         private readonly AituPassportService $aituPassport,
         private readonly AituKycService $aituKyc,
@@ -47,12 +52,31 @@ final class AituPassportController extends Controller
         $state = Str::random(40);
         $request->session()->put(self::STATE_KEY, $state);
 
+        $returnTo = $request->string('intent')->value() === 'kyc'
+            ? 'kyc'
+            : 'phone';
+
+        $request->session()->put(self::RETURN_TO_KEY, $returnTo);
+
+        if ($returnTo === 'kyc' && Auth::check()) {
+            $request->session()->put(self::USER_ID_KEY, Auth::id());
+        }
+
+        $user = Auth::user();
+
         $url = $this->aituPassport->authorizationUrl(
             redirectUri: route('auth.aitu.callback'),
             state: $state,
-            phone: $request->string('phone')->value() ?: null,
-            iin: $request->string('iin')->value() ?: null,
+            phone: $request->string('phone')->value() ?: $user?->phone,
+            iin: $request->string('iin')->value() ?: $user?->iin,
+            scope: $this->aituPassport->scopeForIntent($returnTo),
         );
+
+        AppLog::auth('auth.aitu.redirect', [
+            'intent' => $returnTo,
+            'scope' => $this->aituPassport->scopeForIntent($returnTo),
+            'phone' => RequestLogContext::maskPhone($user?->phone),
+        ]);
 
         return redirect()->away($url);
     }
@@ -63,32 +87,37 @@ final class AituPassportController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         if ($request->filled('error')) {
+            $message = AituErrorPresenter::callbackMessage(
+                $request->string('error')->value(),
+                $request->string('error_description')->value(),
+            );
+
             AppLog::authWarning('auth.aitu.callback_error', [
                 'error' => $request->string('error')->value(),
                 'error_description' => $request->string('error_description')->value(),
             ]);
 
-            return redirect()->route('auth.phone')
-                ->withErrors(['phone' => 'Авторизация через Aitu Passport не завершена.']);
+            return $this->redirectWithError($request, $message);
         }
 
         $expectedState = $request->session()->pull(self::STATE_KEY);
         $code = $request->string('code')->value();
 
         if ($code === '' || $expectedState === null || ! hash_equals((string) $expectedState, $request->string('state')->value())) {
-            return redirect()->route('auth.phone')
-                ->withErrors(['phone' => 'Сессия авторизации недействительна. Попробуйте ещё раз.']);
+            return $this->redirectWithError($request, 'Сессия авторизации недействительна. Попробуйте ещё раз.');
         }
+
+        $returnTo = (string) $request->session()->pull(self::RETURN_TO_KEY, 'phone');
+        $linkedUserId = $request->session()->pull(self::USER_ID_KEY);
 
         try {
             $tokens = $this->aituPassport->exchangeCode($code, route('auth.aitu.callback'));
             $claims = $this->aituPassport->claimsFromIdToken($tokens['id_token']);
-            $user = $this->aituPassport->findOrCreateUser($claims);
+            $user = $this->resolveUser($claims, is_numeric($linkedUserId) ? (int) $linkedUserId : null);
         } catch (RuntimeException $exception) {
             AppLog::exception($exception, ['flow' => 'aitu.callback']);
 
-            return redirect()->route('auth.phone')
-                ->withErrors(['phone' => $exception->getMessage()]);
+            return $this->redirectWithError($request, $exception->getMessage());
         }
 
         Auth::loginUsingId($user->id, remember: true);
@@ -108,7 +137,44 @@ final class AituPassportController extends Controller
             'kyc_status' => $user->kyc_status,
         ]);
 
-        return $this->redirectAfterAuth();
+        return $this->redirectAfterAuth($returnTo);
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     */
+    private function resolveUser(array $claims, ?int $linkedUserId): \App\Models\User
+    {
+        if ($linkedUserId !== null) {
+            $linked = \App\Models\User::query()->find($linkedUserId);
+
+            if ($linked !== null) {
+                $phone = $this->aituPassport->phoneFromClaims($claims);
+
+                if ($phone !== null && $linked->phone === $phone) {
+                    $linked->update([
+                        'phone_verified' => true,
+                        'phone_verified_at' => now(),
+                    ]);
+
+                    return $linked;
+                }
+            }
+        }
+
+        return $this->aituPassport->findOrCreateUser($claims);
+    }
+
+    private function redirectWithError(Request $request, string $message): RedirectResponse
+    {
+        $returnTo = (string) $request->session()->pull(self::RETURN_TO_KEY, 'phone');
+        $request->session()->forget(self::USER_ID_KEY);
+
+        if ($returnTo === 'kyc' && Auth::check()) {
+            return redirect()->route('kyc')->withErrors(['form' => $message]);
+        }
+
+        return redirect()->route('auth.phone')->withErrors(['phone' => $message]);
     }
 
     /**
@@ -164,9 +230,14 @@ final class AituPassportController extends Controller
             ->with('status', 'Номер телефона изменён. Войдите заново.');
     }
 
-    private function redirectAfterAuth(): RedirectResponse
+    private function redirectAfterAuth(string $returnTo = 'phone'): RedirectResponse
     {
         $user = Auth::user();
+
+        if ($returnTo === 'kyc') {
+            return redirect()->route('kyc');
+        }
+
         $landing = $user !== null ? AdminNavPresenter::landingPath($user) : null;
 
         if ($landing !== null) {

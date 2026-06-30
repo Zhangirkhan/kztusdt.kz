@@ -1,0 +1,687 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-kztusdt-kyc-aitu",
+		"name": "KZTUSDT — KYC / Aitu Passport (пошагово)",
+		"description": "# Верификация KZTUSDT через Postman\n\nПроходите папки **по порядку** (00 → 05). Cookies и переменные сохраняются автоматически.\n\n## Перед стартом\n1. Импортируйте **Environment** `KZTUSDT-KYC-Aitu.postman_environment.json`.\n2. Включите environment в правом верхнем углу Postman.\n3. Заполните секреты: `aitu_client_id`, `aitu_client_secret`, `aitu_validation_secret`, `otp_code` (из WhatsApp), при необходимости `admin_email` / `admin_password`.\n4. В Postman: **Settings → General → Cookies** — включите автоматическое управление cookies.\n\n## Важно про Aitu\n- OAuth-часть (SMS в Aitu) **нельзя полностью автоматизировать** в Postman — после шага **3.1** откройте `aitu_authorize_url` в браузере.\n- После входа в Aitu скопируйте из адресной строки параметры `code` и `state` в переменные окружения.\n- Для успешного KYC нужен scope `CONFIDENCE_LEVEL` у менеджера Aitu; пока `AITU_KYC_SCOPE` пуст — статус останется `none`, но вход через Aitu должен пройти.\n- Пока validator не зарегистрирован в Aitu: `AITU_IIN_SIGNING_ENABLED=false` на сервере.\n\n## Тестовый ИИН\n`900101100014` — валидный пример из автотестов.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"const csrf = pm.environment.get('csrf_token');",
+					"if (csrf) {",
+					"    pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: csrf });",
+					"}",
+					"pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });",
+					"pm.request.headers.upsert({ key: 'X-Requested-With', value: 'XMLHttpRequest' });"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://kztusdt.kz"
+		}
+	],
+	"item": [
+		{
+			"name": "00 — Подготовка",
+			"description": "Получаем CSRF-cookie для POST-запросов к Laravel.",
+			"item": [
+				{
+					"name": "00.1 Получить CSRF cookie",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('CSRF cookie получен (204 No Content)', function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"function saveXsrfFromSetCookie(value) {",
+									"    const match = String(value).match(/XSRF-TOKEN=([^;]+)/i);",
+									"    if (match) {",
+									"        pm.environment.set('csrf_token', decodeURIComponent(match[1]));",
+									"        console.log('csrf_token сохранён');",
+									"        return true;",
+									"    }",
+									"    return false;",
+									"}",
+									"",
+									"let saved = false;",
+									"pm.response.headers.each((h) => {",
+									"    if (h.key.toLowerCase() === 'set-cookie') {",
+									"        saved = saveXsrfFromSetCookie(h.value) || saved;",
+									"    }",
+									"});",
+									"if (!saved) {",
+									"    const xsrf = pm.cookies.get('XSRF-TOKEN');",
+									"    if (xsrf) {",
+									"        pm.environment.set('csrf_token', decodeURIComponent(xsrf));",
+									"        saved = true;",
+									"    }",
+									"}",
+									"if (!saved) {",
+									"    console.warn('XSRF-TOKEN не найден. Settings → Cookies должны быть включены.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{base_url}}/sanctum/csrf-cookie",
+						"description": "Создаёт cookie `XSRF-TOKEN`. Коллекция автоматически подставит его в заголовок `X-XSRF-TOKEN` для следующих запросов."
+					}
+				},
+				{
+					"name": "00.2 Проверка доступности сайта",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Сайт доступен', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{base_url}}/robots.txt",
+						"description": "Публичная проверка, что сайт отвечает.\n\n`/internal/health` намеренно закрыт nginx (только 127.0.0.1) — из Postman всегда будет 403."
+					}
+				}
+			]
+		},
+		{
+			"name": "01 — Вход по телефону",
+			"description": "Регистрация/вход: ИИН + телефон → OTP в WhatsApp → сессия Laravel.",
+			"item": [
+				{
+					"name": "01.1 Отправить OTP (start)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const csrf = pm.environment.get('csrf_token');",
+									"if (csrf) {",
+									"    pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: csrf });",
+									"} else {",
+									"    console.warn('csrf_token пуст — сначала выполните 00.1 (или CSRF не требуется для phone API).');",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('OTP отправлен', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"const json = pm.response.json();",
+									"if (json.login_code) {",
+									"    pm.environment.set('login_code', json.login_code);",
+									"    console.log('login_code сохранён:', json.login_code);",
+									"}",
+									"pm.test('Есть login_code', function () {",
+									"    pm.expect(json.login_code).to.be.a('string').and.not.empty;",
+									"});",
+									"",
+									"if (pm.response.code === 419) {",
+									"    console.error('419 CSRF: выполните 00.1, затем 01.1 подряд. Проверьте Cookies в Postman Settings.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"iin\": \"{{iin}}\",\n    \"phone\": \"{{phone}}\"\n}"
+						},
+						"url": "{{base_url}}/api/auth/phone/start",
+						"description": "Отправляет OTP на WhatsApp. Код приходит на номер `phone`. Укажите полученный код в переменной `otp_code` перед шагом 01.3."
+					}
+				},
+				{
+					"name": "01.2 Повторить OTP (resend)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Повторная отправка', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 422]);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": "{{base_url}}/api/auth/phone/resend/{{login_code}}",
+						"description": "Опционально. Cooldown ~60 сек. Используйте, если код не пришёл."
+					}
+				},
+				{
+					"name": "01.3 Подтвердить OTP (verify)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Вход выполнен', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"const json = pm.response.json();",
+									"pm.test('verified = true', function () {",
+									"    pm.expect(json.verified).to.eql(true);",
+									"});",
+									"console.log('kyc_status:', json.kyc_status);",
+									"console.log('kyc:', JSON.stringify(json.kyc));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"code\": \"{{otp_code}}\"\n}"
+						},
+						"url": "{{base_url}}/api/auth/phone/verify/{{login_code}}",
+						"description": "Перед запросом заполните `otp_code` (6 цифр из WhatsApp). Устанавливает session cookie — дальнейшие запросы идут от имени пользователя."
+					}
+				}
+			]
+		},
+		{
+			"name": "02 — Проверка сессии",
+			"description": "Убедитесь, что вы авторизованы и видите страницу KYC.",
+			"item": [
+				{
+					"name": "02.1 Страница KYC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('KYC доступен (авторизован)', function () {",
+									"    pm.expect(pm.response.code).to.eql(200);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/html,application/json"
+							}
+						],
+						"url": "{{base_url}}/kyc",
+						"description": "403 = телефон не подтверждён или нет сессии. 200 = ок."
+					}
+				},
+				{
+					"name": "02.2 Профиль",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/html,application/json"
+							}
+						],
+						"url": "{{base_url}}/profile"
+					}
+				}
+			]
+		},
+		{
+			"name": "03 — Aitu Passport (OAuth)",
+			"description": "Шаг 3.1 сохраняет URL авторизации. Шаг 3.2 — вручную в браузере. Шаг 3.3 — callback с code и state.",
+			"item": [
+				{
+					"name": "03.1 Старт Aitu KYC (redirect)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Редирект на Aitu', function () {",
+									"    pm.response.to.have.status(302);",
+									"});",
+									"const location = pm.response.headers.get('Location');",
+									"if (location) {",
+									"    pm.environment.set('aitu_authorize_url', location);",
+									"    console.log('Откройте в браузере:', location);",
+									"    try {",
+									"        const url = new URL(location);",
+									"        const state = url.searchParams.get('state');",
+									"        if (state) {",
+									"            pm.environment.set('aitu_state', state);",
+									"            console.log('aitu_state сохранён из redirect URL');",
+									"        }",
+									"    } catch (e) {}",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{base_url}}/auth/aitu/redirect?intent=kyc",
+						"description": "**Важно:** в Postman отключите Follow redirects (Settings запроса → Automatically follow redirects = OFF).\n\nСохраняет `aitu_authorize_url` и `aitu_state`.\n\n### Следующий шаг (вручную)\n1. Скопируйте `aitu_authorize_url` из Console или Variables.\n2. Откройте в браузере **в той же сессии** (или просто пройдите Aitu — state уже в cookie Postman).\n3. Введите телефон, SMS в Aitu.\n4. После редиректа на `.../auth/aitu/callback?code=...&state=...` скопируйте `code` → `aitu_code`, `state` → `aitu_state`."
+					}
+				},
+				{
+					"name": "03.2 Callback Aitu (завершение OAuth)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Callback обработан', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+									"});",
+									"const location = pm.response.headers.get('Location');",
+									"if (location) {",
+									"    console.log('Redirect после callback:', location);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/html,application/json"
+							}
+						],
+						"url": "{{base_url}}/auth/aitu/callback?code={{aitu_code}}&state={{aitu_state}}",
+						"description": "Заполните `aitu_code` и `aitu_state` из URL после прохождения Aitu в браузере.\n\nИспользуйте **ту же cookie-сессию**, что и в шаге 03.1 (тот же Postman / тот же cookie jar).\n\nУспех → редирект на `/kyc`. Ошибка → редирект с `error` и `error_description`."
+					}
+				},
+				{
+					"name": "03.3 Проверить KYC после Aitu",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('KYC страница доступна', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{base_url}}/kyc",
+						"description": "Проверьте статус в UI. `approved` — верификация пройдена. `none` — Aitu login ок, но нет scope CONFIDENCE_LEVEL."
+					}
+				}
+			]
+		},
+		{
+			"name": "04 — Aitu API (отладка)",
+			"description": "Прямые вызовы Aitu Passport — для диагностики без браузера. Нужны `aitu_client_id` и `aitu_client_secret`.",
+			"item": [
+				{
+					"name": "04.1 Обмен code → token (Aitu)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const json = pm.response.json();",
+									"    if (json.access_token) pm.environment.set('aitu_access_token', json.access_token);",
+									"    if (json.id_token) pm.environment.set('aitu_id_token', json.id_token);",
+									"    console.log('Токены сохранены');",
+									"}",
+									"pm.test('Token exchange', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{aitu_client_id}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{aitu_client_secret}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "authorization_code",
+									"type": "text"
+								},
+								{
+									"key": "code",
+									"value": "{{aitu_code}}",
+									"type": "text"
+								},
+								{
+									"key": "redirect_uri",
+									"value": "{{aitu_redirect_uri}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": "{{aitu_base_url}}/oauth2/token",
+						"description": "Одноразовый `code` из callback. После успеха смотрите `id_token` (JWT) — claims верификации."
+					}
+				},
+				{
+					"name": "04.2 Introspect access_token (Aitu)",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{aitu_client_id}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{aitu_client_secret}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "token",
+									"value": "{{aitu_access_token}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": "{{aitu_base_url}}/oauth2/introspect",
+						"description": "Проверка валидности access_token и scope/sub."
+					}
+				}
+			]
+		},
+		{
+			"name": "05 — Валидация на стороне клиента",
+			"description": "Эндпоинт, который вызывает Aitu Passport (имитация их запроса к вашему серверу).",
+			"item": [
+				{
+					"name": "05.1 GET validate (health)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Endpoint доступен', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json().ok).to.eql(true);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{base_url}}/api/auth/aitu/validate"
+					}
+				},
+				{
+					"name": "05.2 POST validate (как Aitu)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Валидация принята', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json().valid).to.eql(true);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{aitu_validator_id}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{aitu_validation_secret}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"iin\": \"{{iin}}\",\n    \"phone\": \"{{phone}}\"\n}"
+						},
+						"url": "{{base_url}}/api/auth/aitu/validate",
+						"description": "Basic auth: validator_id + secret из консоли Aitu / .env."
+					}
+				}
+			]
+		},
+		{
+			"name": "06 — Админ: ручное KYC",
+			"description": "Если авто-KYC через Aitu ещё не подключён — одобрение вручную.",
+			"item": [
+				{
+					"name": "06.1 Вход админа",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.sendRequest({",
+									"    url: pm.environment.get('base_url') + '/sanctum/csrf-cookie',",
+									"    method: 'GET'",
+									"}, function () {});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Админ вошёл', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\",\n    \"remember\": \"on\"\n}"
+						},
+						"url": "{{base_url}}/login",
+						"description": "Заполните admin_email и admin_password. Роль: super_admin / security_officer / super_admin_manager."
+					}
+				},
+				{
+					"name": "06.2 Список KYC (админ)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{base_url}}/admin/kyc?status=all",
+						"description": "Inertia-страница. ID профиля возьмите из URL при открытии карточки пользователя → `kyc_profile_id`."
+					}
+				},
+				{
+					"name": "06.3 Одобрить KYC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Одобрено', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 302]);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"comment\": \"Одобрено через Postman\"\n}"
+						},
+						"url": "{{base_url}}/admin/kyc/{{kyc_profile_id}}/approve",
+						"description": "Статус профиля должен быть `pending_review`. Для Aitu-пользователя с `none` сначала сделайте reset или отправьте manual KYC."
+					}
+				},
+				{
+					"name": "06.4 Сбросить KYC",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"comment\": \"Сброс для повторной верификации\"\n}"
+						},
+						"url": "{{base_url}}/admin/kyc/{{kyc_profile_id}}/reset",
+						"description": "Сбрасывает KYC пользователя — можно пройти Aitu заново."
+					}
+				},
+				{
+					"name": "06.5 Отклонить KYC",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Документы нечитаемы или не совпадают с данными\"\n}"
+						},
+						"url": "{{base_url}}/admin/kyc/{{kyc_profile_id}}/reject"
+					}
+				}
+			]
+		}
+	]
+}

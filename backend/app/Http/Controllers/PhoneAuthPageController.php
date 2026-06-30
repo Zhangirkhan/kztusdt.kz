@@ -62,7 +62,7 @@ final class PhoneAuthPageController extends Controller
             'phone' => $session->phone,
             'status' => $session->status,
             'expiresAt' => $session->expires_at->toIso8601String(),
-            'codeLength' => (int) config('telegram.gateway.code_length'),
+            'codeLength' => (int) config('otp.code_length'),
         ];
 
         if (Auth::check()) {

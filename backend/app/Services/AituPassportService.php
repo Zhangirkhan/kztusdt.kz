@@ -36,32 +36,80 @@ final class AituPassportService
      *
      * @param  string  $redirectUri  Must exactly match a Redirect URI registered in the console.
      * @param  string  $state  Opaque CSRF/state token (min length 8 enforced by Aitu Passport).
-     * @param  string|null  $phone  Optional +7XXXXXXXXXX prefill to shorten the user journey.
+     * @param  string|null  $phone  Optional 7XXXXXXXXXX prefill (Aitu docs: без «+»).
      * @param  string|null  $iin  Optional 12-digit IIN to prefill / lock (see $iin_signature).
      */
-    public function authorizationUrl(string $redirectUri, string $state, ?string $phone = null, ?string $iin = null): string
-    {
-        $iinSignature = $iin !== null ? $this->signIin($iin) : null;
-
+    public function authorizationUrl(
+        string $redirectUri,
+        string $state,
+        ?string $phone = null,
+        ?string $iin = null,
+        ?string $scope = null,
+    ): string {
         $query = array_filter([
             'response_type' => 'code',
             'client_id' => $this->clientId(),
             'redirect_uri' => $redirectUri,
-            'scope' => (string) config('aitu.scope'),
+            'scope' => $scope ?? (string) config('aitu.scope'),
             'state' => $state,
             'locale' => (string) config('aitu.locale'),
-            'phone' => $phone,
-            'iin' => $iin,
-            // Pre-signed IIN forbids the user from editing it on Aitu Passport.
-            'iin_signature' => $iinSignature,
+            'phone' => $this->phoneForAuthorizationRequest($phone),
+            ...$this->iinAuthorizationParams($iin),
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         return $this->endpoint('authorize').'?'.http_build_query($query);
     }
 
+    /**
+     * OAuth scope string for login vs KYC redirect.
+     */
+    public function scopeForIntent(string $intent): string
+    {
+        $base = trim((string) config('aitu.scope'));
+        $extra = trim((string) config('aitu.kyc_scope'));
+
+        if ($intent === 'kyc' && $extra !== '') {
+            return trim($base.' '.$extra);
+        }
+
+        return $base;
+    }
+
+    public function kycScopeConfigured(): bool
+    {
+        return trim((string) config('aitu.kyc_scope')) !== '';
+    }
+
     public function iinSigningEnabled(): bool
     {
-        return $this->iinPrivateKey() !== null;
+        return (bool) config('aitu.iin.signing_enabled', false) && $this->iinPrivateKey() !== null;
+    }
+
+    /**
+     * @return array{iin?: string, iin_signature?: string}
+     */
+    private function iinAuthorizationParams(?string $iin): array
+    {
+        if ($iin === null || trim($iin) === '') {
+            return [];
+        }
+
+        if (! $this->iinSigningEnabled()) {
+            // Без iin_signature Aitu stage падает с «illegal base64 character 2d»,
+            // если передать только iin (ожидается подпись или публичный ключ в консоли).
+            return [];
+        }
+
+        $signature = $this->signIin($iin);
+
+        if ($signature === null) {
+            return ['iin' => $iin];
+        }
+
+        return [
+            'iin' => $iin,
+            'iin_signature' => $signature,
+        ];
     }
 
     /**
@@ -89,7 +137,10 @@ final class AituPassportService
             throw new RuntimeException('Не удалось подписать ИИН.');
         }
 
-        return $this->base64UrlEncode($signature);
+        return match (strtolower((string) config('aitu.iin.signature_encoding', 'base64'))) {
+            'base64url' => $this->base64UrlEncode($signature),
+            default => base64_encode($signature),
+        };
     }
 
     /**
@@ -109,8 +160,6 @@ final class AituPassportService
                 'grant_type' => 'authorization_code',
                 'code' => $code,
                 'redirect_uri' => $redirectUri,
-                'client_id' => $this->clientId(),
-                'client_secret' => $this->clientSecret(),
             ]);
 
         if ($response->failed()) {
@@ -271,7 +320,14 @@ final class AituPassportService
             return $contents === false ? null : $contents;
         }
 
-        $jwksUri = (string) config('aitu.id_token.jwks_uri', '');
+        $jwksUri = config('aitu.id_token.jwks_uri');
+
+        if ($jwksUri === null && (bool) config('aitu.id_token.auto_jwks_uri', true)) {
+            $base = rtrim((string) config('aitu.base_url'), '/');
+            $jwksUri = $base !== '' ? $base.'/oauth2/jwks' : '';
+        } else {
+            $jwksUri = (string) $jwksUri;
+        }
 
         if ($jwksUri !== '') {
             return $this->publicKeyFromJwks($jwksUri, (string) ($header['kid'] ?? ''));
@@ -513,6 +569,36 @@ final class AituPassportService
         }
 
         return '+'.$digits;
+    }
+
+    /**
+     * Phone prefill for /oauth2/auth — Aitu expects digits only (e.g. 77071234567).
+     */
+    public function phoneForAuthorizationRequest(?string $phone): ?string
+    {
+        if ($phone === null) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        if ($digits === '') {
+            return null;
+        }
+
+        if (str_starts_with($digits, '8') && strlen($digits) === 11) {
+            $digits = '7'.substr($digits, 1);
+        }
+
+        return $digits;
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     */
+    public function phoneFromClaims(array $claims): ?string
+    {
+        return $this->normalizePhone($this->extractPhone($claims));
     }
 
     /**

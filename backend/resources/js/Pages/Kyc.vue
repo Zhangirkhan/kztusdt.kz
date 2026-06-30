@@ -11,6 +11,7 @@ const props = defineProps({
     rejectionReason: String,
     provider: { type: String, default: 'manual' },
     aituVerifyUrl: { type: String, default: null },
+    aituKycScopeConfigured: { type: Boolean, default: true },
 });
 
 const page = usePage();
@@ -48,6 +49,10 @@ function onFile(field, event) {
             {{ page.props.flash.success }}
         </div>
 
+        <div v-if="page.props.errors?.form" class="card mb-4 border border-error/30 text-error">
+            {{ page.props.errors.form }}
+        </div>
+
         <section class="card mb-stack-element">
             <p class="text-label-caps uppercase text-text-dim">Статус</p>
             <p class="mt-2 text-headline-md capitalize text-accent">{{ kycStatus }}</p>
@@ -65,6 +70,11 @@ function onFile(field, event) {
             <p class="text-body-sm text-text-muted">
                 Верификацию личности проводит Aitu Passport. Нажмите кнопку — вы перейдёте в Aitu,
                 подтвердите личность, и после возврата ваш статус обновится автоматически.
+            </p>
+            <p v-if="!aituKycScopeConfigured" class="text-sm text-accent">
+                Автоматическая проверка KYC через Aitu пока не подключена к вашему сервису.
+                Сейчас откроется вход в Aitu (телефон + SMS). Для авто-одобрения KYC запросите
+                scope CONFIDENCE_LEVEL у менеджера Aitu.
             </p>
             <a v-if="aituVerifyUrl" :href="aituVerifyUrl" class="btn-primary inline-block">
                 Пройти верификацию через Aitu

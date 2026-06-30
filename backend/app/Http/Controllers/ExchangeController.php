@@ -10,7 +10,9 @@ use App\Services\WalletService;
 use App\Support\CompanyPresenter;
 use App\Support\NetworkRegistry;
 use App\Support\NumberPresenter;
+use App\Support\WalletAccess;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -51,11 +53,17 @@ final class ExchangeController extends Controller
         ]);
     }
 
-    public function wallet(Request $request): Response
+    public function wallet(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
 
-        abort_unless($user && $user->canUseWallet(), 403);
+        if ($user === null) {
+            abort(403);
+        }
+
+        if ($deny = WalletAccess::denyResponse($user)) {
+            return $deny;
+        }
 
         $asset = (string) config('wallet.asset');
 

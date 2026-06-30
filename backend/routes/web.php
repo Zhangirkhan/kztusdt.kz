@@ -93,6 +93,8 @@ Route::post('/api/auth/biometric/check', [BiometricAuthController::class, 'check
     ->middleware('throttle:30,1');
 Route::post('/api/auth/phone/start', [PhoneAuthController::class, 'start'])
     ->middleware('throttle:10,1');
+Route::post('/api/auth/phone/resend/{loginCode}', [PhoneAuthController::class, 'resend'])
+    ->middleware('throttle:10,1');
 Route::post('/api/auth/phone/verify/{loginCode}', [PhoneAuthController::class, 'verify'])
     ->middleware('throttle:10,1');
 Route::post('/api/kyc/sumsub/webhook', SumsubWebhookController::class)
@@ -140,6 +142,7 @@ Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manage
     Route::get('/kyc/{kycProfile}', [KycReviewController::class, 'show'])->name('kyc.show');
     Route::post('/kyc/{kycProfile}/approve', [KycReviewController::class, 'approve'])->name('kyc.approve');
     Route::post('/kyc/{kycProfile}/reject', [KycReviewController::class, 'reject'])->name('kyc.reject');
+    Route::post('/kyc/{kycProfile}/reset', [KycReviewController::class, 'reset'])->name('kyc.reset');
     Route::get('/kyc/{kycProfile}/documents/{type}', [KycReviewController::class, 'document'])->name('kyc.document');
 
     Route::get('/withdrawals', [WithdrawalAdminController::class, 'index'])->name('withdrawals.index');

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, toRef } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AppLogo from '@/Components/AppLogo.vue';
@@ -8,13 +8,12 @@ import CompanyIntro from '@/Components/CompanyIntro.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
 import PwaInstallPrompt from '@/Components/PwaInstallPrompt.vue';
 import { useBiometricAuth } from '@/composables/useBiometricAuth';
+import { usePhoneMaskInput } from '@/composables/usePhoneMaskInput';
 import {
-    clearPhoneMask,
     formatNational,
     getKzPhoneError,
     isKzPhoneComplete,
     MIN_PHONE,
-    updatePhoneMask,
 } from '@/utils/phoneMask';
 
 const props = defineProps({
@@ -37,8 +36,8 @@ const form = useForm({
     phone: MIN_PHONE,
 });
 
-const phoneInput = ref(null);
 const biometricAvailable = ref(false);
+let biometricCheckTimer = null;
 const phoneError = computed(() => getKzPhoneError(form.phone, t));
 const isIinComplete = computed(() => /^\d{12}$/.test(form.iin));
 const iinError = computed(() => {
@@ -63,17 +62,37 @@ function phoneFromStorage(e164) {
 }
 
 async function refreshBiometricAvailability() {
-    if (! biometricSupported || ! isKzPhoneComplete(form.phone)) {
-        biometricAvailable.value = false;
-
-        return;
+    if (biometricCheckTimer) {
+        clearTimeout(biometricCheckTimer);
     }
 
-    try {
-        biometricAvailable.value = await checkAvailability(form.phone);
-    } catch {
-        biometricAvailable.value = false;
-    }
+    biometricCheckTimer = setTimeout(async () => {
+        if (! biometricSupported || ! isKzPhoneComplete(form.phone)) {
+            biometricAvailable.value = false;
+
+            return;
+        }
+
+        try {
+            biometricAvailable.value = await checkAvailability(form.phone);
+        } catch {
+            biometricAvailable.value = false;
+        }
+    }, 350);
+}
+
+const {
+    phoneInput,
+    syncInput,
+    onPhoneInput,
+    onPhoneKeydown,
+    clearPhone: resetPhoneMask,
+} = usePhoneMaskInput(toRef(form, 'phone'), { onChange: refreshBiometricAvailability });
+
+function clearPhone() {
+    resetPhoneMask();
+    biometricAvailable.value = false;
+    phoneInput.value?.focus();
 }
 
 async function onBiometricLogin() {
@@ -84,52 +103,9 @@ async function onBiometricLogin() {
     }
 }
 
-function syncInput() {
-    if (phoneInput.value) {
-        phoneInput.value.value = form.phone;
-    }
-}
-
 function onIinInput(event) {
     form.iin = event.target.value.replace(/\D/g, '').slice(0, 12);
     event.target.value = form.iin;
-}
-
-function onPhoneInput(event) {
-    form.phone = updatePhoneMask(form.phone, event.target.value);
-    syncInput();
-    refreshBiometricAvailability();
-}
-
-function onPhoneKeydown(event) {
-    if (event.key !== 'Backspace' && event.key !== 'Delete') {
-        return;
-    }
-
-    const input = event.target;
-    const { selectionStart, selectionEnd, value } = input;
-
-    if (selectionStart === null || selectionEnd === null) {
-        return;
-    }
-
-    if (selectionStart !== selectionEnd) {
-        return;
-    }
-
-    if (event.key === 'Backspace' && selectionStart > 0 && /\D/.test(value[selectionStart - 1])) {
-        event.preventDefault();
-        form.phone = updatePhoneMask(form.phone, value.slice(0, selectionStart - 1) + value.slice(selectionStart));
-        syncInput();
-        refreshBiometricAvailability();
-    }
-}
-
-function clearPhone() {
-    form.phone = clearPhoneMask();
-    syncInput();
-    biometricAvailable.value = false;
-    phoneInput.value?.focus();
 }
 
 onMounted(() => {
@@ -139,6 +115,12 @@ onMounted(() => {
         form.phone = phoneFromStorage(savedPhone);
         syncInput();
         refreshBiometricAvailability();
+    }
+});
+
+onUnmounted(() => {
+    if (biometricCheckTimer) {
+        clearTimeout(biometricCheckTimer);
     }
 });
 </script>
@@ -160,7 +142,7 @@ onMounted(() => {
                 </p>
             </div>
 
-            <form class="space-y-stack-element" @submit.prevent="form.post(route('auth.phone.store'))">
+            <form class="space-y-stack-element" @submit.prevent="form.post('/auth/phone')">
                 <div>
                     <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.iinLabel') }}</label>
                     <input

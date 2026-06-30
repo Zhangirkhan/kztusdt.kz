@@ -70,12 +70,19 @@ final class AuditHardeningTest extends TestCase
 
     public function test_otp_locks_out_after_max_attempts_with_atomic_counter(): void
     {
-        config(['telegram.gateway.max_attempts' => 3]);
+        config(['otp.max_attempts' => 3, 'otp.token' => 'test-token']);
+
+        Http::fake([
+            '*/api/otp/verify' => Http::response([
+                'success' => false,
+                'message' => 'Неверный или просроченный код',
+            ], 422),
+        ]);
 
         $session = AuthSession::query()->create([
             'phone' => '+77001234567',
             'login_code' => 'LOGIN-'.uniqid(),
-            'code_hash' => Hash::make('123456'),
+            'code_hash' => null,
             'code_attempts' => 0,
             'status' => 'pending',
             'expires_at' => now()->addMinutes(5),
@@ -184,7 +191,7 @@ final class AuditHardeningTest extends TestCase
 
     public function test_aitu_id_token_is_rejected_when_expired(): void
     {
-        config(['aitu.id_token.public_key' => null, 'aitu.id_token.jwks_uri' => null]);
+        config(['aitu.id_token.public_key' => null, 'aitu.id_token.jwks_uri' => null, 'aitu.id_token.auto_jwks_uri' => false]);
 
         $token = $this->b64Url(json_encode(['alg' => 'none']))
             .'.'.$this->b64Url(json_encode(['phone_number' => '+77001112233', 'exp' => time() - 100]))

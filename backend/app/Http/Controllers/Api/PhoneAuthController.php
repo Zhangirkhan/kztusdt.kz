@@ -31,13 +31,29 @@ final class PhoneAuthController extends Controller
             return response()->json([
                 'login_code' => $session->login_code,
                 'phone' => $session->phone,
-                'code_length' => (int) config('telegram.gateway.code_length'),
+                'code_length' => (int) config('otp.code_length'),
                 'expires_at' => $session->expires_at->toIso8601String(),
                 'status' => $session->status,
             ], 201);
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
+    }
+
+    public function resend(string $loginCode): JsonResponse
+    {
+        try {
+            $session = $this->phoneAuthService->resend($loginCode);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'login_code' => $session->login_code,
+            'phone' => $session->phone,
+            'expires_at' => $session->expires_at->toIso8601String(),
+            'status' => $session->status,
+        ]);
     }
 
     public function verify(VerifyPhoneAuthRequest $request, string $loginCode): JsonResponse
