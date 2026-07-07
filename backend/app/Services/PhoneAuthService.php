@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ClientType;
 use App\Models\AuthSession;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -20,10 +21,22 @@ final class PhoneAuthService
     /**
      * Begin phone login: request an OTP via WhatsApp (otp.kztusdt.kz).
      */
-    public function start(string $phone, ?string $iin = null, ?string $ip = null): AuthSession
-    {
+    public function start(
+        string $phone,
+        string $clientType = 'individual',
+        ?string $iin = null,
+        ?string $bin = null,
+        ?string $companyName = null,
+        ?string $ip = null,
+    ): AuthSession {
         $normalizedPhone = $this->normalizePhone($phone);
         $normalizedIin = $iin !== null ? $this->normalizeIin($iin) : null;
+        $normalizedBin = $bin !== null ? $this->normalizeBin($bin) : null;
+        $companyName = $companyName !== null ? trim($companyName) : null;
+
+        if ($clientType === ClientType::LegalEntity->value && config('ncanode.legal_entity_eds_required')) {
+            throw new RuntimeException('Для юр. лица сначала подпишите заявку ЭЦП.');
+        }
 
         if (! $this->whatsappOtp->isConfigured()) {
             throw new RuntimeException('Авторизация по номеру телефона временно недоступна.');
@@ -34,7 +47,7 @@ final class PhoneAuthService
             ->where('created_at', '>=', now()->subHour())
             ->count();
 
-        if ($recentAttempts >= config('telegram.rate_limit_per_phone')) {
+        if ($recentAttempts >= config('otp.rate_limit_per_phone')) {
             throw new RuntimeException('Слишком много попыток. Попробуйте позже.');
         }
 
@@ -48,7 +61,10 @@ final class PhoneAuthService
 
         $session = AuthSession::query()->create([
             'phone' => $normalizedPhone,
+            'client_type' => $clientType,
             'iin' => $normalizedIin,
+            'bin' => $normalizedBin,
+            'company_name' => $companyName !== '' ? $companyName : null,
             'login_code' => $loginCode,
             'code_hash' => null,
             'gateway_request_id' => null,
@@ -66,9 +82,93 @@ final class PhoneAuthService
         return $session;
     }
 
+    /**
+     * Создаёт сессию юр. лица до подписи ЭЦП (OTP не отправляется).
+     */
+    public function startPendingLegalEntity(
+        string $phone,
+        string $bin,
+        string $companyName,
+        ?string $ip = null,
+    ): AuthSession {
+        $normalizedPhone = $this->normalizePhone($phone);
+        $normalizedBin = $this->normalizeBin($bin);
+        $companyName = trim($companyName);
+
+        $recentAttempts = AuthSession::query()
+            ->where('phone', $normalizedPhone)
+            ->where('created_at', '>=', now()->subHour())
+            ->count();
+
+        if ($recentAttempts >= config('otp.rate_limit_per_phone')) {
+            throw new RuntimeException('Слишком много попыток. Попробуйте позже.');
+        }
+
+        AuthSession::query()
+            ->where('phone', $normalizedPhone)
+            ->where('status', 'pending')
+            ->update(['status' => 'expired']);
+
+        $loginCode = Str::upper(Str::random(32));
+        $ttl = (int) config('ncanode.challenge_ttl_seconds', 600);
+
+        $session = AuthSession::query()->create([
+            'phone' => $normalizedPhone,
+            'client_type' => ClientType::LegalEntity->value,
+            'bin' => $normalizedBin,
+            'company_name' => $companyName,
+            'login_code' => $loginCode,
+            'code_hash' => null,
+            'gateway_request_id' => null,
+            'code_attempts' => 0,
+            'status' => 'pending',
+            'expires_at' => now()->addSeconds($ttl),
+        ]);
+
+        $this->auditLogService->log(
+            action: 'auth.phone.legal.pending',
+            payload: ['phone' => $normalizedPhone, 'bin' => $normalizedBin],
+            request: request(),
+        );
+
+        return $session;
+    }
+
+    public function sendOtpForSession(AuthSession $session): AuthSession
+    {
+        if (! $this->whatsappOtp->isConfigured()) {
+            throw new RuntimeException('Авторизация по номеру телефона временно недоступна.');
+        }
+
+        if ($session->requiresEds() && ! $session->hasEdsVerified()) {
+            throw new RuntimeException('Сначала подтвердите ЭЦП организации.');
+        }
+
+        $expiresIn = $this->whatsappOtp->send($session->phone);
+
+        $session->update([
+            'expires_at' => now()->addSeconds($expiresIn),
+            'code_attempts' => 0,
+            'status' => 'pending',
+        ]);
+
+        $this->auditLogService->log(
+            action: 'auth.phone.start',
+            payload: ['phone' => $session->phone],
+            request: request(),
+        );
+
+        return $session->fresh();
+    }
+
     public function resend(string $loginCode): AuthSession
     {
-        $session = $this->findActiveSession($loginCode);
+        $session = $this->findSessionForResend($loginCode);
+
+        if ($session->requiresEds() && ! $session->hasEdsVerified()) {
+            throw new RuntimeException('Сначала подтвердите ЭЦП организации.');
+        }
+
         $expiresIn = $this->whatsappOtp->send($session->phone);
 
         $session->update([
@@ -109,6 +209,10 @@ final class PhoneAuthService
         $maxAttempts = (int) config('otp.max_attempts');
         $session = $this->findActiveSession($loginCode);
 
+        if ($session->requiresEds() && ! $session->hasEdsVerified()) {
+            throw new RuntimeException('Сначала подтвердите ЭЦП организации.');
+        }
+
         if ($session->code_attempts >= $maxAttempts) {
             $session->update(['status' => 'failed']);
 
@@ -146,11 +250,17 @@ final class PhoneAuthService
 
             if ($user === null) {
                 $user = User::query()->create([
-                    'name' => 'User '.$locked->phone,
+                    'name' => $locked->company_name ?: ('User '.$locked->phone),
                     'email' => 'wa_'.Str::lower(Str::random(16)).'@exchange.local',
                     'password' => bcrypt(Str::random(32)),
                     'phone' => $locked->phone,
+                    'client_type' => $locked->client_type ?: 'individual',
                     'iin' => $locked->iin,
+                    'bin' => $locked->bin,
+                    'company_name' => $locked->company_name,
+                    'eds_verified_at' => $locked->eds_verified_at,
+                    'eds_certificate_subject' => $locked->eds_certificate_subject,
+                    'representative_iin' => $locked->eds_signer_iin,
                     'phone_verified' => true,
                     'phone_verified_at' => now(),
                     'kyc_status' => 'none',
@@ -163,6 +273,24 @@ final class PhoneAuthService
 
                 if ($locked->iin !== null && $user->iin === null) {
                     $attributes['iin'] = $locked->iin;
+                }
+
+                if ($locked->bin !== null && $user->bin === null) {
+                    $attributes['bin'] = $locked->bin;
+                }
+
+                if ($locked->company_name !== null && $user->company_name === null) {
+                    $attributes['company_name'] = $locked->company_name;
+                }
+
+                if ($locked->client_type !== null && $user->client_type === 'individual' && $locked->client_type !== 'individual') {
+                    $attributes['client_type'] = $locked->client_type;
+                }
+
+                if ($locked->eds_verified_at !== null && $user->eds_verified_at === null) {
+                    $attributes['eds_verified_at'] = $locked->eds_verified_at;
+                    $attributes['eds_certificate_subject'] = $locked->eds_certificate_subject;
+                    $attributes['representative_iin'] = $locked->eds_signer_iin;
                 }
 
                 $user->update($attributes);
@@ -206,7 +334,25 @@ final class PhoneAuthService
         return preg_replace('/\D+/', '', $iin) ?? '';
     }
 
+    public function normalizeBin(string $bin): string
+    {
+        return preg_replace('/\D+/', '', $bin) ?? '';
+    }
+
     private function findActiveSession(string $loginCode): AuthSession
+    {
+        $session = $this->findSessionForResend($loginCode);
+
+        if ($session->isExpired()) {
+            $session->update(['status' => 'expired']);
+
+            throw new RuntimeException('Код истёк. Запросите новый.');
+        }
+
+        return $session;
+    }
+
+    private function findSessionForResend(string $loginCode): AuthSession
     {
         $session = AuthSession::query()->where('login_code', $loginCode)->first();
 
@@ -219,13 +365,7 @@ final class PhoneAuthService
         }
 
         if ($session->status === 'failed') {
-            throw new RuntimeException('Сессия заблокирована. Запросите новый код.');
-        }
-
-        if ($session->isExpired()) {
-            $session->update(['status' => 'expired']);
-
-            throw new RuntimeException('Код истёк. Запросите новый.');
+            throw new RuntimeException('Сессия заблокирована. Начните вход заново.');
         }
 
         return $session;

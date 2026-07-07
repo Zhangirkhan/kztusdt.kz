@@ -9,6 +9,7 @@ use App\Http\Requests\StartPhoneAuthRequest;
 use App\Http\Requests\VerifyPhoneAuthRequest;
 use App\Services\PhoneAuthService;
 use App\Support\AppLog;
+use App\Support\LocaleManager;
 use App\Support\RequestLogContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,10 @@ final class PhoneAuthController extends Controller
         try {
             $session = $this->phoneAuthService->start(
                 $request->validated('phone'),
+                $request->validated('client_type'),
                 $request->validated('iin'),
+                $request->validated('bin'),
+                $request->validated('company_name'),
             );
 
             return response()->json([
@@ -78,7 +82,9 @@ final class PhoneAuthController extends Controller
 
         return response()->json([
             'verified' => true,
-            'redirect' => $kyc['needs_verification'] ? null : route('home'),
+            'redirect' => $kyc['needs_verification']
+                ? null
+                : route('home', ['locale' => LocaleManager::resolve($request)]),
             'kyc' => $kyc,
             'kyc_status' => $user->kyc_status,
             'suggest_biometric' => ! $user->webauthnKeys()->exists(),

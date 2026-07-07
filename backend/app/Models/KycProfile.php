@@ -16,6 +16,7 @@ final class KycProfile extends Model
         'sumsub_applicant_id',
         'first_name',
         'last_name',
+        'company_name',
         'document_type',
         'document_number',
         'status',

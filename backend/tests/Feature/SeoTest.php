@@ -69,9 +69,9 @@ final class SeoTest extends TestCase
                 ->where('seo.robots', 'noindex, nofollow'));
     }
 
-    public function test_telegram_wait_page_is_not_indexable(): void
+    public function test_whatsapp_wait_page_is_not_indexable(): void
     {
-        $this->get('/auth/telegram/invalid-code')->assertNotFound();
+        $this->get('/ru/auth/whatsapp/invalid-code')->assertNotFound();
 
         $session = \App\Models\AuthSession::query()->create([
             'phone' => '+77071234567',
@@ -84,10 +84,10 @@ final class SeoTest extends TestCase
 
         $loginCode = $session->login_code;
 
-        $this->get("/auth/telegram/{$loginCode}")
+        $this->get("/ru/auth/whatsapp/{$loginCode}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('Auth/TelegramWait')
+                ->component('Auth/WhatsAppWait')
                 ->where('seo.indexable', false)
                 ->where('seo.robots', 'noindex, nofollow'));
     }

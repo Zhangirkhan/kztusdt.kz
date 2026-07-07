@@ -33,7 +33,7 @@ const addressPlaceholder = computed(() => (isTron.value ? 'T...' : '0x...'));
 
 const statusLabels = {
     created: 'Создана',
-    awaiting_telegram_confirmation: 'Ждёт подтверждения в Telegram',
+    awaiting_telegram_confirmation: 'Ждёт подтверждения',
     pending_review: 'На проверке СБ',
     approved: 'Одобрена, в очереди',
     sending: 'Отправляется',
@@ -85,15 +85,15 @@ function formatDate(value) {
             {{ page.props.flash.success }}
         </div>
 
-        <section class="card mb-stack-element">
-            <p class="text-label-caps uppercase text-text-dim">Доступно</p>
-            <p class="mt-1 text-headline-md text-accent">{{ formatUsdt(balance.available, 2) }} USDT</p>
-            <p v-if="parseFloat(balance.locked) > 0" class="mt-1 text-body-sm text-text-dim">
+        <section class="card card--highlight mb-stack-element">
+            <p class="text-label-caps uppercase text-white/70">Доступно</p>
+            <p class="mt-1 text-headline-md font-bold">{{ formatUsdt(balance.available, 2) }} USDT</p>
+            <p v-if="parseFloat(balance.locked) > 0" class="mt-1 text-body-sm text-white/80">
                 Заблокировано в заявках: {{ formatUsdt(balance.locked, 2) }} USDT
             </p>
         </section>
 
-        <div v-if="!withdrawalsEnabled" class="mb-stack-element rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div v-if="!withdrawalsEnabled" class="warning-box mb-stack-element">
             Автоматическая отправка временно отключена: заявки принимаются и будут отправлены после включения.
         </div>
 
@@ -105,10 +105,8 @@ function formatDate(value) {
                         v-for="net in networks"
                         :key="net.code"
                         type="button"
-                        class="rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
-                        :class="net.code === form.network
-                            ? 'border-accent bg-accent/15 text-accent'
-                            : 'border-outline-variant/40 bg-surface-container-low text-text-muted'"
+                        class="network-chip"
+                        :class="net.code === form.network ? 'network-chip--active' : 'network-chip--inactive'"
                         @click="form.network = net.code"
                     >
                         {{ net.code }}
@@ -195,6 +193,6 @@ function formatDate(value) {
             </div>
         </section>
 
-        <Link href="/wallet" class="mt-4 block text-center text-body-sm text-text-dim">← В кошелёк</Link>
+        <Link :href="route('wallet')" class="mt-4 block text-center text-body-sm text-text-dim">← В кошелёк</Link>
     </ExchangeLayout>
 </template>

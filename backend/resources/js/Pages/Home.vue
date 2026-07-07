@@ -26,15 +26,15 @@ function onKycApproved() {
 
         <ServiceHero :company="companyHero" />
 
-        <section class="card mb-stack-element overflow-hidden">
-            <p class="text-label-caps uppercase text-text-dim">Курс USDT / KZT</p>
-            <p class="mt-2 text-3xl font-bold text-accent">{{ formatKzt(rates.usdt_kzt) }} ₸</p>
-            <p class="mt-1 text-body-sm text-text-dim">Комиссия: {{ formatPercent(userStatus.fee_percent) }}%</p>
+        <section class="card card--highlight mb-stack-element overflow-hidden">
+            <p class="text-label-caps uppercase text-white/70">Курс USDT / KZT</p>
+            <p class="mt-2 text-3xl font-bold tracking-tight">{{ formatKzt(rates.usdt_kzt) }} ₸</p>
+            <p class="mt-1 text-body-sm text-white/80">Комиссия: {{ formatPercent(userStatus.fee_percent) }}%</p>
         </section>
 
-        <section v-if="!userStatus.phone_verified" class="card border border-error/30">
-            <p class="font-semibold text-error">Телефон не подтверждён</p>
-            <Link href="/auth/phone" class="mt-3 inline-block text-accent">Подтвердить →</Link>
+        <section v-if="!userStatus.phone_verified" class="warning-box">
+            <p class="font-semibold">Телефон не подтверждён</p>
+            <Link :href="route('auth.phone')" class="mt-3 inline-block font-semibold text-accent">Подтвердить →</Link>
         </section>
 
         <section v-else-if="userStatus.inline_sumsub" class="card">
@@ -55,17 +55,21 @@ function onKycApproved() {
         <section v-else-if="userStatus.kyc_status !== 'approved'" class="card">
             <p class="font-semibold">KYC: {{ userStatus.kyc_status }}</p>
             <p class="mt-2 text-body-sm text-text-muted">Пройдите верификацию, чтобы получить кошелёк USDT</p>
-            <Link href="/kyc" class="btn-primary mt-4 inline-block text-center no-underline">Пройти KYC</Link>
+            <Link :href="route('kyc')" class="btn-primary mt-4 inline-block text-center no-underline">Пройти KYC</Link>
         </section>
 
         <section v-else class="grid grid-cols-2 gap-3">
-            <Link href="/exchange" class="card text-center no-underline">
-                <span class="material-symbols-outlined text-accent">currency_exchange</span>
-                <p class="mt-2 text-sm font-semibold text-on-surface">Обмен</p>
+            <Link :href="route('exchange')" class="card flex flex-col items-center text-center no-underline transition-transform active:scale-[0.98]">
+                <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-accent">
+                    <span class="material-symbols-outlined text-2xl">currency_exchange</span>
+                </span>
+                <p class="mt-3 text-sm font-semibold text-on-surface">Обмен</p>
             </Link>
-            <Link href="/wallet" class="card text-center no-underline">
-                <span class="material-symbols-outlined text-accent">account_balance_wallet</span>
-                <p class="mt-2 text-sm font-semibold text-on-surface">Кошелёк</p>
+            <Link :href="route('wallet')" class="card flex flex-col items-center text-center no-underline transition-transform active:scale-[0.98]">
+                <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-accent">
+                    <span class="material-symbols-outlined text-2xl">account_balance_wallet</span>
+                </span>
+                <p class="mt-3 text-sm font-semibold text-on-surface">Кошелёк</p>
             </Link>
         </section>
 

@@ -19,4 +19,5 @@ return [
     'code_ttl_seconds' => (int) env('OTP_CODE_TTL', 300),
     'max_attempts' => (int) env('OTP_MAX_ATTEMPTS', 5),
     'resend_cooldown_seconds' => (int) env('OTP_RESEND_COOLDOWN', 60),
+    'rate_limit_per_phone' => (int) env('OTP_RATE_LIMIT_PHONE', env('TELEGRAM_RATE_LIMIT_PHONE', 5)),
 ];

@@ -43,6 +43,7 @@ final class SeoPresenter
             'auth.phone' => self::landing($siteUrl, $companyName),
             'legal.index' => self::legalIndex($siteUrl, $companyName),
             'legal.show' => self::legalShow(
+                $request,
                 $siteUrl,
                 $companyName,
                 (string) $request->route('slug'),
@@ -67,7 +68,7 @@ final class SeoPresenter
     {
         $title = (string) __('seo.landing_title', ['name' => $companyName]);
         $description = (string) __('seo.landing_description');
-        $canonical = $siteUrl.'/auth/phone';
+        $canonical = route('auth.phone');
         $image = (string) config('seo.image');
 
         return self::indexable([
@@ -119,7 +120,7 @@ final class SeoPresenter
     {
         $title = (string) __('seo.legal_index_title', ['name' => $companyName]);
         $description = (string) __('seo.legal_index_description', ['name' => $companyName]);
-        $canonical = $siteUrl.'/legal';
+        $canonical = route('legal.index');
 
         return self::indexable([
             'title' => $title,
@@ -138,7 +139,7 @@ final class SeoPresenter
     /**
      * @return array<string, mixed>
      */
-    private static function legalShow(string $siteUrl, string $companyName, string $slug): array
+    private static function legalShow(Request $request, string $siteUrl, string $companyName, string $slug): array
     {
         $service = app(LegalDocumentService::class);
 
@@ -151,7 +152,10 @@ final class SeoPresenter
 
         $title = $document['title'].' — '.$companyName;
         $description = (string) ($meta['description'] ?? $document['title']);
-        $canonical = $siteUrl.'/legal/'.$slug;
+        $canonical = route('legal.show', [
+            'locale' => LocaleManager::resolve($request),
+            'slug' => $slug,
+        ]);
 
         return self::indexable([
             'title' => $title,

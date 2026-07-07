@@ -39,11 +39,6 @@ final class ProfileService
             if ($phoneChanged) {
                 $user->phone_verified = false;
                 $user->phone_verified_at = null;
-
-                $user->telegramAccount?->update([
-                    'phone' => $normalizedPhone,
-                    'is_verified' => false,
-                ]);
             }
 
             $user->save();
@@ -58,7 +53,7 @@ final class ProfileService
                 ],
             );
 
-            return $user->fresh(['telegramAccount', 'kycProfile']);
+            return $user->fresh(['kycProfile']);
         });
 
         return [
@@ -83,7 +78,7 @@ final class ProfileService
      */
     public function profilePayload(User $user): array
     {
-        $user->loadMissing(['telegramAccount', 'kycProfile']);
+        $user->loadMissing(['kycProfile']);
 
         $hasReducedFee = $user->hasReducedFee();
         $activeSubscription = $user->subscriptions()
@@ -106,7 +101,6 @@ final class ProfileService
             'phone_verified' => (bool) $user->phone_verified,
             'phone_verified_at' => $user->phone_verified_at?->toIso8601String(),
             'kyc_status' => (string) $user->kyc_status,
-            'telegram_username' => $user->telegramAccount?->telegram_username,
             'fee_percent' => $user->feePercent(),
             'has_subscription' => $hasReducedFee,
             'current_tariff' => $currentPlan->code,
@@ -130,6 +124,14 @@ final class ProfileService
             'kyc_first_name' => $user->kycProfile?->first_name,
             'kyc_last_name' => $user->kycProfile?->last_name,
             'locale' => $user->locale,
+            'bank_name' => $user->bank_name,
+            'bank_holder' => $user->bank_holder,
+            'bank_account' => $user->bank_account,
+            'notification_preferences' => $user->notification_preferences ?? [
+                'push' => true,
+                'email' => true,
+                'sms' => true,
+            ],
         ];
     }
 

@@ -53,6 +53,17 @@ final class ExchangeController extends Controller
         ]);
     }
 
+    public function homeRedirect(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user !== null && $user->canUseWallet()) {
+            return redirect()->route('wallet');
+        }
+
+        return redirect()->route('kyc');
+    }
+
     public function wallet(Request $request): Response|RedirectResponse
     {
         $user = $request->user();

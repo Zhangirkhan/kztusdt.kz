@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\PushSubscription;
 use App\Models\User;
+use App\Support\LocaleManager;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 use Throwable;
@@ -52,7 +53,7 @@ final class PushNotificationService
             $payload = json_encode([
                 'title' => $title,
                 'body' => $body,
-                'url' => $data['url'] ?? (string) config('webpush.default_url'),
+                'url' => $this->notificationUrl($user, $data['url'] ?? (string) config('webpush.default_url')),
                 'data' => $data,
             ], JSON_UNESCAPED_UNICODE);
 
@@ -91,5 +92,26 @@ final class PushNotificationService
         } catch (Throwable $exception) {
             report($exception);
         }
+    }
+
+    private function notificationUrl(User $user, mixed $url): string
+    {
+        $url = is_string($url) && $url !== '' ? $url : (string) config('webpush.default_url');
+
+        if (
+            str_starts_with($url, 'http://')
+            || str_starts_with($url, 'https://')
+            || str_starts_with($url, 'mailto:')
+            || str_starts_with($url, 'tel:')
+            || str_starts_with($url, '/api')
+            || str_starts_with($url, '/admin')
+            || str_starts_with($url, '/auth/aitu')
+        ) {
+            return $url;
+        }
+
+        $locale = LocaleManager::normalize($user->locale) ?? LocaleManager::default();
+
+        return LocaleManager::localizedPath($locale, $url);
     }
 }

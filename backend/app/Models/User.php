@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ClientType;
+use App\Support\KycClientOptions;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -21,7 +23,13 @@ use LaravelWebauthn\WebauthnAuthenticatable;
     'email',
     'password',
     'phone',
+    'client_type',
     'iin',
+    'bin',
+    'company_name',
+    'eds_verified_at',
+    'eds_certificate_subject',
+    'representative_iin',
     'phone_verified',
     'phone_verified_at',
     'kyc_status',
@@ -29,6 +37,10 @@ use LaravelWebauthn\WebauthnAuthenticatable;
     'tenant_id',
     'status',
     'locale',
+    'bank_name',
+    'bank_holder',
+    'bank_account',
+    'notification_preferences',
 ])]
 #[Hidden(['password', 'remember_token'])]
 final class User extends Authenticatable
@@ -41,9 +53,11 @@ final class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
+            'eds_verified_at' => 'datetime',
             'phone_verified' => 'boolean',
             'has_subscription' => 'boolean',
             'password' => 'hashed',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -149,31 +163,30 @@ final class User extends Authenticatable
         return $this->phone_verified && $this->kyc_status === 'approved';
     }
 
+    public function clientType(): ClientType
+    {
+        return ClientType::tryFrom((string) $this->client_type) ?? ClientType::Individual;
+    }
+
+    public function isLegalEntity(): bool
+    {
+        return $this->clientType() === ClientType::LegalEntity;
+    }
+
+    public function displayName(): string
+    {
+        if ($this->isLegalEntity() && is_string($this->company_name) && $this->company_name !== '') {
+            return $this->company_name;
+        }
+
+        return (string) ($this->name ?: $this->phone ?: $this->email);
+    }
+
     /**
      * @return array{provider: string, needs_verification: bool, inline_sumsub: bool}
      */
     public function kycMeta(): array
     {
-        $provider = (string) config('kyc.provider', 'manual');
-
-        if ($provider === 'sumsub') {
-            $sumsub = app(\App\Services\SumsubService::class);
-
-            if (! $sumsub->isConfigured()) {
-                $provider = 'manual';
-            }
-        }
-
-        if ($provider === 'aitu' && ! app(\App\Services\AituPassportService::class)->isConfigured()) {
-            $provider = 'manual';
-        }
-
-        $status = (string) $this->kyc_status;
-
-        return [
-            'provider' => $provider,
-            'needs_verification' => ! in_array($status, ['approved', 'pending_review'], true),
-            'inline_sumsub' => $provider === 'sumsub' && $status !== 'approved',
-        ];
+        return KycClientOptions::forUser($this);
     }
 }

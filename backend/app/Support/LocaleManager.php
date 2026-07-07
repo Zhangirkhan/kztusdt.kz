@@ -54,6 +54,18 @@ final class LocaleManager
 
     public static function resolve(Request $request): string
     {
+        $routeLocale = self::normalize($request->route('locale'));
+
+        if ($routeLocale !== null && self::isSupported($routeLocale)) {
+            return $routeLocale;
+        }
+
+        $pathLocale = self::normalize(explode('/', trim($request->path(), '/'))[0] ?? null);
+
+        if ($pathLocale !== null && self::isSupported($pathLocale)) {
+            return $pathLocale;
+        }
+
         $user = $request->user();
 
         if ($user instanceof User && is_string($user->locale) && self::isSupported($user->locale)) {
@@ -73,6 +85,47 @@ final class LocaleManager
         }
 
         return self::default();
+    }
+
+    public static function localizedPath(string $locale, string $path): string
+    {
+        $locale = self::isSupported($locale) ? $locale : self::default();
+        $path = '/'.ltrim($path, '/');
+
+        if ($path === '/') {
+            return '/'.$locale;
+        }
+
+        $segments = explode('/', trim($path, '/'));
+
+        if (($segments[0] ?? '') !== '' && self::isSupported($segments[0])) {
+            $segments[0] = $locale;
+
+            return '/'.implode('/', $segments);
+        }
+
+        return '/'.$locale.$path;
+    }
+
+    public static function localizedUrl(string $locale, ?string $url = null): string
+    {
+        $target = $url ?? url()->previous();
+        $parts = parse_url($target);
+
+        $path = (string) ($parts['path'] ?? '');
+        $localizedPath = self::localizedPath($locale, $path !== '' ? $path : '/');
+        $query = isset($parts['query']) && $parts['query'] !== '' ? '?'.$parts['query'] : '';
+        $fragment = isset($parts['fragment']) && $parts['fragment'] !== '' ? '#'.$parts['fragment'] : '';
+
+        if ($target !== '' && str_contains($target, '://')) {
+            $scheme = (string) ($parts['scheme'] ?? request()->getScheme());
+            $host = (string) ($parts['host'] ?? request()->getHost());
+            $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+            return sprintf('%s://%s%s%s%s', $scheme, $host, $port, $localizedPath, $query.$fragment);
+        }
+
+        return $localizedPath.$query.$fragment;
     }
 
     public static function apply(string $locale): void

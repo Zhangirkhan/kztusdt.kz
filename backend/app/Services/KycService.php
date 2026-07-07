@@ -26,7 +26,7 @@ final class KycService
     public function submit(User $user, array $data, array $documents): KycProfile
     {
         if (! $user->phone_verified) {
-            throw new RuntimeException('Сначала подтвердите телефон через Telegram.');
+            throw new RuntimeException('Сначала подтвердите телефон через WhatsApp.');
         }
 
         if (in_array($user->kyc_status, ['approved', 'pending_review'], true)) {
@@ -37,6 +37,7 @@ final class KycService
             $profile = KycProfile::query()->updateOrCreate(
                 ['user_id' => $user->id],
                 [
+                    'provider' => 'manual',
                     'first_name' => $data['first_name'],
                     'last_name' => $data['last_name'],
                     'document_type' => $data['document_type'],
@@ -89,9 +90,9 @@ final class KycService
                 request: request(),
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $user,
-                "📋 KYC отправлен на проверку.\n\nМы уведомим вас после решения СБ.",
+                'kyc_submitted',
             );
 
             return $profile->fresh(['documents']);
@@ -130,14 +131,91 @@ final class KycService
                 request: request(),
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $profile->user,
-                "✅ KYC одобрен!\n\nСкоро будет создан ваш USDT кошелёк.",
+                'kyc_approved',
             );
         });
 
         // Create the HD wallet after KYC approval is committed.
         CreateWalletAfterKycApproved::dispatch($profile->user_id);
+    }
+
+    /**
+     * Одобрить KYC вручную из админки (без загрузки документов клиентом).
+     *
+     * @param  array{first_name: string, last_name: string, company_name?: string, document_type?: string, document_number?: string}  $data
+     */
+    public function adminManualApprove(User $user, User $reviewer, array $data, ?string $comment = null): KycProfile
+    {
+        if ($user->kyc_status === 'approved') {
+            throw new RuntimeException('KYC уже одобрен.');
+        }
+
+        $profile = DB::transaction(function () use ($user, $reviewer, $data, $comment): KycProfile {
+            $companyName = trim((string) ($data['company_name'] ?? ''));
+
+            $profile = KycProfile::query()->updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'provider' => 'manual',
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                    'company_name' => $user->isLegalEntity() ? ($companyName !== '' ? $companyName : $user->company_name) : null,
+                    'document_type' => $data['document_type'] ?? ($user->isLegalEntity() ? 'registration' : 'id_card'),
+                    'document_number' => $data['document_number'] ?? ($user->isLegalEntity() ? (string) $user->bin : ''),
+                    'status' => 'approved',
+                    'submitted_at' => now(),
+                    'reviewed_by' => $reviewer->id,
+                    'reviewed_at' => now(),
+                    'rejection_reason' => null,
+                ],
+            );
+
+            $userUpdates = ['kyc_status' => 'approved'];
+
+            if ($user->isLegalEntity() && $companyName !== '') {
+                $userUpdates['company_name'] = $companyName;
+                $userUpdates['name'] = $companyName;
+            }
+
+            $user->update($userUpdates);
+
+            ManualApproval::query()->updateOrCreate(
+                [
+                    'entity_type' => 'kyc_profile',
+                    'entity_id' => $profile->id,
+                ],
+                [
+                    'required_role' => 'security_officer',
+                    'status' => 'approved',
+                    'requested_by' => $user->id,
+                    'approved_by' => $reviewer->id,
+                    'approved_at' => now(),
+                    'comment' => $comment ?: 'Одобрено администратором вручную',
+                ],
+            );
+
+            $this->auditLogService->log(
+                action: 'kyc.admin_manual_approved',
+                userId: $reviewer->id,
+                entityType: 'kyc_profile',
+                entityId: $profile->id,
+                payload: ['comment' => $comment],
+                request: request(),
+            );
+
+            $this->notifier->notifyKey(
+                $user,
+                'kyc_manual_approved',
+            );
+
+            return $profile;
+        });
+
+        CreateWalletAfterKycApproved::dispatch($user->id);
+
+        return $profile;
     }
 
     public function reject(KycProfile $profile, User $reviewer, string $reason): void
@@ -172,9 +250,10 @@ final class KycService
                 request: request(),
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $profile->user,
-                "❌ KYC отклонён.\n\nПричина: {$reason}\n\nИсправьте данные и отправьте снова.",
+                'kyc_rejected',
+                ['reason' => $reason],
             );
         });
     }
@@ -216,9 +295,9 @@ final class KycService
                 request: request(),
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $profile->user,
-                "🔄 Верификация KYC сброшена.\n\nПройдите проверку заново на странице /kyc.",
+                'kyc_reset',
             );
         });
     }

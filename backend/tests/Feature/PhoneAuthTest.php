@@ -134,7 +134,11 @@ final class PhoneAuthTest extends TestCase
     {
         $this->fakeOtp();
 
-        $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
+        $code = $this->postJson('/api/auth/phone/start', [
+            'client_type' => 'individual',
+            'iin' => self::VALID_IIN,
+            'phone' => '+77071234567',
+        ])
             ->json('login_code');
 
         $this->assertDatabaseHas('auth_sessions', [
@@ -147,6 +151,46 @@ final class PhoneAuthTest extends TestCase
 
         $userId = AuthSession::query()->where('login_code', $code)->value('user_id');
         $this->assertSame(self::VALID_IIN, User::query()->find($userId)->iin);
+    }
+
+    public function test_legal_entity_bin_and_company_name_are_stored(): void
+    {
+        config([
+            'ncanode.legal_entity_eds_required' => true,
+            'ncanode.skip_verification' => true,
+        ]);
+
+        $this->fakeOtp();
+
+        $code = $this->postJson('/api/auth/legal-entity/eds/start', [
+            'bin' => '900101000008',
+            'company_name' => 'ТОО KZT USDT',
+            'phone' => '+77079876543',
+        ])->assertCreated()->json('login_code');
+
+        $this->postJson("/api/auth/legal-entity/eds/{$code}/verify", [
+            'cms' => base64_encode(str_repeat('test-signature-payload-', 4)),
+        ])->assertOk();
+
+        $this->assertDatabaseHas('auth_sessions', [
+            'login_code' => $code,
+            'client_type' => 'legal_entity',
+            'bin' => '900101000008',
+            'company_name' => 'ТОО KZT USDT',
+        ]);
+
+        $this->postJson("/api/auth/phone/verify/{$code}", ['code' => $this->lastCode()])
+            ->assertOk();
+
+        $user = User::query()->findOrFail(
+            AuthSession::query()->where('login_code', $code)->value('user_id'),
+        );
+
+        $this->assertSame('legal_entity', $user->client_type);
+        $this->assertSame('900101000008', $user->bin);
+        $this->assertSame('ТОО KZT USDT', $user->company_name);
+        $this->assertNull($user->iin);
+        $this->assertNotNull($user->eds_verified_at);
     }
 
     public function test_start_is_rate_limited_per_phone(): void
@@ -184,6 +228,30 @@ final class PhoneAuthTest extends TestCase
             ->assertJsonPath('login_code', $code);
 
         Http::assertSentCount(2);
+    }
+
+    public function test_resend_reactivates_expired_session(): void
+    {
+        $this->fakeOtp();
+
+        $session = AuthSession::query()->create([
+            'phone' => '+77071234567',
+            'iin' => self::VALID_IIN,
+            'login_code' => 'EXPIREDTESTCODE123456789012345',
+            'code_hash' => null,
+            'gateway_request_id' => null,
+            'status' => 'expired',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->postJson("/api/auth/phone/resend/{$session->login_code}")
+            ->assertOk()
+            ->assertJsonPath('status', 'pending');
+
+        $this->assertDatabaseHas('auth_sessions', [
+            'login_code' => $session->login_code,
+            'status' => 'pending',
+        ]);
     }
 
     public function test_full_login_flow_with_correct_code(): void
@@ -292,6 +360,34 @@ final class PhoneAuthTest extends TestCase
         $this->assertSame(1, User::query()->count());
     }
 
+    public function test_phone_page_store_redirects_to_whatsapp_wait_page(): void
+    {
+        $this->fakeOtp();
+
+        $response = $this->post('/ru/auth/phone', [
+            'iin' => self::VALID_IIN,
+            'phone' => '+77071234567',
+        ]);
+
+        $session = AuthSession::query()->where('phone', '+77071234567')->latest('id')->first();
+        $this->assertNotNull($session);
+
+        $response->assertRedirect(route('auth.whatsapp.wait', [
+            'locale' => 'ru',
+            'loginCode' => $session->login_code,
+        ]));
+
+        $this->get(route('auth.whatsapp.wait', [
+            'locale' => 'ru',
+            'loginCode' => $session->login_code,
+        ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Auth/WhatsAppWait')
+                ->where('loginCode', $session->login_code)
+                ->where('initialStep', 'whatsapp'));
+    }
+
     public function test_verified_authenticated_user_sees_inline_kyc_on_wait_page(): void
     {
         config([
@@ -310,10 +406,10 @@ final class PhoneAuthTest extends TestCase
             ->assertJsonPath('kyc.inline_sumsub', true)
             ->assertJsonPath('kyc.needs_verification', true);
 
-        $this->get("/auth/telegram/{$code}")
+        $this->get("/ru/auth/whatsapp/{$code}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('Auth/TelegramWait')
+                ->component('Auth/WhatsAppWait')
                 ->where('initialStep', 'kyc')
                 ->where('kyc.inline_sumsub', true));
     }

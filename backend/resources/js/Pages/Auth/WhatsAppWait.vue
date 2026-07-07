@@ -5,6 +5,7 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue
 import { useI18n } from 'vue-i18n';
 import { useBiometricAuth } from '@/composables/useBiometricAuth';
 import { navigateAfterAuth } from '@/utils/authNavigation';
+import { localizedPath } from '@/utils/localizedPath';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
 
@@ -14,7 +15,7 @@ const props = defineProps({
     status: String,
     expiresAt: String,
     codeLength: { type: Number, default: 6 },
-    initialStep: { type: String, default: 'telegram' },
+    initialStep: { type: String, default: 'whatsapp' },
     kycStatus: { type: String, default: 'none' },
     kyc: { type: Object, default: null },
 });
@@ -44,7 +45,9 @@ const showInlineSumsub = ref(
     props.kyc?.inline_sumsub === true && !['approved', 'pending_review'].includes(kycStatus.value),
 );
 
-const canSubmit = computed(() => code.value.length === props.codeLength && !submitting.value);
+const isExpired = computed(() => props.status === 'expired');
+const canResend = computed(() => !resending.value && resendCooldown.value <= 0);
+const canSubmit = computed(() => code.value.length === props.codeLength && !submitting.value && !isExpired.value);
 const expiresAtLabel = computed(() =>
     props.expiresAt ? new Date(props.expiresAt).toLocaleTimeString('ru-RU') : '',
 );
@@ -164,7 +167,9 @@ async function resendCode() {
         startCooldown(60);
 
         if (result.login_code && result.login_code !== props.loginCode) {
-            router.get(`/auth/telegram/${result.login_code}`, {}, { replace: true });
+            router.get(localizedPath(`/auth/whatsapp/${result.login_code}`), {}, { replace: true });
+        } else {
+            router.reload({ only: ['loginCode', 'phone', 'status', 'expiresAt', 'codeLength'] });
         }
     } catch {
         errorMessage.value = 'Не удалось отправить код повторно.';
@@ -188,14 +193,14 @@ function continueAfterLogin(result) {
         return;
     }
 
-    navigateAfterAuth(result.redirect ?? '/home');
+    navigateAfterAuth(result.redirect ?? '/wallet');
 }
 
 function finishBiometricStep() {
     if (pendingRedirect.value) {
         continueAfterLogin(pendingRedirect.value);
     } else {
-        navigateAfterAuth('/home');
+        navigateAfterAuth('/wallet');
     }
 }
 
@@ -210,7 +215,7 @@ async function enableBiometric() {
 }
 
 function onKycApproved() {
-    navigateAfterAuth('/home');
+    navigateAfterAuth('/wallet');
 }
 
 function onKycPending() {
@@ -219,8 +224,13 @@ function onKycPending() {
 }
 
 onMounted(() => {
-    if (step.value === 'telegram') {
-        startCooldown(60);
+    if (step.value === 'whatsapp') {
+        if (isExpired.value) {
+            resendCooldown.value = 0;
+        } else {
+            startCooldown(60);
+        }
+
         codeInput.value?.focus();
     }
 });
@@ -236,24 +246,28 @@ onUnmounted(() => {
     <SeoHead />
     <Head :title="step === 'kyc' ? 'Верификация документов' : step === 'biometric' ? 'Быстрый вход' : t('auth.verify.heading')" />
 
-    <div class="mx-auto flex min-h-screen w-full max-w-container-max flex-col bg-background px-margin-page pb-8">
+    <div class="app-frame">
+        <div class="app-shell page-enter flex min-h-dvh flex-col px-margin-page pb-8">
         <div class="flex flex-1 flex-col justify-center py-stack-section">
             <div v-if="step !== 'biometric'" class="mb-stack-element">
                 <div class="mb-6 flex items-center justify-center gap-3 text-xs font-semibold uppercase tracking-wide">
-                    <span :class="step === 'telegram' ? 'text-accent' : 'text-text-dim'">{{ t('auth.verify.stepLabel') }}</span>
+                    <span :class="step === 'whatsapp' ? 'text-accent' : 'text-text-dim'">{{ t('auth.verify.stepLabel') }}</span>
                     <span class="text-text-dim">→</span>
                     <span :class="step === 'kyc' ? 'text-accent' : 'text-text-dim'">2. Документ + видео</span>
                 </div>
             </div>
 
-            <template v-if="step === 'telegram'">
+            <template v-if="step === 'whatsapp'">
                 <div class="mb-stack-section text-center">
-                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-light">
                         <span class="material-symbols-outlined text-4xl text-accent">sms</span>
                     </div>
                     <h1 class="text-headline-xl">{{ t('auth.verify.heading') }}</h1>
                     <p class="mt-3 text-body-sm text-text-muted">
                         {{ t('auth.verify.subtitle', { phone }) }}
+                    </p>
+                    <p v-if="isExpired" class="mt-3 text-sm text-error">
+                        Срок действия кода истёк. Нажмите «Отправить код повторно».
                     </p>
                 </div>
 
@@ -284,12 +298,12 @@ onUnmounted(() => {
                     <button
                         type="button"
                         class="text-accent hover:underline disabled:text-text-dim disabled:no-underline"
-                        :disabled="resending || resendCooldown > 0"
+                        :disabled="!canResend"
                         @click="resendCode"
                     >
                         {{ resendCooldown > 0 ? t('auth.verify.resendIn', { seconds: resendCooldown }) : t('auth.verify.resend') }}
                     </button>
-                    <Link href="/auth/phone" class="text-text-dim hover:underline">{{ t('auth.verify.wrongNumber') }}</Link>
+                    <Link :href="route('auth.phone')" class="text-text-dim hover:underline">{{ t('auth.verify.wrongNumber') }}</Link>
                     <p v-if="expiresAtLabel" class="text-text-dim">
                         {{ t('auth.verify.expiresAt', { time: expiresAtLabel }) }}
                     </p>
@@ -298,7 +312,7 @@ onUnmounted(() => {
 
             <template v-else-if="step === 'biometric'">
                 <div class="mb-stack-section text-center">
-                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-light">
                         <span class="material-symbols-outlined text-4xl text-accent">fingerprint</span>
                     </div>
                     <h1 class="text-headline-xl">Быстрый вход</h1>
@@ -330,7 +344,7 @@ onUnmounted(() => {
 
             <template v-else>
                 <div class="mb-stack-section text-center">
-                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-light">
                         <span class="material-symbols-outlined text-4xl text-accent">verified_user</span>
                     </div>
                     <h1 class="text-headline-xl">Верификация личности</h1>
@@ -351,9 +365,10 @@ onUnmounted(() => {
                 <section v-else-if="kycStatus === 'pending_review'" class="card text-center">
                     <p class="font-semibold text-accent">Документы на проверке</p>
                     <p class="mt-2 text-body-sm text-text-muted">Обычно это занимает 1–2 минуты. Можно перейти на главную.</p>
-                    <Link href="/home" class="btn-primary mt-4 inline-block text-center no-underline">На главную</Link>
+                    <Link :href="route('wallet')" class="btn-primary mt-4 inline-block text-center no-underline">На главную</Link>
                 </section>
             </template>
+        </div>
         </div>
     </div>
 </template>

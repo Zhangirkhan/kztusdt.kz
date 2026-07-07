@@ -130,15 +130,18 @@ final class WithdrawalService
 
     private function sendCreatedNotification(Withdrawal $withdrawal): void
     {
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "📋 Заявка на вывод №{$withdrawal->id} создана.\n\n"
-            ."Сумма: {$this->usdt((string) $withdrawal->amount)} USDT\n"
-            ."Комиссия сервиса: {$this->usdt((string) $withdrawal->fee_amount)} USDT\n"
-            ."Комиссия сети: {$this->usdt((string) $withdrawal->network_fee)} USDT\n"
-            ."Итого к списанию: {$this->usdt((string) $withdrawal->total_debit)} USDT\n\n"
-            ."Адрес ({$withdrawal->network}):\n<code>{$withdrawal->to_address}</code>\n\n"
-            .'Заявка передана на проверку службе безопасности.',
+            'withdrawal_created',
+            [
+                'id' => $withdrawal->id,
+                'amount' => $this->usdt((string) $withdrawal->amount),
+                'fee' => $this->usdt((string) $withdrawal->fee_amount),
+                'network_fee' => $this->usdt((string) $withdrawal->network_fee),
+                'total' => $this->usdt((string) $withdrawal->total_debit),
+                'network' => $withdrawal->network,
+                'address' => $withdrawal->to_address,
+            ],
         );
     }
 
@@ -180,9 +183,10 @@ final class WithdrawalService
 
         $withdrawal->refresh();
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "✅ Вывод №{$withdrawal->id} одобрен службой безопасности и поставлен в очередь на отправку.",
+            'withdrawal_approved',
+            ['id' => $withdrawal->id],
         );
     }
 
@@ -215,9 +219,10 @@ final class WithdrawalService
 
         $withdrawal->refresh();
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "🔁 Вывод №{$withdrawal->id} снова поставлен в очередь на отправку.",
+            'withdrawal_retry',
+            ['id' => $withdrawal->id],
         );
     }
 
@@ -272,9 +277,10 @@ final class WithdrawalService
 
         $withdrawal->refresh();
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "❌ Вывод №{$withdrawal->id} отклонён.\n\nПричина: {$reason}\nСредства разблокированы.",
+            'withdrawal_rejected',
+            ['id' => $withdrawal->id, 'reason' => $reason],
         );
     }
 
@@ -296,9 +302,10 @@ final class WithdrawalService
 
         $withdrawal->refresh();
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "🚫 Вывод №{$withdrawal->id} отменён. Средства разблокированы.",
+            'withdrawal_cancelled',
+            ['id' => $withdrawal->id],
         );
     }
 
@@ -457,9 +464,10 @@ final class WithdrawalService
             ],
         );
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "📤 Вывод №{$withdrawal->id} отправлен в сеть.\n\nTx: <code>{$hash}</code>\nОжидаем подтверждения блокчейна.",
+            'withdrawal_sent',
+            ['id' => $withdrawal->id, 'tx' => $hash],
         );
 
         return true;
@@ -543,11 +551,16 @@ final class WithdrawalService
             );
         });
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "✅ Вывод №{$withdrawal->id} выполнен!\n\n"
-            ."{$this->usdt((string) $withdrawal->amount)} {$withdrawal->asset} отправлено на\n<code>{$withdrawal->to_address}</code>\n\n"
-            .$this->explorerTx($withdrawal),
+            'withdrawal_completed',
+            [
+                'id' => $withdrawal->id,
+                'amount' => $this->usdt((string) $withdrawal->amount),
+                'asset' => $withdrawal->asset,
+                'address' => $withdrawal->to_address,
+                'explorer' => $this->explorerTx($withdrawal),
+            ],
         );
     }
 
@@ -666,10 +679,10 @@ final class WithdrawalService
             'error' => $error,
         ]);
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $withdrawal->user,
-            "⚠️ Вывод №{$withdrawal->id}: отправка прервана, проверяем статус в сети. "
-            .'Средства остаются заблокированными до выяснения.',
+            'withdrawal_interrupted',
+            ['id' => $withdrawal->id],
         );
     }
 

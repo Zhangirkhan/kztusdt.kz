@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, toRef } from 'vue';
-import { useForm, Link } from '@inertiajs/vue3';
+import { router, useForm, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AppLogo from '@/Components/AppLogo.vue';
 import SeoHead from '@/Components/SeoHead.vue';
-import CompanyIntro from '@/Components/CompanyIntro.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
 import PwaInstallPrompt from '@/Components/PwaInstallPrompt.vue';
 import { useBiometricAuth } from '@/composables/useBiometricAuth';
+import { useNcaLayer } from '@/composables/useNcaLayer';
 import { usePhoneMaskInput } from '@/composables/usePhoneMaskInput';
 import {
     formatNational,
@@ -17,11 +17,15 @@ import {
 } from '@/utils/phoneMask';
 
 const props = defineProps({
-    telegramBotUsername: String,
     companyIntro: Object,
+    legalEntityEdsRequired: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const { t } = useI18n();
+const { signBase64Detached } = useNcaLayer();
 const {
     supported: biometricSupported,
     busy: biometricBusy,
@@ -32,22 +36,44 @@ const {
 } = useBiometricAuth();
 
 const form = useForm({
+    client_type: 'individual',
     iin: '',
+    bin: '',
+    company_name: '',
     phone: MIN_PHONE,
 });
 
+const edsStep = ref('form');
+const edsBusy = ref(false);
+const edsError = ref('');
+const edsSession = ref(null);
+
+const isLegalEntity = computed(() => form.client_type === 'legal_entity');
+const showEdsStep = computed(() => isLegalEntity.value && props.legalEntityEdsRequired && edsStep.value === 'sign');
 const biometricAvailable = ref(false);
 let biometricCheckTimer = null;
 const phoneError = computed(() => getKzPhoneError(form.phone, t));
 const isIinComplete = computed(() => /^\d{12}$/.test(form.iin));
+const isBinComplete = computed(() => /^\d{12}$/.test(form.bin));
 const iinError = computed(() => {
-    if (form.iin.length === 0 || isIinComplete.value) {
+    if (isLegalEntity.value || form.iin.length === 0 || isIinComplete.value) {
         return '';
     }
 
     return t('auth.iinError');
 });
-const canSubmit = computed(() => isIinComplete.value && isKzPhoneComplete(form.phone) && !form.processing);
+const binError = computed(() => {
+    if (! isLegalEntity.value || form.bin.length === 0 || isBinComplete.value) {
+        return '';
+    }
+
+    return t('auth.binError');
+});
+const canSubmit = computed(() => {
+    const idOk = isLegalEntity.value ? isBinComplete.value && form.company_name.trim().length >= 2 : isIinComplete.value;
+
+    return idOk && isKzPhoneComplete(form.phone) && !form.processing;
+});
 const canClear = computed(() => form.phone !== MIN_PHONE);
 const showBiometricLogin = computed(() => biometricSupported && biometricAvailable.value && isKzPhoneComplete(form.phone));
 
@@ -108,6 +134,113 @@ function onIinInput(event) {
     event.target.value = form.iin;
 }
 
+function onBinInput(event) {
+    form.bin = event.target.value.replace(/\D/g, '').slice(0, 12);
+    event.target.value = form.bin;
+}
+
+function setClientType(type) {
+    form.client_type = type;
+    edsStep.value = 'form';
+    edsError.value = '';
+    edsSession.value = null;
+
+    if (type === 'individual') {
+        form.bin = '';
+        form.company_name = '';
+    } else {
+        form.iin = '';
+    }
+}
+
+async function submitForm() {
+    edsError.value = '';
+
+    if (isLegalEntity.value && props.legalEntityEdsRequired) {
+        await startLegalEntityEds();
+
+        return;
+    }
+
+    form.post(route('auth.phone.store'));
+}
+
+async function startLegalEntityEds() {
+    edsBusy.value = true;
+
+    try {
+        const response = await fetch('/api/auth/legal-entity/eds/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify({
+                phone: form.phone,
+                bin: form.bin,
+                company_name: form.company_name,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (! response.ok) {
+            throw new Error(data.message || t('auth.edsError'));
+        }
+
+        edsSession.value = data;
+        edsStep.value = 'sign';
+    } catch (error) {
+        edsError.value = error?.message || t('auth.edsError');
+    } finally {
+        edsBusy.value = false;
+    }
+}
+
+async function signWithEds() {
+    if (! edsSession.value?.challenge_base64) {
+        return;
+    }
+
+    edsBusy.value = true;
+    edsError.value = '';
+
+    try {
+        const cms = await signBase64Detached(edsSession.value.challenge_base64);
+
+        const response = await fetch(`/api/auth/legal-entity/eds/${edsSession.value.login_code}/verify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify({ cms }),
+        });
+
+        const data = await response.json();
+
+        if (! response.ok) {
+            throw new Error(data.message || t('auth.edsError'));
+        }
+
+        if (data.redirect) {
+            router.visit(data.redirect);
+        }
+    } catch (error) {
+        edsError.value = error?.message || t('auth.edsError');
+    } finally {
+        edsBusy.value = false;
+    }
+}
+
+function backToForm() {
+    edsStep.value = 'form';
+    edsError.value = '';
+    edsSession.value = null;
+}
+
 onMounted(() => {
     const savedPhone = getSavedPhone();
 
@@ -128,22 +261,51 @@ onUnmounted(() => {
 <template>
     <SeoHead />
 
-    <div class="mx-auto flex min-h-screen w-full max-w-container-max flex-col bg-background px-margin-page pb-36">
-        <header class="flex h-16 items-center justify-between gap-3">
-            <AppLogo :size="40" show-wordmark />
-            <LocaleSwitcher compact />
-        </header>
+    <div class="app-frame">
+        <div class="app-shell page-enter flex min-h-dvh flex-col px-margin-page pb-36">
+            <header class="flex items-center justify-between gap-3 pt-4" style="padding-top: calc(16px + var(--safe-top))">
+                <AppLogo :size="44" show-wordmark />
+                <LocaleSwitcher compact code-only />
+            </header>
 
-        <div class="flex flex-1 flex-col justify-center py-stack-section">
+            <div class="flex flex-1 flex-col justify-center py-stack-section">
             <div class="mb-stack-section text-center">
-                <h1 class="text-headline-xl">{{ t('auth.heading') }}</h1>
+                <h1 class="text-headline-xl">
+                    {{ isLegalEntity ? t('auth.headingLegal') : t('auth.heading') }}
+                </h1>
                 <p class="mt-3 text-body-sm text-text-muted">
                     {{ t('auth.subtitle') }}
                 </p>
             </div>
 
-            <form class="space-y-stack-element" @submit.prevent="form.post('/auth/phone')">
+            <form v-if="!showEdsStep" class="space-y-stack-element" @submit.prevent="submitForm">
                 <div>
+                    <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.clientTypeLabel') }}</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            class="rounded-xl border px-3 py-3 text-sm font-semibold transition"
+                            :class="form.client_type === 'individual'
+                                ? 'border-accent bg-accent/15 text-accent'
+                                : 'border-outline-variant bg-surface-container-low text-text-muted'"
+                            @click="setClientType('individual')"
+                        >
+                            {{ t('auth.clientIndividual') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-xl border px-3 py-3 text-sm font-semibold transition"
+                            :class="form.client_type === 'legal_entity'
+                                ? 'border-accent bg-accent/15 text-accent'
+                                : 'border-outline-variant bg-surface-container-low text-text-muted'"
+                            @click="setClientType('legal_entity')"
+                        >
+                            {{ t('auth.clientLegal') }}
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="!isLegalEntity">
                     <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.iinLabel') }}</label>
                     <input
                         :value="form.iin"
@@ -159,6 +321,37 @@ onUnmounted(() => {
                     <p v-else-if="iinError" class="mt-2 text-sm text-error">{{ iinError }}</p>
                     <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.iinHint') }}</p>
                 </div>
+
+                <template v-else>
+                    <div>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.companyNameLabel') }}</label>
+                        <input
+                            v-model="form.company_name"
+                            type="text"
+                            class="input-field"
+                            autocomplete="organization"
+                        />
+                        <p v-if="form.errors.company_name" class="mt-2 text-sm text-error">{{ form.errors.company_name }}</p>
+                        <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.companyNameHint') }}</p>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.binLabel') }}</label>
+                        <input
+                            :value="form.bin"
+                            type="text"
+                            class="input-field"
+                            placeholder="000000000000"
+                            autocomplete="off"
+                            inputmode="numeric"
+                            maxlength="12"
+                            @input="onBinInput"
+                        />
+                        <p v-if="form.errors.bin" class="mt-2 text-sm text-error">{{ form.errors.bin }}</p>
+                        <p v-else-if="binError" class="mt-2 text-sm text-error">{{ binError }}</p>
+                        <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.binHint') }}</p>
+                    </div>
+                </template>
 
                 <div>
                     <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.phoneLabel') }}</label>
@@ -192,7 +385,7 @@ onUnmounted(() => {
                     </p>
                 </div>
 
-                <button type="submit" class="btn-primary" :disabled="!canSubmit">
+                <button type="submit" class="btn-primary" :disabled="!canSubmit || edsBusy">
                     {{ t('auth.submit') }}
                 </button>
 
@@ -221,15 +414,49 @@ onUnmounted(() => {
                 <p v-if="biometricError" class="text-sm text-error">{{ biometricError }}</p>
             </form>
 
+            <div v-else class="space-y-stack-element">
+                <div class="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+                    <h2 class="text-lg font-semibold">{{ t('auth.edsTitle') }}</h2>
+                    <p class="mt-2 text-sm text-text-muted">{{ t('auth.edsSubtitle') }}</p>
+                    <p class="mt-3 text-sm text-text-dim">
+                        {{ t('auth.edsHint') }}
+                        <a
+                            href="https://pki.gov.kz/ncalayer/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-accent hover:underline"
+                        >{{ t('auth.edsInstallLink') }}</a>.
+                    </p>
+                    <div class="mt-4 space-y-1 text-sm">
+                        <p><span class="text-text-dim">{{ t('auth.companyNameLabel') }}:</span> {{ form.company_name }}</p>
+                        <p><span class="text-text-dim">{{ t('auth.binLabel') }}:</span> {{ form.bin }}</p>
+                        <p><span class="text-text-dim">{{ t('auth.phoneLabel') }}:</span> {{ form.phone }}</p>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-primary" :disabled="edsBusy" @click="signWithEds">
+                    {{ edsBusy ? t('auth.edsSigning') : t('auth.edsSignButton') }}
+                </button>
+
+                <button type="button" class="btn-secondary w-full" :disabled="edsBusy" @click="backToForm">
+                    {{ t('auth.edsBack') }}
+                </button>
+
+                <p v-if="edsError" class="text-sm text-error">{{ edsError }}</p>
+            </div>
+
             <p class="mt-8 text-center text-body-sm text-text-dim">
                 {{ t('auth.legalPrefix') }}
-                <Link href="/legal/terms" class="text-accent hover:underline">{{ t('auth.terms') }}</Link>,
-                <Link href="/legal/privacy" class="text-accent hover:underline">{{ t('auth.privacy') }}</Link>
+                <Link :href="route('legal.show', 'terms')" class="text-accent hover:underline">{{ t('auth.terms') }}</Link>,
+                <Link :href="route('legal.show', 'privacy')" class="text-accent hover:underline">{{ t('auth.privacy') }}</Link>
                 {{ t('auth.personalDataPrefix') }}
-                <Link href="/legal/personal-data" class="text-accent hover:underline">{{ t('auth.personalData') }}</Link>.
+                <Link :href="route('legal.show', 'personal-data')" class="text-accent hover:underline">{{ t('auth.personalData') }}</Link>.
             </p>
 
-            <CompanyIntro variant="compact" :company="companyIntro" class="mt-stack-section" />
+            <p class="mt-stack-section text-center text-body-sm text-text-dim">
+                Copyright © 2026 kztusdt.kz
+            </p>
+            </div>
         </div>
     </div>
 

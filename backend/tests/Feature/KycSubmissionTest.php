@@ -42,7 +42,31 @@ final class KycSubmissionTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Kyc')
                 ->where('provider', 'manual')
+                ->where('manualEnabled', true)
+                ->where('showManualForm', true)
                 ->where('kycStatus', 'none'));
+    }
+
+    public function test_kyc_page_shows_manual_form_when_aitu_provider_and_manual_enabled(): void
+    {
+        config([
+            'kyc.provider' => 'aitu',
+            'kyc.manual_enabled' => true,
+            'aitu.client_id' => 'test-client',
+            'aitu.client_secret' => 'test-secret',
+        ]);
+
+        $user = $this->createUnverifiedClient();
+
+        $this->actingAs($user)
+            ->get('/kyc')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Kyc')
+                ->where('provider', 'aitu')
+                ->where('manualEnabled', true)
+                ->where('showAitu', true)
+                ->where('showManualForm', true));
     }
 
     public function test_client_submits_kyc_with_documents(): void

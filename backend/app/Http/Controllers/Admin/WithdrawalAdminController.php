@@ -36,7 +36,11 @@ final class WithdrawalAdminController extends Controller
                 Withdrawal::STATUS_SENDING,
                 Withdrawal::STATUS_SENT,
             ]))
-            ->when(! in_array($status, ['review', 'active', 'all'], true), fn (Builder $q) => $q->where('status', $status))
+            ->when($status === 'failed', fn (Builder $q) => $q->whereIn('status', [
+                Withdrawal::STATUS_FAILED,
+                Withdrawal::STATUS_NEEDS_RECONCILE,
+            ]))
+            ->when(! in_array($status, ['review', 'active', 'all', 'failed'], true), fn (Builder $q) => $q->where('status', $status))
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
@@ -48,13 +52,24 @@ final class WithdrawalAdminController extends Controller
             'autoLimit' => (float) config('withdrawal.auto_limit'),
             'stats' => [
                 'review' => Withdrawal::query()->where('status', Withdrawal::STATUS_PENDING_REVIEW)->count(),
+                'active' => Withdrawal::query()->whereIn('status', [
+                    Withdrawal::STATUS_AWAITING_TELEGRAM_CONFIRMATION,
+                    Withdrawal::STATUS_PENDING_REVIEW,
+                    Withdrawal::STATUS_APPROVED,
+                    Withdrawal::STATUS_SENDING,
+                    Withdrawal::STATUS_SENT,
+                ])->count(),
                 'queued' => Withdrawal::query()->whereIn('status', [
                     Withdrawal::STATUS_APPROVED,
                     Withdrawal::STATUS_SENDING,
                     Withdrawal::STATUS_SENT,
                 ])->count(),
                 'completed' => Withdrawal::query()->where('status', Withdrawal::STATUS_COMPLETED)->count(),
-                'failed' => Withdrawal::query()->where('status', Withdrawal::STATUS_FAILED)->count(),
+                'failed' => Withdrawal::query()->whereIn('status', [
+                    Withdrawal::STATUS_FAILED,
+                    Withdrawal::STATUS_NEEDS_RECONCILE,
+                ])->count(),
+                'all' => Withdrawal::query()->count(),
             ],
         ]);
     }

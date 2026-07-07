@@ -76,10 +76,14 @@ final class SubscriptionService
 
         $this->subscriptionPlanService->clearUserCache($user->id);
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $user,
-            "⭐ Вам активирована подписка «{$plan->name}» до {$subscription->expires_at->format('d.m.Y')}.\n\n"
-            .'Комиссия обмена: '.$this->subscriptionPlanService->telegramFeeLabel($plan->fee_percent).'.',
+            'subscription_granted',
+            [
+                'plan' => $plan->name,
+                'date' => $subscription->expires_at->format('d.m.Y'),
+                'fee' => $this->subscriptionPlanService->feeLabel($plan->fee_percent),
+            ],
         );
 
         return $subscription;

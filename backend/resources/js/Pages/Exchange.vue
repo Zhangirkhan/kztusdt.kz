@@ -114,7 +114,7 @@ function formatDate(value) {
     <ExchangeLayout>
         <template #title>Обмен валют</template>
 
-        <div v-if="page.props.flash?.success" class="card mb-4 border border-accent/30 text-accent">
+        <div v-if="page.props.flash?.success" class="info-box mb-4">
             {{ page.props.flash.success }}
         </div>
 
@@ -136,23 +136,23 @@ function formatDate(value) {
             </p>
         </div>
 
-        <div v-if="!canTrade" class="card border border-amber-500/40 text-amber-300">
+        <div v-if="!canTrade" class="warning-box">
             Для обмена нужно подтвердить телефон и пройти KYC.
-            <Link href="/kyc" class="mt-2 block font-semibold text-accent">Пройти KYC →</Link>
+            <Link :href="route('kyc')" class="mt-2 block font-semibold text-accent">Пройти KYC →</Link>
         </div>
 
         <template v-else>
-            <div class="mb-stack-element flex rounded-xl bg-surface-container p-1">
+            <div class="buy-sell-tabs mb-stack-element">
                 <button
                     class="btn-segment"
-                    :class="mode === 'buy' ? 'bg-accent text-on-accent shadow-md' : 'text-text-dim'"
+                    :class="mode === 'buy' ? 'btn-segment--active' : 'btn-segment--inactive'"
                     @click="setMode('buy')"
                 >
                     Купить USDT
                 </button>
                 <button
                     class="btn-segment"
-                    :class="mode === 'sell' ? 'bg-accent text-on-accent shadow-md' : 'text-text-dim'"
+                    :class="mode === 'sell' ? 'btn-segment--active' : 'btn-segment--inactive'"
                     @click="setMode('sell')"
                 >
                     Продать USDT
@@ -164,14 +164,14 @@ function formatDate(value) {
                     <div class="flex gap-2 text-xs">
                         <button
                             class="btn-chip"
-                            :class="buyInput === 'kzt' ? 'bg-accent/20 text-accent' : 'bg-surface-container text-text-dim'"
+                            :class="buyInput === 'kzt' ? 'btn-chip--active' : 'btn-chip--inactive'"
                             @click="buyInput = 'kzt'"
                         >
                             Ввожу сумму KZT
                         </button>
                         <button
                             class="btn-chip"
-                            :class="buyInput === 'usdt' ? 'bg-accent/20 text-accent' : 'bg-surface-container text-text-dim'"
+                            :class="buyInput === 'usdt' ? 'btn-chip--active' : 'btn-chip--inactive'"
                             @click="buyInput = 'usdt'"
                         >
                             Хочу получить USDT

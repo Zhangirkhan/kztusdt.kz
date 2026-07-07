@@ -141,6 +141,6 @@ function formatDate(value) {
             Отменить заявку
         </button>
 
-        <Link href="/exchange" class="mt-4 block text-center text-body-sm text-text-dim">← К обмену</Link>
+        <Link :href="route('exchange')" class="mt-4 block text-center text-body-sm text-text-dim">← К обмену</Link>
     </ExchangeLayout>
 </template>

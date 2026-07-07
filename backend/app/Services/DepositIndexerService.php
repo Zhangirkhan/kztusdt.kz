@@ -129,10 +129,14 @@ final class DepositIndexerService
             if ($deposit->wasRecentlyCreated) {
                 $detected++;
 
-                $this->notifier->notifyUser(
+                $this->notifier->notifyKey(
                     $deposit->user,
-                    "🔎 Обнаружен депозит {$amount} {$deposit->asset} {$network}.\n".
-                    'Ожидаем подтверждений сети.',
+                    'deposit_detected',
+                    [
+                        'amount' => $amount,
+                        'asset' => $deposit->asset,
+                        'network' => $network,
+                    ],
                 );
             }
         }

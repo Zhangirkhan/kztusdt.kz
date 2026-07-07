@@ -10,7 +10,7 @@ final class LegalDocumentsTest extends TestCase
 {
     public function test_legal_index_page_is_available(): void
     {
-        $this->get('/legal')
+        $this->get('/ru/legal')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Legal/Index')
@@ -20,7 +20,7 @@ final class LegalDocumentsTest extends TestCase
     public function test_legal_document_pages_are_available(): void
     {
         foreach (['terms', 'privacy', 'personal-data', 'offer', 'aml-kyc', 'requisites'] as $slug) {
-            $this->get("/legal/{$slug}")
+            $this->get("/ru/legal/{$slug}")
                 ->assertOk()
                 ->assertInertia(fn ($page) => $page
                     ->component('Legal/Show')
@@ -31,14 +31,14 @@ final class LegalDocumentsTest extends TestCase
 
     public function test_unknown_legal_document_returns_not_found(): void
     {
-        $this->get('/legal/unknown-document')->assertNotFound();
+        $this->get('/ru/legal/unknown-document')->assertNotFound();
     }
 
     public function test_requisites_document_contains_company_bin(): void
     {
         config(['company.bin' => '260340021560']);
 
-        $this->get('/legal/requisites')
+        $this->get('/ru/legal/requisites')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('document.slug', 'requisites')

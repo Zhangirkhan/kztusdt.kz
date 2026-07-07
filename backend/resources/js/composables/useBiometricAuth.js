@@ -102,7 +102,7 @@ export function useBiometricAuth() {
 
             savePhone(normalized);
 
-            navigateAfterAuth(result.callback ?? '/home');
+            navigateAfterAuth(result.callback ?? '/wallet');
         } catch (exception) {
             error.value = exception.message ?? 'Биометрия недоступна.';
             throw exception;

@@ -74,5 +74,10 @@
         <env name="RATE_MARKUP_SELL" value="1"/>
         <env name="RATE_CACHE_TTL" value="120"/>
         <env name="RATE_FALLBACK" value="500"/>
+
+        <!-- NCANode / legal entity EDS -->
+        <env name="NCANODE_BASE_URL" value="http://127.0.0.1:14579"/>
+        <env name="LEGAL_ENTITY_EDS_REQUIRED" value="true"/>
+        <env name="NCANODE_SKIP_VERIFICATION" value="true"/>
     </php>
 </phpunit>

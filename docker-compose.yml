@@ -1,0 +1,15 @@
+services:
+  ncanode:
+    image: malikzh/ncanode:3.4.0
+    container_name: crypto-exchange-ncanode
+    restart: unless-stopped
+    ports:
+      - "${NCANODE_PORT:-14579}:14579"
+    environment:
+      NCANODE_DEBUG: "${NCANODE_DEBUG:-false}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:14579/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

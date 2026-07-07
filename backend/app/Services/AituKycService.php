@@ -141,9 +141,9 @@ final class AituKycService
                 entityId: $profile->id,
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $user,
-                "✅ Верификация пройдена (Aitu Passport)!\n\nСкоро будет создан ваш USDT кошелёк.",
+                'kyc_aitu_approved',
             );
         });
 
@@ -176,9 +176,9 @@ final class AituKycService
                 entityId: $profile->id,
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $user,
-                "❌ Верификация Aitu Passport не пройдена.\n\nПопробуйте пройти проверку повторно на странице /kyc.",
+                'kyc_aitu_rejected',
             );
         });
     }

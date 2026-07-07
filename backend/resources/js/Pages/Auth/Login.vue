@@ -29,8 +29,9 @@ const submit = () => {
 <template>
     <Head title="Вход в админку" />
 
-    <div class="mx-auto flex min-h-screen w-full max-w-container-max flex-col bg-background px-margin-page py-stack-section">
-        <div class="mx-auto w-full max-w-md">
+    <div class="app-frame">
+        <div class="app-shell page-enter flex min-h-dvh flex-col px-margin-page py-stack-section">
+            <div class="mx-auto w-full max-w-md">
             <div class="mb-8 text-center">
                 <AppLogo :size="56" show-wordmark class="mx-auto" />
                 <h1 class="mt-6 text-headline-xl text-on-surface">Вход для сотрудников</h1>
@@ -54,7 +55,7 @@ const submit = () => {
                         required
                         autofocus
                         autocomplete="username"
-                        placeholder="admin@exchange.local"
+                        placeholder="admin@kztusdt.kz"
                     />
                     <InputError class="mt-2" :message="form.errors.email" />
                 </div>
@@ -94,8 +95,9 @@ const submit = () => {
 
             <p class="mt-6 text-center text-body-sm text-text-dim">
                 Клиентам —
-                <Link href="/auth/phone" class="text-accent hover:underline">вход по телефону</Link>
+                <Link :href="route('auth.phone')" class="text-accent hover:underline">вход по телефону</Link>
             </p>
+            </div>
         </div>
     </div>
 </template>

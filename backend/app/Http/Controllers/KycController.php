@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SubmitKycRequest;
-use App\Services\AituPassportService;
 use App\Services\KycService;
 use App\Services\SumsubService;
+use App\Support\KycClientOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,35 +20,27 @@ final class KycController extends Controller
     public function __construct(
         private readonly KycService $kycService,
         private readonly SumsubService $sumsubService,
-        private readonly AituPassportService $aituPassport,
     ) {}
 
     public function show(Request $request): Response
     {
         abort_unless($request->user()?->phone_verified, 403);
 
-        $profile = $request->user()->kycProfile?->load('documents');
-        $provider = (string) config('kyc.provider', 'manual');
-
-        // Fall back to the manual form while the external provider is not configured yet.
-        if ($provider === 'sumsub' && ! $this->sumsubService->isConfigured()) {
-            $provider = 'manual';
-        }
-
-        if ($provider === 'aitu' && ! $this->aituPassport->isConfigured()) {
-            $provider = 'manual';
-        }
+        $user = $request->user();
+        $profile = $user->kycProfile?->load('documents');
+        $options = KycClientOptions::forUser($user);
 
         return Inertia::render('Kyc', [
             'profile' => $profile,
-            'kycStatus' => $request->user()->kyc_status,
+            'kycStatus' => $user->kyc_status,
             'rejectionReason' => $profile?->rejection_reason,
-            'provider' => $provider,
-            // Re-run the Aitu authorization to (re)deliver the verification verdict.
-            'aituVerifyUrl' => $provider === 'aitu'
-                ? route('auth.aitu.redirect', ['intent' => 'kyc'])
-                : null,
-            'aituKycScopeConfigured' => $provider === 'aitu' && $this->aituPassport->kycScopeConfigured(),
+            'provider' => $options['provider'],
+            'manualEnabled' => $options['manual_enabled'],
+            'showAitu' => $options['show_aitu'],
+            'showSumsub' => $options['show_sumsub'],
+            'showManualForm' => $options['show_manual_form'],
+            'aituVerifyUrl' => $options['aitu_verify_url'],
+            'aituKycScopeConfigured' => $options['aitu_kyc_scope_configured'],
         ]);
     }
 
@@ -83,6 +75,8 @@ final class KycController extends Controller
 
     public function store(SubmitKycRequest $request): RedirectResponse
     {
+        abort_unless(KycClientOptions::manualEnabled(), 403, 'Ручная подача KYC отключена.');
+
         try {
             $this->kycService->submit(
                 $request->user(),

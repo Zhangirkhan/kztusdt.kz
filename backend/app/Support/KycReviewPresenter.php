@@ -31,7 +31,7 @@ final class KycReviewPresenter
      */
     public function showPayload(KycProfile $profile): array
     {
-        $profile->loadMissing(['user.telegramAccount', 'documents', 'reviewer:id,name']);
+        $profile->loadMissing(['user', 'documents', 'reviewer:id,name']);
 
         $user = $profile->user;
 
@@ -54,7 +54,6 @@ final class KycReviewPresenter
                 'name' => $user->name,
                 'phone' => $user->phone,
                 'kyc_status' => $user->kyc_status,
-                'telegram_username' => $user->telegramAccount?->telegram_username,
             ] : null,
             'reviewer' => $profile->reviewer ? [
                 'id' => $profile->reviewer->id,

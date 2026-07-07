@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\LocaleManager;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,7 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 return route('login');
             }
 
-            return route('auth.phone');
+            return route('auth.phone', [
+                'locale' => LocaleManager::resolve($request),
+            ]);
         });
 
         $middleware->trustProxies(at: '*');
@@ -47,6 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
             'no_security_pwa' => \App\Http\Middleware\RedirectSecurityFromPwa::class,
+            'kyc.approved' => \App\Http\Middleware\EnsureKycApproved::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

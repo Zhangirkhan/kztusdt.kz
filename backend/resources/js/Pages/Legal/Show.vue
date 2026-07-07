@@ -13,7 +13,7 @@ defineProps({
 
     <div class="mx-auto min-h-screen w-full max-w-container-max bg-background px-margin-page py-stack-section pb-16">
         <header class="mb-stack-section flex items-center gap-3">
-            <Link href="/legal" class="p-2 -ml-2 text-text-dim transition hover:text-on-surface">
+            <Link :href="route('legal.index')" class="p-2 -ml-2 text-text-dim transition hover:text-on-surface">
                 <span class="material-symbols-outlined">arrow_back</span>
             </Link>
             <AppLogo :size="36" />

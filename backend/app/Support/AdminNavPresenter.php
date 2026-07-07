@@ -24,11 +24,16 @@ final class AdminNavPresenter
             'landing' => self::landingPath($user),
             'sections' => [
                 'dashboard' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
+                'users' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'kyc' => $user->hasAnyRole(['super_admin', 'security_officer', 'super_admin_manager']),
                 'orders' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin', 'security_officer']),
+                'finance' => $user->hasAnyRole(['super_admin', 'security_officer', 'super_admin_manager']),
                 'withdrawals' => $user->hasAnyRole(['super_admin', 'security_officer', 'super_admin_manager']),
                 'wallets' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'sweeps' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
+                'settings' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
+                'disputes' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin', 'security_officer']),
+                'audit' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'subscriptions' => self::canManageSubscriptions($user),
             ],
         ];

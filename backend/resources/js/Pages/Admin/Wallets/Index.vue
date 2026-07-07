@@ -1,8 +1,13 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
+import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
+import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatUsdt } from '@/utils/formatNumber';
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     systemWallets: Array,
@@ -23,17 +28,42 @@ const depositStatusLabels = {
     failed: 'Ошибка',
 };
 
-const depositStatusColors = {
-    detected: 'text-amber-400',
-    confirmed: 'text-sky-400',
-    credited: 'text-accent',
-    failed: 'text-red-400',
-};
-
 const systemWalletLabels = {
     hot: 'Hot wallet (выводы и sweep)',
     gas: 'Gas wallet (комиссии сети)',
 };
+
+const statItems = computed(() => [
+    { label: 'Клиентских адресов', value: props.stats.wallets_total, color: '#1677ff' },
+    { label: 'Депозитов всего', value: props.stats.deposits_total },
+    { label: 'Зачислено', value: props.stats.deposits_credited, color: '#52c41a' },
+]);
+
+const networkOptions = computed(() => props.availableNetworks.map((net) => ({
+    label: net.code,
+    value: net.code,
+})));
+
+const depositStatusOptions = [
+    { label: 'Все', value: 'all' },
+    { label: 'Обнаружены', value: 'detected' },
+    { label: 'Подтверждаются', value: 'confirmed' },
+    { label: 'Зачислены', value: 'credited' },
+    { label: 'Ошибки', value: 'failed' },
+];
+
+const walletColumns = [
+    { title: 'Клиент', key: 'client' },
+    { title: 'Адрес', key: 'address' },
+    { title: 'Баланс', key: 'balance', width: 140 },
+];
+
+const depositColumns = [
+    { title: 'Депозит', key: 'deposit' },
+    { title: 'Сумма', key: 'amount', width: 160 },
+    { title: 'Статус', key: 'status', width: 140 },
+    { title: 'Время', key: 'time', width: 170 },
+];
 
 function applyFilters(extra = {}) {
     router.get('/admin/wallets', {
@@ -75,234 +105,158 @@ function txUrl(hash) {
     <AdminLayout>
         <template #title>Кошельки · {{ meta.asset }} · {{ meta.network }}</template>
 
-        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div class="card">
-                <p class="text-body-sm text-text-dim">Клиентских адресов</p>
-                <p class="text-headline-md text-accent">{{ stats.wallets_total }}</p>
-            </div>
-            <div class="card">
-                <p class="text-body-sm text-text-dim">Депозитов всего</p>
-                <p class="text-headline-md">{{ stats.deposits_total }}</p>
-            </div>
-            <div class="card">
-                <p class="text-body-sm text-text-dim">Зачислено</p>
-                <p class="text-headline-md text-accent">{{ stats.deposits_credited }}</p>
-            </div>
-        </div>
+        <AdminPage>
+            <AdminStatsRow :items="statItems" />
 
-        <div v-if="availableNetworks.length > 1" class="mb-6 flex flex-wrap gap-2">
-            <button
-                v-for="net in availableNetworks"
-                :key="net.code"
-                type="button"
-                class="rounded-xl border px-4 py-2 text-sm font-semibold transition-colors"
-                :class="net.code === meta.network
-                    ? 'border-accent bg-accent/15 text-accent'
-                    : 'border-outline-variant/40 bg-surface-container text-text-dim'"
-                @click="setNetwork(net.code)"
-            >
-                {{ net.code }}
-            </button>
-        </div>
-
-        <form class="mb-8 flex flex-wrap gap-3" @submit.prevent="applyFilters()">
-            <input
-                v-model="search"
-                type="search"
-                class="input-field min-w-[240px] flex-1"
-                placeholder="Телефон, адрес, tx hash…"
+            <AdminFilters
+                v-if="availableNetworks.length > 1"
+                :model-value="meta.network"
+                :options="networkOptions"
+                @change="setNetwork"
             />
-            <button type="submit" class="btn-primary">Найти</button>
-            <button
-                v-if="filters.q"
-                type="button"
-                class="btn-secondary"
-                @click="search = ''; applyFilters({ q: undefined })"
+
+            <a-input-search
+                v-model:value="search"
+                placeholder="Телефон, адрес, tx hash…"
+                enter-button="Найти"
+                size="large"
+                class="admin-ant-block"
+                @search="applyFilters()"
             >
-                Сброс
-            </button>
-        </form>
+                <template v-if="filters.q" #addonAfter>
+                    <a-button @click="search = ''; applyFilters({ q: undefined })">Сброс</a-button>
+                </template>
+            </a-input-search>
 
-        <section class="mb-10">
-            <h2 class="mb-4 text-label-caps uppercase text-text-dim">Системные кошельки</h2>
+            <a-card title="Системные кошельки" size="small" class="admin-ant-card">
+                <a-space wrap class="admin-ant-block">
+                    <a-tag>Sweep: {{ meta.sweep_enabled ? 'включён' : 'выключен' }}</a-tag>
+                    <a-tag>Выводы: {{ meta.withdrawals_enabled ? 'включены' : 'выключены' }}</a-tag>
+                    <a-tag>Подтверждений: {{ meta.confirmations_required }}</a-tag>
+                </a-space>
 
-            <div class="mb-4 flex flex-wrap gap-2 text-xs">
-                <span class="rounded-lg bg-surface-container px-3 py-1 text-text-dim">
-                    Sweep: {{ meta.sweep_enabled ? 'включён' : 'выключен' }}
-                </span>
-                <span class="rounded-lg bg-surface-container px-3 py-1 text-text-dim">
-                    Выводы: {{ meta.withdrawals_enabled ? 'включены' : 'выключены' }}
-                </span>
-                <span class="rounded-lg bg-surface-container px-3 py-1 text-text-dim">
-                    Подтверждений: {{ meta.confirmations_required }}
-                </span>
-            </div>
+                <a-row :gutter="[16, 16]">
+                    <a-col v-for="wallet in systemWallets" :key="wallet.role" :xs="24" :lg="12">
+                        <a-card size="small" :title="systemWalletLabels[wallet.role] ?? wallet.label">
+                            <a-typography-text code class="admin-ant-meta">{{ wallet.path }}</a-typography-text>
 
-            <div class="grid gap-4 md:grid-cols-2">
-                <div
-                    v-for="wallet in systemWallets"
-                    :key="wallet.role"
-                    class="card"
-                    :class="wallet.role === 'hot' ? 'border border-accent/30' : ''"
+                            <template v-if="wallet.address">
+                                <a :href="addressUrl(wallet.address)" target="_blank" rel="noopener">
+                                    <a-typography-text code copyable class="admin-ant-block">{{ wallet.address }}</a-typography-text>
+                                </a>
+                                <a-row :gutter="12">
+                                    <a-col :span="12">
+                                        <a-statistic
+                                            :title="wallet.native_asset"
+                                            :value="wallet.native != null ? formatUsdt(wallet.native, 6) : '—'"
+                                        />
+                                    </a-col>
+                                    <a-col :span="12">
+                                        <a-statistic
+                                            title="USDT"
+                                            :value="wallet.usdt != null ? formatUsdt(wallet.usdt, 6) : '—'"
+                                            :value-style="{ color: '#52c41a' }"
+                                        />
+                                    </a-col>
+                                </a-row>
+                            </template>
+
+                            <a-alert v-if="wallet.error" type="error" :message="wallet.error" show-icon style="margin-top: 12px" />
+                        </a-card>
+                    </a-col>
+                </a-row>
+            </a-card>
+
+            <a-card title="Клиентские адреса депозита" size="small" class="admin-ant-card">
+                <a-table
+                    :columns="walletColumns"
+                    :data-source="wallets.data"
+                    :pagination="false"
+                    row-key="id"
+                    size="middle"
                 >
-                    <p class="text-label-caps uppercase text-text-dim">
-                        {{ systemWalletLabels[wallet.role] ?? wallet.label }}
-                    </p>
-                    <p class="mt-1 font-mono text-xs text-text-muted">{{ wallet.path }}</p>
+                    <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'client'">
+                            <div>
+                                <a-typography-text strong>{{ record.user?.phone ?? '—' }}</a-typography-text>
+                                <div class="admin-ant-meta">
+                                    {{ record.user?.name ?? '—' }} · KYC: {{ record.user?.kyc_status ?? '—' }}
+                                </div>
+                            </div>
+                        </template>
 
-                    <template v-if="wallet.address">
-                        <a
-                            :href="addressUrl(wallet.address)"
-                            target="_blank"
-                            rel="noopener"
-                            class="mt-3 block break-all font-mono text-sm text-accent hover:underline"
-                        >
-                            {{ wallet.address }}
-                        </a>
-                        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
-                            <div class="rounded-xl bg-surface-container-low px-4 py-3">
-                                <p class="text-text-dim">{{ wallet.native_asset }}</p>
-                                <p class="mt-1 font-semibold">{{ wallet.native != null ? formatUsdt(wallet.native, 6) : '—' }}</p>
-                            </div>
-                            <div class="rounded-xl bg-surface-container-low px-4 py-3">
-                                <p class="text-text-dim">USDT</p>
-                                <p class="mt-1 font-semibold text-accent">{{ wallet.usdt != null ? formatUsdt(wallet.usdt, 6) : '—' }}</p>
-                            </div>
-                        </div>
+                        <template v-else-if="column.key === 'address'">
+                            <a :href="addressUrl(record.address)" target="_blank" rel="noopener">
+                                <a-typography-text code>{{ record.address }}</a-typography-text>
+                            </a>
+                        </template>
+
+                        <template v-else-if="column.key === 'balance'">
+                            <a-typography-text strong>{{ formatUsdt(record.balance.available, 4) }} {{ record.asset }}</a-typography-text>
+                        </template>
                     </template>
 
-                    <p v-if="wallet.error" class="mt-3 text-sm text-red-400">{{ wallet.error }}</p>
-                </div>
-            </div>
-        </section>
+                    <template #emptyText>
+                        <a-empty description="Адресов не найдено" />
+                    </template>
+                </a-table>
 
-        <section class="mb-10">
-            <h2 class="mb-4 text-label-caps uppercase text-text-dim">Клиентские адреса депозита</h2>
+                <AdminPagination :pagination="wallets" page-param="wallets_page" />
+            </a-card>
 
-            <div class="space-y-3">
-                <div v-for="wallet in wallets.data" :key="wallet.id" class="card">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div class="min-w-0 flex-1">
-                            <p class="font-semibold text-on-surface">
-                                {{ wallet.user?.phone ?? '—' }}
-                                <span class="text-text-dim">· {{ wallet.user?.name ?? '—' }}</span>
-                            </p>
-                            <p class="mt-1 text-xs text-text-dim">
-                                KYC: {{ wallet.user?.kyc_status ?? '—' }}
-                                · путь {{ wallet.derivation_path ?? '—' }}
-                            </p>
-                            <a
-                                :href="addressUrl(wallet.address)"
-                                target="_blank"
-                                rel="noopener"
-                                class="mt-2 block break-all font-mono text-sm text-accent hover:underline"
-                            >
-                                {{ wallet.address }}
-                            </a>
-                        </div>
-                        <div class="text-right text-sm">
-                            <p class="text-text-dim">Баланс в системе</p>
-                            <p class="font-semibold text-accent">
-                                {{ formatUsdt(wallet.balance.available, 4) }} {{ wallet.asset }}
-                            </p>
-                            <p v-if="parseFloat(wallet.balance.locked) > 0" class="mt-1 text-xs text-amber-400">
-                                заблокировано {{ formatUsdt(wallet.balance.locked, 4) }}
-                            </p>
-                            <p class="mt-2 text-xs text-text-dim">{{ formatDate(wallet.created_at) }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <p v-if="wallets.data.length === 0" class="text-center text-text-dim">Адресов не найдено</p>
-            </div>
-
-            <div v-if="wallets.links?.length > 3" class="mt-4 flex flex-wrap gap-2">
-                <button
-                    v-for="link in wallets.links"
-                    :key="link.label"
-                    type="button"
-                    class="rounded-lg px-3 py-1 text-sm"
-                    :class="link.active ? 'bg-accent text-on-accent' : 'bg-surface-container text-text-dim'"
-                    :disabled="!link.url"
-                    @click="link.url && router.get(link.url)"
-                    v-html="link.label"
+            <a-card title="История депозитов" size="small" class="admin-ant-card">
+                <AdminFilters
+                    :model-value="filters.deposit_status"
+                    :options="depositStatusOptions"
+                    size="small"
+                    @change="setDepositStatus"
                 />
-            </div>
-        </section>
 
-        <section>
-            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 class="text-label-caps uppercase text-text-dim">История депозитов</h2>
-                <div class="flex flex-wrap gap-2">
-                    <button
-                        v-for="item in [
-                            { key: 'all', label: 'Все' },
-                            { key: 'detected', label: 'Обнаружены' },
-                            { key: 'confirmed', label: 'Подтверждаются' },
-                            { key: 'credited', label: 'Зачислены' },
-                            { key: 'failed', label: 'Ошибки' },
-                        ]"
-                        :key="item.key"
-                        type="button"
-                        class="rounded-xl px-3 py-1.5 text-xs font-semibold transition"
-                        :class="filters.deposit_status === item.key ? 'bg-accent text-on-accent' : 'bg-surface-container text-text-dim'"
-                        @click="setDepositStatus(item.key)"
-                    >
-                        {{ item.label }}
-                    </button>
-                </div>
-            </div>
+                <a-table
+                    :columns="depositColumns"
+                    :data-source="deposits.data"
+                    :pagination="false"
+                    row-key="id"
+                    size="middle"
+                >
+                    <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'deposit'">
+                            <div>
+                                <a-typography-text strong>{{ record.user?.phone ?? '—' }}</a-typography-text>
+                                <div>
+                                    <a :href="txUrl(record.tx_hash)" target="_blank" rel="noopener">
+                                        <a-button type="link" size="small" style="padding-left: 0">
+                                            tx: {{ short(record.tx_hash) }}
+                                        </a-button>
+                                    </a>
+                                </div>
+                            </div>
+                        </template>
 
-            <div class="space-y-3">
-                <div v-for="deposit in deposits.data" :key="deposit.id" class="card">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p class="font-semibold text-on-surface">
-                                +{{ formatUsdt(deposit.amount, 8) }} {{ deposit.asset }}
-                                <span class="text-text-dim">· {{ deposit.user?.phone ?? '—' }}</span>
-                            </p>
-                            <p class="mt-1 text-xs text-text-dim">
-                                {{ short(deposit.from_address) }} → {{ short(deposit.to_address) }}
-                            </p>
-                            <a
-                                :href="txUrl(deposit.tx_hash)"
-                                target="_blank"
-                                rel="noopener"
-                                class="mt-1 block font-mono text-xs text-accent hover:underline"
-                            >
-                                tx: {{ short(deposit.tx_hash) }}
-                            </a>
-                        </div>
-                        <div class="text-right">
-                            <span
-                                class="text-xs font-semibold uppercase"
-                                :class="depositStatusColors[deposit.status] ?? 'text-text-dim'"
-                            >
-                                {{ depositStatusLabels[deposit.status] ?? deposit.status }}
-                            </span>
-                            <p v-if="deposit.status !== 'credited'" class="mt-1 text-xs text-text-dim">
-                                {{ deposit.confirmations }}/{{ meta.confirmations_required }} conf.
-                            </p>
-                            <p class="mt-2 text-xs text-text-dim">{{ formatDate(deposit.created_at) }}</p>
-                        </div>
-                    </div>
-                </div>
+                        <template v-else-if="column.key === 'amount'">
+                            <a-typography-text strong type="success">
+                                +{{ formatUsdt(record.amount, 8) }} {{ record.asset }}
+                            </a-typography-text>
+                        </template>
 
-                <p v-if="deposits.data.length === 0" class="text-center text-text-dim">Депозитов не найдено</p>
-            </div>
+                        <template v-else-if="column.key === 'status'">
+                            <a-tag :color="statusTagColor(record.status)">
+                                {{ depositStatusLabels[record.status] ?? record.status }}
+                            </a-tag>
+                        </template>
 
-            <div v-if="deposits.links?.length > 3" class="mt-4 flex flex-wrap gap-2">
-                <button
-                    v-for="link in deposits.links"
-                    :key="link.label"
-                    type="button"
-                    class="rounded-lg px-3 py-1 text-sm"
-                    :class="link.active ? 'bg-accent text-on-accent' : 'bg-surface-container text-text-dim'"
-                    :disabled="!link.url"
-                    @click="link.url && router.get(link.url)"
-                    v-html="link.label"
-                />
-            </div>
-        </section>
+                        <template v-else-if="column.key === 'time'">
+                            {{ formatDate(record.created_at) }}
+                        </template>
+                    </template>
+
+                    <template #emptyText>
+                        <a-empty description="Депозитов не найдено" />
+                    </template>
+                </a-table>
+
+                <AdminPagination :pagination="deposits" page-param="deposits_page" />
+            </a-card>
+        </AdminPage>
     </AdminLayout>
 </template>

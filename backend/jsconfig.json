@@ -3,6 +3,10 @@
         "baseUrl": ".",
         "paths": {
             "@/*": ["resources/js/*"],
+            "@shared/*": ["resources/js/shared/*"],
+            "@entities/*": ["resources/js/entities/*"],
+            "@features/*": ["resources/js/features/*"],
+            "@widgets/*": ["resources/js/widgets/*"],
             "ziggy-js": ["./vendor/tightenco/ziggy"]
         }
     },

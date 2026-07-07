@@ -2,23 +2,30 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\AuditAdminController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DisputeAdminController;
+use App\Http\Controllers\Admin\FinanceAdminController;
 use App\Http\Controllers\Admin\KycReviewController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\SettingsAdminController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\SweepController;
+use App\Http\Controllers\Admin\UserAdminController;
 use App\Http\Controllers\Admin\WalletAdminController;
 use App\Http\Controllers\Admin\WithdrawalAdminController;
 use App\Http\Controllers\AituPassportController;
 use App\Http\Controllers\Api\AituPassportLogoutController;
 use App\Http\Controllers\Api\AituPassportValidationController;
 use App\Http\Controllers\Api\BiometricAuthController;
+use App\Http\Controllers\Api\LegalEntityEdsController;
 use App\Http\Controllers\Api\PhoneAuthController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\SumsubWebhookController;
 use App\Http\Controllers\ExchangeController;
 use App\Http\Controllers\ExchangeOrderController;
+use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
@@ -27,19 +34,22 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WithdrawalController;
+use App\Support\CompanyPresenter;
+use App\Support\LocaleManager;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
-Route::redirect('/', '/auth/phone');
+Route::get('/', function (Request $request) {
+    return Inertia::render('Landing', [
+        'company' => CompanyPresenter::layout(),
+    ]);
+});
 
 Route::get('/robots.txt', RobotsController::class)->name('robots');
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
-
-Route::get('/legal', [LegalController::class, 'index'])->name('legal.index');
-Route::get('/legal/{slug}', [LegalController::class, 'show'])
-    ->where('slug', '[a-z0-9-]+')
-    ->name('legal.show');
 
 // Aitu Passport (OAuth 2.0 / OpenID) — единая аутентификация.
 // Эти пути регистрируются в клиентской консоли Aitu Passport как URI сервиса.
@@ -78,20 +88,13 @@ Route::match(['get', 'post'], '/api/auth/aitu/validate', AituPassportValidationC
     ->middleware('throttle:120,1')
     ->name('api.auth.aitu.validate');
 
-Route::middleware('guest')->group(function (): void {
-    Route::get('/auth/phone', [PhoneAuthPageController::class, 'show'])->name('auth.phone');
-    Route::post('/auth/phone', [PhoneAuthPageController::class, 'store'])
-        ->middleware('throttle:10,1')
-        ->name('auth.phone.store');
-});
-
-// Onboarding continues here after Telegram login — must stay outside "guest" middleware.
-Route::get('/auth/telegram/{loginCode}', [PhoneAuthPageController::class, 'wait'])
-    ->name('auth.telegram.wait');
-
 Route::post('/api/auth/biometric/check', [BiometricAuthController::class, 'check'])
     ->middleware('throttle:30,1');
 Route::post('/api/auth/phone/start', [PhoneAuthController::class, 'start'])
+    ->middleware('throttle:10,1');
+Route::post('/api/auth/legal-entity/eds/start', [LegalEntityEdsController::class, 'start'])
+    ->middleware('throttle:10,1');
+Route::post('/api/auth/legal-entity/eds/{loginCode}/verify', [LegalEntityEdsController::class, 'verify'])
     ->middleware('throttle:10,1');
 Route::post('/api/auth/phone/resend/{loginCode}', [PhoneAuthController::class, 'resend'])
     ->middleware('throttle:10,1');
@@ -100,37 +103,79 @@ Route::post('/api/auth/phone/verify/{loginCode}', [PhoneAuthController::class, '
 Route::post('/api/kyc/sumsub/webhook', SumsubWebhookController::class)
     ->middleware('throttle:60,1');
 
-Route::middleware('auth')->group(function (): void {
-    Route::post('/api/push/subscribe', [PushSubscriptionController::class, 'store'])
-        ->middleware('throttle:30,1')
-        ->name('push.subscribe');
-    Route::post('/api/push/unsubscribe', [PushSubscriptionController::class, 'destroy'])
-        ->middleware('throttle:30,1')
-        ->name('push.unsubscribe');
-});
+Route::prefix('{locale}')
+    ->where(['locale' => implode('|', LocaleManager::supported())])
+    ->group(function (): void {
+        Route::get('/', function () {
+            return Inertia::render('Landing', [
+                'company' => CompanyPresenter::layout(),
+            ]);
+        });
 
-Route::middleware(['auth', 'no_security_pwa'])->group(function (): void {
-    Route::get('/home', [ExchangeController::class, 'home'])->name('home');
-    Route::get('/wallet', [ExchangeController::class, 'wallet'])->name('wallet');
-    Route::get('/exchange', [ExchangeController::class, 'exchange'])->name('exchange');
+        Route::get('/legal', [LegalController::class, 'index'])->name('legal.index');
+        Route::get('/legal/{slug}', [LegalController::class, 'show'])
+            ->where('slug', '[a-z0-9-]+')
+            ->name('legal.show');
 
-    Route::post('/exchange/orders', [ExchangeOrderController::class, 'store'])->name('exchange.orders.store');
-    Route::get('/exchange/orders/{order}', [ExchangeOrderController::class, 'show'])->name('exchange.orders.show');
-    Route::post('/exchange/orders/{order}/proof', [ExchangeOrderController::class, 'uploadProof'])->name('exchange.orders.proof');
-    Route::post('/exchange/orders/{order}/cancel', [ExchangeOrderController::class, 'cancel'])->name('exchange.orders.cancel');
+        Route::middleware('guest')->group(function (): void {
+            Route::get('/auth/phone', [PhoneAuthPageController::class, 'show'])->name('auth.phone');
+            Route::post('/auth/phone', [PhoneAuthPageController::class, 'store'])
+                ->middleware('throttle:10,1')
+                ->name('auth.phone.store');
+        });
 
-    Route::get('/withdraw', [WithdrawalController::class, 'index'])->name('withdraw');
-    Route::post('/withdraw', [WithdrawalController::class, 'store'])->name('withdraw.store');
-    Route::post('/withdraw/{withdrawal}/cancel', [WithdrawalController::class, 'cancel'])->name('withdraw.cancel');
+        // Onboarding continues here after WhatsApp OTP — must stay outside "guest" middleware.
+        Route::get('/auth/whatsapp/{loginCode}', [PhoneAuthPageController::class, 'wait'])
+            ->name('auth.whatsapp.wait');
+        Route::get('/auth/telegram/{loginCode}', fn (string $locale, string $loginCode) => redirect()->route('auth.whatsapp.wait', [
+            'locale' => $locale,
+            'loginCode' => $loginCode,
+        ]));
 
-    Route::get('/kyc', [KycController::class, 'show'])->name('kyc');
-    Route::post('/kyc', [KycController::class, 'store'])->name('kyc.store');
-    Route::post('/kyc/sumsub/token', [KycController::class, 'sumsubToken'])->name('kyc.sumsub.token');
-    Route::post('/kyc/sumsub/sync', [KycController::class, 'sumsubSync'])->name('kyc.sumsub.sync');
+        Route::middleware(['auth', 'no_security_pwa'])->group(function (): void {
+            Route::get('/home', [ExchangeController::class, 'homeRedirect'])->name('home');
+            Route::get('/market', fn () => redirect()->route('exchange'));
+            Route::get('/wallet/withdraw', fn () => redirect()->route('withdraw'));
 
-    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-});
+            Route::middleware('kyc.approved:wallet')->group(function (): void {
+                Route::get('/wallet', [ExchangeController::class, 'wallet'])->name('wallet');
+                Route::get('/wallet/history', [HistoryController::class, 'index'])->name('wallet.history');
+            });
+
+            Route::middleware('kyc.approved:exchange')->group(function (): void {
+                Route::get('/exchange', [ExchangeController::class, 'exchange'])->name('exchange');
+                Route::post('/exchange/orders', [ExchangeOrderController::class, 'store'])->name('exchange.orders.store');
+                Route::get('/exchange/orders/{order}', [ExchangeOrderController::class, 'show'])->name('exchange.orders.show');
+                Route::post('/exchange/orders/{order}/proof', [ExchangeOrderController::class, 'uploadProof'])->name('exchange.orders.proof');
+                Route::post('/exchange/orders/{order}/cancel', [ExchangeOrderController::class, 'cancel'])->name('exchange.orders.cancel');
+            });
+
+            Route::middleware('kyc.approved:withdraw')->group(function (): void {
+                Route::get('/withdraw', [WithdrawalController::class, 'index'])->name('withdraw');
+                Route::post('/withdraw', [WithdrawalController::class, 'store'])->name('withdraw.store');
+                Route::post('/withdraw/{withdrawal}/cancel', [WithdrawalController::class, 'cancel'])->name('withdraw.cancel');
+            });
+
+            Route::get('/kyc', [KycController::class, 'show'])->name('kyc');
+            Route::post('/kyc', [KycController::class, 'store'])->name('kyc.store');
+            Route::post('/kyc/sumsub/token', [KycController::class, 'sumsubToken'])->name('kyc.sumsub.token');
+            Route::post('/kyc/sumsub/sync', [KycController::class, 'sumsubSync'])->name('kyc.sumsub.sync');
+
+            Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+            Route::get('/profile/personal', [ProfileController::class, 'personal'])->name('profile.personal');
+            Route::middleware('kyc.approved:bank')->group(function (): void {
+                Route::get('/profile/bank', [ProfileController::class, 'bank'])->name('profile.bank');
+                Route::patch('/profile/bank', [ProfileController::class, 'updateBank'])->name('profile.bank.update');
+            });
+            Route::get('/profile/security', [ProfileController::class, 'security'])->name('profile.security');
+            Route::get('/profile/language', [ProfileController::class, 'language'])->name('profile.language');
+            Route::get('/profile/notifications', [ProfileController::class, 'notifications'])->name('profile.notifications');
+            Route::patch('/profile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications.update');
+            Route::get('/profile/support', [ProfileController::class, 'support'])->name('profile.support');
+            Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        });
+
+    });
 
 Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manager,exchange_admin'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/account', AccountController::class)->name('account');
@@ -138,6 +183,14 @@ Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manage
 
 Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manager'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/', DashboardController::class)->name('dashboard');
+    Route::get('/users', [UserAdminController::class, 'index'])->name('users.index');
+    Route::get('/users/{user}', [UserAdminController::class, 'show'])->name('users.show');
+    Route::patch('/users/{user}/status', [UserAdminController::class, 'updateStatus'])->name('users.status');
+    Route::post('/users/{user}/kyc/manual-approve', [UserAdminController::class, 'manualKycApprove'])->name('users.kyc.manual-approve');
+    Route::get('/finance', [FinanceAdminController::class, 'index'])->name('finance.index');
+    Route::get('/settings', [SettingsAdminController::class, 'index'])->name('settings.index');
+    Route::get('/audit', [AuditAdminController::class, 'index'])->name('audit.index');
+    Route::get('/disputes', [DisputeAdminController::class, 'index'])->name('disputes.index');
     Route::get('/kyc', [KycReviewController::class, 'index'])->name('kyc.index');
     Route::get('/kyc/{kycProfile}', [KycReviewController::class, 'show'])->name('kyc.show');
     Route::post('/kyc/{kycProfile}/approve', [KycReviewController::class, 'approve'])->name('kyc.approve');
@@ -176,4 +229,27 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('admin')->name('admin.')
     Route::post('/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
 });
 
+Route::middleware('auth')->group(function (): void {
+    Route::post('/api/push/subscribe', [PushSubscriptionController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('push.subscribe');
+    Route::post('/api/push/unsubscribe', [PushSubscriptionController::class, 'destroy'])
+        ->middleware('throttle:30,1')
+        ->name('push.unsubscribe');
+});
+
 require __DIR__.'/auth.php';
+
+Route::get('/{path}', function (Request $request, string $path) {
+    $firstSegment = LocaleManager::normalize(explode('/', $path)[0] ?? null);
+
+    if ($firstSegment !== null && LocaleManager::isSupported($firstSegment)) {
+        abort(404);
+    }
+
+    if ($path === 'admin' || str_starts_with($path, 'admin/') || str_starts_with($path, 'api/') || str_starts_with($path, 'auth/aitu/')) {
+        abort(404);
+    }
+
+    return redirect()->to(LocaleManager::localizedPath(LocaleManager::resolve($request), '/'.$path));
+})->where('path', '.*');

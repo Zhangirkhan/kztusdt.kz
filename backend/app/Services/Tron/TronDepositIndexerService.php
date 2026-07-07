@@ -119,10 +119,14 @@ final class TronDepositIndexerService
             if ($deposit->wasRecentlyCreated) {
                 $detected++;
 
-                $this->notifier->notifyUser(
+                $this->notifier->notifyKey(
                     $deposit->user,
-                    "🔎 Обнаружен депозит {$amount} {$deposit->asset} TRC20.\n".
-                    'Ожидаем подтверждений сети.',
+                    'deposit_detected',
+                    [
+                        'amount' => $amount,
+                        'asset' => $deposit->asset,
+                        'network' => 'TRC20',
+                    ],
                 );
             }
         }

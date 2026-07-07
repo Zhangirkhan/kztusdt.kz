@@ -78,7 +78,8 @@ final class AdminAccessTest extends TestCase
     {
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)->get('/home')->assertOk();
+        $this->actingAs($admin)->get('/home')->assertRedirect('/wallet');
+        $this->actingAs($admin)->get('/wallet')->assertOk();
     }
 
     public function test_super_admin_access(): void

@@ -42,9 +42,10 @@ final class CreateWalletAfterKycApproved implements ShouldQueue
             ->map(fn ($wallet): string => "<b>{$wallet->asset} · {$wallet->network}</b>\n<code>{$wallet->address}</code>")
             ->implode("\n\n");
 
-        $notifier->notifyUser(
+        $notifier->notifyKey(
             $user,
-            "💼 Ваши кошельки созданы!\n\nАдреса для пополнения:\n\n{$lines}",
+            'wallets_created',
+            ['lines' => $lines],
         );
     }
 }

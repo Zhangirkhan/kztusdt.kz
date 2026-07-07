@@ -2,7 +2,7 @@
 
 return [
     'saved' => 'Профиль сохранён.',
-    'saved_phone_changed' => 'Профиль сохранён. Подтвердите новый номер через Telegram.',
+    'saved_phone_changed' => 'Профиль сохранён. Подтвердите новый номер через WhatsApp.',
 
     'validation' => [
         'name_required' => 'Укажите имя.',

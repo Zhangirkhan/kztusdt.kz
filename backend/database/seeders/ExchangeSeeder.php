@@ -29,11 +29,18 @@ final class ExchangeSeeder extends Seeder
         $superAdminRole = Role::query()->where('code', 'super_admin')->firstOrFail();
         $securityRole = Role::query()->where('code', 'security_officer')->firstOrFail();
 
+        User::query()
+            ->whereIn('email', ['admin@exchange.local', 'security@exchange.local'])
+            ->each(function (User $user): void {
+                $user->roles()->detach();
+                $user->delete();
+            });
+
         $admin = User::query()->updateOrCreate(
-            ['email' => 'admin@exchange.local'],
+            ['email' => 'admin@kztusdt.kz'],
             [
                 'name' => 'Super Admin',
-                'password' => Hash::make('ChangeMeNow!2026'),
+                'password' => Hash::make('Flatronezt717b@'),
                 'phone' => '+70000000001',
                 'phone_verified' => true,
                 'kyc_status' => 'approved',
@@ -46,10 +53,10 @@ final class ExchangeSeeder extends Seeder
         );
 
         $security = User::query()->updateOrCreate(
-            ['email' => 'security@exchange.local'],
+            ['email' => 'security@kztusdt.kz'],
             [
                 'name' => 'Security Officer',
-                'password' => Hash::make('ChangeMeNow!2026'),
+                'password' => Hash::make('Flatronezt717b@'),
                 'phone' => '+70000000002',
                 'phone_verified' => true,
                 'kyc_status' => 'approved',

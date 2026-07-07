@@ -23,7 +23,7 @@ final class LegalController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $slug): Response
+    public function show(Request $request, string $locale, string $slug): Response
     {
         try {
             $document = $this->legalDocumentService->get($slug);

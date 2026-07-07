@@ -1,13 +1,39 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
+import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
+import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     profiles: Object,
     filterStatus: String,
     stats: Object,
     sumsubAdminEnabled: { type: Boolean, default: false },
 });
+
+const statItems = computed(() => [
+    { label: 'На проверке', value: props.stats.pending, color: '#faad14' },
+    { label: 'Одобрено', value: props.stats.approved, color: '#52c41a' },
+    { label: 'Отклонено', value: props.stats.rejected, color: '#ff4d4f' },
+]);
+
+const filterOptions = computed(() => [
+    { label: `На проверке (${props.stats.pending})`, value: 'pending_review' },
+    { label: `Одобрено (${props.stats.approved})`, value: 'approved' },
+    { label: `Отклонено (${props.stats.rejected})`, value: 'rejected' },
+    { label: 'Все', value: 'all' },
+]);
+
+const columns = [
+    { title: 'Клиент', key: 'client' },
+    { title: 'Документ', key: 'document' },
+    { title: 'Статус', key: 'status', width: 140 },
+    { title: '', key: 'actions', width: 90, align: 'right' },
+];
 
 function setFilter(status) {
     router.get('/admin/kyc', { status }, { preserveState: true });
@@ -18,52 +44,57 @@ function setFilter(status) {
     <Head title="KYC Admin" />
 
     <AdminLayout>
-        <template #title>KYC — проверка</template>
+        <template #title>KYC / верификация</template>
 
-        <div class="mb-6 flex flex-wrap gap-2">
-            <button
-                v-for="item in [
-                    { key: 'pending_review', label: `На проверке (${stats.pending})` },
-                    { key: 'approved', label: `Одобрено (${stats.approved})` },
-                    { key: 'rejected', label: `Отклонено (${stats.rejected})` },
-                    { key: 'all', label: 'Все' },
-                ]"
-                :key="item.key"
-                class="rounded-xl px-4 py-2 text-sm font-semibold transition"
-                :class="filterStatus === item.key ? 'bg-accent text-on-accent' : 'bg-surface-container text-text-dim'"
-                @click="setFilter(item.key)"
-            >
-                {{ item.label }}
-            </button>
-        </div>
+        <AdminPage>
+            <AdminStatsRow :items="statItems" />
 
-        <div class="space-y-3">
-            <Link
-                v-for="profile in profiles.data"
-                :key="profile.id"
-                :href="`/admin/kyc/${profile.id}`"
-                class="card block no-underline transition hover:border-accent/40"
-            >
-                <div class="flex items-center justify-between gap-4">
-                    <div>
-                        <p class="font-semibold text-on-surface">
-                            {{ [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.user?.name || `User #${profile.user?.id}` }}
-                        </p>
-                        <p class="mt-1 text-body-sm text-text-muted">
-                            {{ profile.user?.phone ?? '—' }}
-                            <span v-if="sumsubAdminEnabled && profile.provider === 'sumsub'"> · Sumsub</span>
-                            <span v-else-if="profile.document_type || profile.document_number">
-                                · {{ profile.document_type }} · {{ profile.document_number }}
+            <AdminFilters :model-value="filterStatus" :options="filterOptions" @change="setFilter" />
+
+            <a-card :bordered="false" size="small">
+                <a-table
+                    :columns="columns"
+                    :data-source="profiles.data"
+                    :pagination="false"
+                    row-key="id"
+                    size="middle"
+                >
+                    <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'client'">
+                            <div>
+                                <a-typography-text strong>
+                                    {{ [record.first_name, record.last_name].filter(Boolean).join(' ') || record.user?.name || `User #${record.user?.id}` }}
+                                </a-typography-text>
+                                <div class="admin-ant-meta">{{ record.user?.phone ?? '—' }}</div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="column.key === 'document'">
+                            <a-tag v-if="sumsubAdminEnabled && record.provider === 'sumsub'" color="blue">Sumsub</a-tag>
+                            <span v-else-if="record.document_type || record.document_number">
+                                {{ record.document_type }} {{ record.document_number }}
                             </span>
-                        </p>
-                    </div>
-                    <span class="rounded-lg bg-surface-container-high px-3 py-1 text-xs font-semibold uppercase text-accent">
-                        {{ profile.status }}
-                    </span>
-                </div>
-            </Link>
+                            <span v-else class="admin-ant-meta">—</span>
+                        </template>
 
-            <p v-if="profiles.data.length === 0" class="text-center text-text-dim">Заявок нет</p>
-        </div>
+                        <template v-else-if="column.key === 'status'">
+                            <a-tag :color="statusTagColor(record.status)">{{ record.status }}</a-tag>
+                        </template>
+
+                        <template v-else-if="column.key === 'actions'">
+                            <Link :href="`/admin/kyc/${record.id}`">
+                                <a-button type="link" size="small">Открыть</a-button>
+                            </Link>
+                        </template>
+                    </template>
+
+                    <template #emptyText>
+                        <a-empty description="Заявок нет" />
+                    </template>
+                </a-table>
+
+                <AdminPagination :pagination="profiles" />
+            </a-card>
+        </AdminPage>
     </AdminLayout>
 </template>

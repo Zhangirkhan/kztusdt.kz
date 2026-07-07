@@ -8,6 +8,7 @@ use App\Jobs\CreateWalletAfterKycApproved;
 use App\Models\KycProfile;
 use App\Models\User;
 use App\Support\AppLog;
+use App\Support\LocaleManager;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -275,9 +276,9 @@ final class SumsubService
                 payload: ['applicant_id' => $profile->sumsub_applicant_id, 'review' => $payload['reviewResult'] ?? null],
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $profile->user,
-                "✅ KYC пройден (Sumsub)!\n\nСкоро будет создан ваш USDT кошелёк.",
+                'kyc_sumsub_approved',
             );
         });
 
@@ -289,6 +290,7 @@ final class SumsubService
     {
         $isFinal = strtoupper((string) ($payload['reviewResult']['reviewRejectType'] ?? '')) === 'FINAL';
         $reason = (string) ($payload['reviewResult']['moderationComment'] ?? 'Проверка не пройдена');
+        $locale = LocaleManager::normalize($profile->user->locale) ?? LocaleManager::default();
 
         DB::transaction(function () use ($profile, $reason, $isFinal, $payload): void {
             $profile->update([
@@ -307,10 +309,13 @@ final class SumsubService
                 payload: ['final' => $isFinal, 'review' => $payload['reviewResult'] ?? null],
             );
 
-            $this->notifier->notifyUser(
+            $this->notifier->notifyKey(
                 $profile->user,
-                "❌ KYC отклонён (Sumsub).\n\nПричина: {$reason}"
-                .($isFinal ? '' : "\n\nВы можете исправить документы и пройти проверку снова на странице /kyc."),
+                'kyc_sumsub_rejected',
+                [
+                    'reason' => $reason,
+                    'retry' => $isFinal ? '' : trans('notifications.kyc_sumsub_retry', [], $locale),
+                ],
             );
         });
     }

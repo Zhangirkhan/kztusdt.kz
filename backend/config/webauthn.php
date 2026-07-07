@@ -111,9 +111,9 @@ return [
     */
 
     'redirects' => [
-        'login' => '/home',
-        'register' => '/home',
-        'key-confirmation' => '/home',
+        'login' => '/wallet',
+        'register' => '/wallet',
+        'key-confirmation' => '/wallet',
     ],
 
     /*

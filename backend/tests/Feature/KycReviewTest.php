@@ -23,6 +23,40 @@ final class KycReviewTest extends TestCase
     use ExchangeTestHelpers;
     use RefreshDatabase;
 
+    public function test_admin_can_manually_approve_kyc_for_user(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createStaff('super_admin');
+        $user = $this->createUnverifiedClient();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.kyc.manual-approve', $user), [
+                'first_name' => 'Айгуль',
+                'last_name' => 'Серикова',
+                'document_type' => 'id_card',
+                'document_number' => '012345678',
+                'comment' => 'Проверено в офисе',
+            ])
+            ->assertRedirect(route('admin.users.show', $user));
+
+        $profile = KycProfile::query()->where('user_id', $user->id)->firstOrFail();
+
+        $this->assertSame('approved', $profile->status);
+        $this->assertSame('manual', $profile->provider);
+        $this->assertSame('approved', $user->fresh()->kyc_status);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'kyc.admin_manual_approved',
+            'user_id' => $admin->id,
+        ]);
+
+        Queue::assertPushed(
+            CreateWalletAfterKycApproved::class,
+            fn (CreateWalletAfterKycApproved $job) => $job->userId === $user->id,
+        );
+    }
+
     public function test_client_cannot_access_kyc_admin(): void
     {
         $client = $this->createClient();

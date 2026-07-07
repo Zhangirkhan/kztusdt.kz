@@ -48,10 +48,15 @@ final class DepositConfirmationService
             if ($this->creditOne($deposit, $confirmations)) {
                 $credited++;
 
-                $this->notifier->notifyUser(
+                $this->notifier->notifyKey(
                     $deposit->user,
-                    "✅ Депозит зачислен: {$deposit->amount} {$deposit->asset} ({$network}).\n".
-                    "Tx: <code>{$deposit->tx_hash}</code>",
+                    'deposit_credited',
+                    [
+                        'amount' => $deposit->amount,
+                        'asset' => $deposit->asset,
+                        'network' => $network,
+                        'tx' => $deposit->tx_hash,
+                    ],
                 );
             }
         }

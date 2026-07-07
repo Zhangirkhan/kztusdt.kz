@@ -1,5 +1,6 @@
 import { onUnmounted, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { localizedPath } from '@/utils/localizedPath';
 
 export function useSumsubKyc(options = {}) {
     const error = ref('');
@@ -11,7 +12,7 @@ export function useSumsubKyc(options = {}) {
     let launched = false;
 
     async function fetchSumsubToken() {
-        const response = await fetch('/kyc/sumsub/token', {
+        const response = await fetch(localizedPath('/kyc/sumsub/token'), {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
@@ -29,7 +30,7 @@ export function useSumsubKyc(options = {}) {
     }
 
     async function syncSumsubStatus() {
-        const response = await fetch('/kyc/sumsub/sync', {
+        const response = await fetch(localizedPath('/kyc/sumsub/sync'), {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',

@@ -26,8 +26,10 @@ final class AituKycTest extends TestCase
 
         config([
             'kyc.provider' => 'aitu',
+            'kyc.manual_enabled' => true,
             'aitu.client_id' => 'test-client',
             'aitu.client_secret' => 'test-secret',
+            'aitu.kyc_scope' => '',
         ]);
     }
 
@@ -147,6 +149,9 @@ final class AituKycTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('provider', 'aitu')
+                ->where('manualEnabled', true)
+                ->where('showAitu', true)
+                ->where('showManualForm', true)
                 ->where('aituVerifyUrl', route('auth.aitu.redirect', ['intent' => 'kyc']))
                 ->where('aituKycScopeConfigured', false)
                 ->etc());

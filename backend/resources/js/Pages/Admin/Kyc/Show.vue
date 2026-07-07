@@ -1,5 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -11,8 +13,9 @@ const props = defineProps({
 const rejectForm = useForm({ reason: '' });
 const approveForm = useForm({ comment: '' });
 const resetForm = useForm({ comment: '' });
-const showReject = ref(false);
-const showReset = ref(false);
+const showRejectModal = ref(false);
+const showApproveModal = ref(false);
+const showResetModal = ref(false);
 
 const canReset = computed(() => ['approved', 'rejected', 'pending_review'].includes(props.profile.status));
 
@@ -38,25 +41,25 @@ const documentLine = computed(() => {
 });
 
 function approve() {
-    approveForm.post(`/admin/kyc/${props.profile.id}/approve`);
+    approveForm.post(`/admin/kyc/${props.profile.id}/approve`, {
+        onSuccess: () => {
+            showApproveModal.value = false;
+        },
+    });
 }
 
 function reject() {
     rejectForm.post(`/admin/kyc/${props.profile.id}/reject`, {
         onSuccess: () => {
-            showReject.value = false;
+            showRejectModal.value = false;
         },
     });
 }
 
 function resetVerification() {
-    if (!window.confirm('Сбросить верификацию? Клиент сможет пройти KYC заново. Кошелёк и баланс не удаляются.')) {
-        return;
-    }
-
     resetForm.post(`/admin/kyc/${props.profile.id}/reset`, {
         onSuccess: () => {
-            showReset.value = false;
+            showResetModal.value = false;
         },
     });
 }
@@ -76,141 +79,159 @@ function formatDate(value) {
     <AdminLayout>
         <template #title>KYC #{{ profile.id }}</template>
 
-        <div class="mb-4 flex flex-wrap items-center gap-2">
-            <span class="rounded-lg bg-surface-container-high px-3 py-1 text-xs font-semibold uppercase text-accent">
-                {{ profile.status_label }}
-            </span>
-            <span class="rounded-lg bg-surface-container px-3 py-1 text-xs text-text-dim">
-                {{ profile.provider_label }}
-            </span>
-        </div>
+        <AdminPage>
+            <a-space class="admin-ant-block">
+                <a-tag :color="statusTagColor(profile.status)">{{ profile.status_label }}</a-tag>
+                <a-tag>{{ profile.provider_label }}</a-tag>
+            </a-space>
 
-        <div class="grid gap-6 lg:grid-cols-2">
-            <section class="card space-y-4">
-                <div>
-                    <p class="text-label-caps uppercase text-text-dim">Клиент</p>
-                    <p class="mt-2 text-xl font-bold">{{ displayName }}</p>
-                    <p class="text-body-sm text-text-muted">{{ profile.user?.phone ?? '—' }}</p>
-                    <p v-if="profile.user?.telegram_username" class="text-body-sm text-text-muted">
-                        Telegram: @{{ profile.user.telegram_username }}
-                    </p>
-                    <p class="mt-1 text-xs text-text-dim">User ID: {{ profile.user?.id ?? '—' }}</p>
-                </div>
+            <a-row :gutter="[16, 16]">
+                <a-col :xs="24" :lg="12">
+                    <a-card title="Клиент" size="small">
+                        <a-descriptions :column="1" size="small">
+                            <a-descriptions-item label="ФИО">{{ displayName }}</a-descriptions-item>
+                            <a-descriptions-item label="Телефон">{{ profile.user?.phone ?? '—' }}</a-descriptions-item>
+                            <a-descriptions-item label="User ID">{{ profile.user?.id ?? '—' }}</a-descriptions-item>
+                            <a-descriptions-item label="Документ">{{ documentLine }}</a-descriptions-item>
+                            <a-descriptions-item label="Отправлено">{{ formatDate(profile.submitted_at) }}</a-descriptions-item>
+                            <a-descriptions-item label="Решение">{{ formatDate(profile.reviewed_at) }}</a-descriptions-item>
+                        </a-descriptions>
+                        <a-alert
+                            v-if="profile.rejection_reason"
+                            type="error"
+                            :message="profile.rejection_reason"
+                            show-icon
+                            style="margin-top: 16px"
+                        />
+                    </a-card>
+                </a-col>
 
-                <div>
-                    <p class="text-label-caps uppercase text-text-dim">Документ</p>
-                    <p class="mt-2">{{ documentLine }}</p>
-                    <p v-if="sumsubAdminEnabled && profile.sumsub?.dob" class="mt-1 text-sm text-text-muted">
-                        Дата рождения: {{ profile.sumsub.dob }}
-                    </p>
-                    <p v-if="sumsubAdminEnabled && profile.sumsub?.country" class="mt-1 text-sm text-text-muted">
-                        Страна: {{ profile.sumsub.country }}
-                    </p>
-                </div>
+                <a-col v-if="sumsubAdminEnabled && profile.provider === 'sumsub'" :xs="24" :lg="12">
+                    <a-card title="Sumsub" size="small">
+                        <a-alert v-if="profile.sumsub?.error" type="warning" :message="profile.sumsub.error" show-icon />
+                        <template v-else-if="profile.sumsub">
+                            <a-descriptions :column="1" size="small">
+                                <a-descriptions-item label="Applicant">
+                                    <a-typography-text code copyable>{{ profile.sumsub_applicant_id }}</a-typography-text>
+                                </a-descriptions-item>
+                                <a-descriptions-item v-if="profile.sumsub.created_at" label="Создан">
+                                    {{ profile.sumsub.created_at }}
+                                </a-descriptions-item>
+                                <a-descriptions-item v-if="profile.sumsub.platform" label="Платформа">
+                                    {{ profile.sumsub.platform }}
+                                </a-descriptions-item>
+                                <a-descriptions-item v-if="profile.sumsub.review_status" label="Статус">
+                                    {{ profile.sumsub.review_status }}
+                                    <template v-if="profile.sumsub.review_answer"> · {{ profile.sumsub.review_answer }}</template>
+                                </a-descriptions-item>
+                            </a-descriptions>
+                            <p v-if="profile.sumsub.moderation_comment" class="admin-ant-meta admin-ant-block">
+                                Комментарий: {{ profile.sumsub.moderation_comment }}
+                            </p>
+                            <a-alert
+                                v-if="profile.sumsub.reject_labels?.length"
+                                type="error"
+                                :message="`Метки отказа: ${profile.sumsub.reject_labels.join(', ')}`"
+                                show-icon
+                                class="admin-ant-block"
+                            />
+                            <a
+                                v-if="profile.sumsub.dashboard_url"
+                                :href="profile.sumsub.dashboard_url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <a-button type="link" style="padding-left: 0">Открыть в Sumsub ↗</a-button>
+                            </a>
+                            <a-typography-text type="secondary" class="admin-ant-meta">
+                                Документы и селфи хранятся в Sumsub, не на сервере обменника.
+                            </a-typography-text>
+                        </template>
+                    </a-card>
+                </a-col>
 
-                <div>
-                    <p class="text-label-caps uppercase text-text-dim">Проверка</p>
-                    <p class="mt-2 text-sm text-text-muted">Отправлено: {{ formatDate(profile.submitted_at) }}</p>
-                    <p class="text-sm text-text-muted">Решение: {{ formatDate(profile.reviewed_at) }}</p>
-                    <p v-if="profile.reviewer?.name" class="text-sm text-text-muted">
-                        Проверил: {{ profile.reviewer.name }}
-                    </p>
-                    <p v-if="profile.rejection_reason" class="mt-2 text-sm text-error">{{ profile.rejection_reason }}</p>
-                </div>
-            </section>
+                <a-col v-else :xs="24" :lg="12">
+                    <a-card title="Загруженные документы" size="small">
+                        <a-space v-if="profile.documents.length" wrap>
+                            <a
+                                v-for="doc in profile.documents"
+                                :key="doc.id"
+                                :href="`/admin/kyc/${profile.id}/documents/${doc.type}`"
+                                target="_blank"
+                            >
+                                <a-button>{{ doc.label }}</a-button>
+                            </a>
+                        </a-space>
+                        <a-empty v-else description="Документы не загружены" />
+                    </a-card>
+                </a-col>
+            </a-row>
 
-            <section v-if="sumsubAdminEnabled && profile.provider === 'sumsub'" class="card space-y-4">
-                <div>
-                    <p class="mb-2 text-label-caps uppercase text-text-dim">Sumsub</p>
-                    <p v-if="profile.sumsub?.error" class="text-sm text-amber-300">{{ profile.sumsub.error }}</p>
-                    <template v-else-if="profile.sumsub">
-                        <p class="font-mono text-xs text-text-dim break-all">
-                            Applicant: {{ profile.sumsub_applicant_id }}
-                        </p>
-                        <p v-if="profile.sumsub.created_at" class="mt-2 text-sm text-text-muted">
-                            Создан в Sumsub: {{ profile.sumsub.created_at }}
-                        </p>
-                        <p v-if="profile.sumsub.platform" class="text-sm text-text-muted">
-                            Платформа: {{ profile.sumsub.platform }}
-                        </p>
-                        <p v-if="profile.sumsub.review_status" class="text-sm text-text-muted">
-                            Статус Sumsub: {{ profile.sumsub.review_status }}
-                            <span v-if="profile.sumsub.review_answer"> · {{ profile.sumsub.review_answer }}</span>
-                        </p>
-                        <p v-if="profile.sumsub.moderation_comment" class="mt-2 text-sm text-text-muted">
-                            Комментарий: {{ profile.sumsub.moderation_comment }}
-                        </p>
-                        <p v-if="profile.sumsub.reject_labels?.length" class="mt-2 text-sm text-error">
-                            Метки отказа: {{ profile.sumsub.reject_labels.join(', ') }}
-                        </p>
-                        <a
-                            v-if="profile.sumsub.dashboard_url"
-                            :href="profile.sumsub.dashboard_url"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-accent hover:underline"
-                        >
-                            Открыть в Sumsub
-                            <span class="material-symbols-outlined text-base">open_in_new</span>
-                        </a>
-                        <p class="mt-3 text-xs text-text-dim">
-                            Документы и селфи хранятся в Sumsub, не на сервере обменника.
-                        </p>
-                    </template>
-                </div>
-            </section>
+            <a-space v-if="profile.status === 'pending_review' && (!sumsubAdminEnabled || profile.provider !== 'sumsub')" class="admin-ant-actions admin-ant-block">
+                <a-button type="primary" @click="showApproveModal = true">Одобрить KYC</a-button>
+                <a-button danger @click="showRejectModal = true">Отклонить</a-button>
+            </a-space>
 
-            <section v-else class="card">
-                <p class="mb-4 text-label-caps uppercase text-text-dim">Загруженные документы</p>
-                <div v-if="profile.documents.length" class="grid gap-3">
-                    <a
-                        v-for="doc in profile.documents"
-                        :key="doc.id"
-                        :href="`/admin/kyc/${profile.id}/documents/${doc.type}`"
-                        target="_blank"
-                        class="flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-3 text-sm no-underline text-on-surface hover:text-accent"
-                    >
-                        <span>{{ doc.label }}</span>
-                        <span class="material-symbols-outlined text-base">open_in_new</span>
-                    </a>
-                </div>
-                <p v-else class="text-sm text-text-dim">Документы не загружены</p>
-            </section>
-        </div>
+            <a-typography-text
+                v-else-if="sumsubAdminEnabled && profile.status === 'pending_review' && profile.provider === 'sumsub'"
+                type="secondary"
+                class="admin-ant-block"
+            >
+                Заявка проверяется в Sumsub автоматически.
+            </a-typography-text>
 
-        <div v-if="profile.status === 'pending_review' && (!sumsubAdminEnabled || profile.provider !== 'sumsub')" class="mt-6 flex flex-wrap gap-3">
-            <button class="btn-primary w-auto px-8" @click="approve">Одобрить KYC</button>
-            <button class="btn-secondary w-auto px-8" @click="showReject = !showReject">Отклонить</button>
-        </div>
+            <a-space v-if="canReset" class="admin-ant-actions admin-ant-block">
+                <a-button @click="showResetModal = true">Сбросить верификацию</a-button>
+            </a-space>
 
-        <p v-else-if="sumsubAdminEnabled && profile.status === 'pending_review' && profile.provider === 'sumsub'" class="mt-6 text-sm text-text-dim">
-            Заявка проверяется в Sumsub автоматически. Решение придёт по webhook или после синхронизации статуса.
-        </p>
+            <a-modal
+                v-model:open="showApproveModal"
+                title="Одобрить KYC"
+                ok-text="Одобрить"
+                cancel-text="Отмена"
+                :confirm-loading="approveForm.processing"
+                destroy-on-close
+                @ok="approve"
+            >
+                <a-form layout="vertical">
+                    <a-form-item label="Комментарий (необязательно)">
+                        <a-textarea v-model:value="approveForm.comment" :rows="2" />
+                    </a-form-item>
+                </a-form>
+            </a-modal>
 
-        <div v-if="canReset" class="mt-6 space-y-3">
-            <button class="btn-secondary w-auto px-8" type="button" @click="showReset = !showReset">
-                Сбросить верификацию
-            </button>
-            <p class="text-xs text-text-dim">
-                Клиент снова увидит шаг KYC и сможет пройти проверку (Aitu или документы).
-                Существующий кошелёк не удаляется.
-            </p>
-        </div>
+            <a-modal
+                v-model:open="showRejectModal"
+                title="Отклонить KYC"
+                ok-text="Подтвердить"
+                cancel-text="Отмена"
+                :confirm-loading="rejectForm.processing"
+                @ok="reject"
+            >
+                <a-form layout="vertical">
+                    <a-form-item label="Причина отклонения" required>
+                        <a-textarea v-model:value="rejectForm.reason" :rows="3" />
+                    </a-form-item>
+                </a-form>
+            </a-modal>
 
-        <form v-if="showReset" class="mt-4 card space-y-3" @submit.prevent="resetVerification">
-            <label class="block text-sm text-text-dim">Комментарий (необязательно)</label>
-            <textarea v-model="resetForm.comment" class="input-field min-h-20" placeholder="Причина сброса для внутреннего учёта" />
-            <button type="submit" class="btn-primary w-auto px-8" :disabled="resetForm.processing">
-                Подтвердить сброс
-            </button>
-        </form>
-
-        <form v-if="showReject" class="mt-4 card space-y-3" @submit.prevent="reject">
-            <label class="block text-sm text-text-dim">Причина отклонения</label>
-            <textarea v-model="rejectForm.reason" class="input-field min-h-24" required />
-            <button type="submit" class="btn-primary w-auto px-8" :disabled="rejectForm.processing">
-                Подтвердить отклонение
-            </button>
-        </form>
+            <a-modal
+                v-model:open="showResetModal"
+                title="Сбросить верификацию"
+                ok-text="Подтвердить"
+                cancel-text="Отмена"
+                :confirm-loading="resetForm.processing"
+                @ok="resetVerification"
+            >
+                <a-typography-paragraph type="secondary">
+                    Клиент сможет пройти KYC заново. Кошелёк и баланс не удаляются.
+                </a-typography-paragraph>
+                <a-form layout="vertical">
+                    <a-form-item label="Комментарий (необязательно)">
+                        <a-textarea v-model:value="resetForm.comment" placeholder="Причина сброса" :rows="2" />
+                    </a-form-item>
+                </a-form>
+            </a-modal>
+        </AdminPage>
     </AdminLayout>
 </template>

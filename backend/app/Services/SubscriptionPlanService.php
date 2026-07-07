@@ -231,7 +231,7 @@ final class SubscriptionPlanService
         Cache::forget('subscription_plans:subscription');
     }
 
-    public function telegramFeeLabel(float $feePercent): string
+    public function feeLabel(float $feePercent): string
     {
         return NumberPresenter::percent($feePercent).'%';
     }

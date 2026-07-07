@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\LocaleManager;
 
 /**
  * Single entry point for user-facing notifications.
@@ -28,6 +29,22 @@ final class UserNotificationService
         [$title, $body] = $this->splitMessage($message);
 
         $this->pushService->sendToUser($user, $title, $body, $data);
+    }
+
+    /**
+     * @param  array<string, mixed>  $replace
+     * @param  array<string, mixed>  $data
+     */
+    public function notifyKey(User $user, string $key, array $replace = [], array $data = []): void
+    {
+        $locale = LocaleManager::normalize($user->locale) ?? LocaleManager::default();
+        $message = trans("notifications.{$key}", $replace, $locale);
+
+        if (! is_string($message) || $message === "notifications.{$key}") {
+            $message = trans("notifications.{$key}", $replace, LocaleManager::default());
+        }
+
+        $this->notifyUser($user, (string) $message, $data);
     }
 
     /**

@@ -138,14 +138,14 @@ onUnmounted(() => {
                 </span>
             </div>
 
-            <section class="card mb-stack-element bg-gradient-to-br from-accent/20 to-surface-container">
+            <section class="card card--highlight mb-stack-element">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-label-caps uppercase text-text-dim">Баланс {{ asset }}</p>
-                        <p class="mt-2 text-4xl font-bold">{{ balance.usdt }}</p>
-                        <p class="mt-1 text-body-sm text-text-muted">Единый баланс для всех сетей</p>
+                        <p class="text-label-caps uppercase text-white/70">Баланс {{ asset }}</p>
+                        <p class="mt-2 text-4xl font-bold tracking-tight">{{ balance.usdt }}</p>
+                        <p class="mt-1 text-body-sm text-white/80">Единый баланс для всех сетей</p>
                     </div>
-                    <p class="text-right text-[10px] leading-tight text-text-dim">
+                    <p class="text-right text-[10px] leading-tight text-white/60">
                         Обновлено<br>{{ formatUpdatedAt(lastUpdated) }}
                     </p>
                 </div>
@@ -160,7 +160,7 @@ onUnmounted(() => {
                 >
                     Пополнить
                 </button>
-                <Link href="/withdraw" class="btn-secondary text-center">Вывести</Link>
+                <Link :href="route('withdraw')" class="btn-secondary text-center">Вывести</Link>
             </section>
 
             <section class="mt-stack-section card">
@@ -171,10 +171,8 @@ onUnmounted(() => {
                         v-for="net in networks"
                         :key="net.code"
                         type="button"
-                        class="rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
-                        :class="net.code === activeNetwork
-                            ? 'border-accent bg-accent/15 text-accent'
-                            : 'border-outline-variant/40 bg-surface-container-low text-text-muted'"
+                        class="network-chip"
+                        :class="net.code === activeNetwork ? 'network-chip--active' : 'network-chip--inactive'"
                         @click="selectNetwork(net.code)"
                     >
                         {{ net.code }}
@@ -266,10 +264,8 @@ onUnmounted(() => {
                             v-for="net in networks"
                             :key="net.code"
                             type="button"
-                            class="rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
-                            :class="net.code === activeNetwork
-                                ? 'border-accent bg-accent/15 text-accent'
-                                : 'border-outline-variant/40 bg-surface-container-low text-text-muted'"
+                            class="network-chip"
+                            :class="net.code === activeNetwork ? 'network-chip--active' : 'network-chip--inactive'"
                             @click="selectNetwork(net.code)"
                         >
                             {{ net.code }}

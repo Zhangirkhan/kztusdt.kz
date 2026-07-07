@@ -23,7 +23,7 @@ final class LocaleController extends Controller
         }
 
         return redirect()
-            ->back()
+            ->to(LocaleManager::localizedUrl($locale))
             ->withCookie(LocaleManager::remember($locale));
     }
 }

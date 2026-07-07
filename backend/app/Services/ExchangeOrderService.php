@@ -98,12 +98,15 @@ final class ExchangeOrderService
             return $order;
         });
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $user,
-            "🟢 Заявка №{$order->id} на покупку создана.\n\n"
-            ."Сумма: {$this->kzt($fiat)} ₸ → {$this->usdt($netCredit)} USDT\n"
-            ."Курс: {$this->kzt($rate)} ₸/USDT\n\n"
-            .'Переведите KZT по реквизитам на странице заявки и загрузите скриншот оплаты.',
+            'order_buy_created',
+            [
+                'id' => $order->id,
+                'fiat' => $this->kzt($fiat),
+                'usdt' => $this->usdt($netCredit),
+                'rate' => $this->kzt($rate),
+            ],
         );
 
         return $order;
@@ -178,12 +181,15 @@ final class ExchangeOrderService
             return $order;
         });
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $user,
-            "🟢 Заявка №{$order->id} на продажу создана.\n\n"
-            ."{$this->usdt($gross)} USDT заблокировано → {$this->kzt($fiat)} ₸\n"
-            ."Курс: {$this->kzt($rate)} ₸/USDT\n\n"
-            .'Администратор переведёт KZT на ваши реквизиты и подтвердит заявку.',
+            'order_sell_created',
+            [
+                'id' => $order->id,
+                'usdt' => $this->usdt($gross),
+                'fiat' => $this->kzt($fiat),
+                'rate' => $this->kzt($rate),
+            ],
         );
 
         return $order;
@@ -226,9 +232,10 @@ final class ExchangeOrderService
             );
         });
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $order->user,
-            "📎 Скрин оплаты по заявке №{$order->id} получен.\n\nОжидайте подтверждения администратором.",
+            'order_proof_uploaded',
+            ['id' => $order->id],
         );
     }
 
@@ -282,10 +289,10 @@ final class ExchangeOrderService
 
         $order->refresh();
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $order->user,
-            "✅ Заявка №{$order->id} выполнена!\n\n"
-            ."Оплата KZT подтверждена, {$this->usdt((string) $order->crypto_amount)} USDT зачислено на ваш баланс.",
+            'order_buy_completed',
+            ['id' => $order->id, 'usdt' => $this->usdt((string) $order->crypto_amount)],
         );
     }
 
@@ -342,10 +349,10 @@ final class ExchangeOrderService
 
         $order->refresh();
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $order->user,
-            "✅ Заявка №{$order->id} выполнена!\n\n"
-            ."KZT отправлены на ваши реквизиты: {$this->kzt((string) $order->fiat_amount)} ₸.",
+            'order_sell_completed',
+            ['id' => $order->id, 'fiat' => $this->kzt((string) $order->fiat_amount)],
         );
     }
 
@@ -356,9 +363,10 @@ final class ExchangeOrderService
     {
         $this->cancelInternal($order, $reason, $admin, 'order.rejected');
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $order->user,
-            "❌ Заявка №{$order->id} отклонена.\n\nПричина: {$reason}",
+            'order_rejected',
+            ['id' => $order->id, 'reason' => $reason],
         );
     }
 
@@ -369,9 +377,10 @@ final class ExchangeOrderService
     {
         $this->cancelInternal($order, 'Отменена клиентом', $order->user, 'order.cancelled_by_client');
 
-        $this->notifier->notifyUser(
+        $this->notifier->notifyKey(
             $order->user,
-            "🚫 Заявка №{$order->id} отменена.",
+            'order_cancelled',
+            ['id' => $order->id],
         );
     }
 

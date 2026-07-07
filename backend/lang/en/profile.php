@@ -2,7 +2,7 @@
 
 return [
     'saved' => 'Profile saved.',
-    'saved_phone_changed' => 'Profile saved. Confirm your new number via Telegram.',
+    'saved_phone_changed' => 'Profile saved. Confirm your new number via WhatsApp.',
 
     'validation' => [
         'name_required' => 'Please enter your name.',

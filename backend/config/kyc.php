@@ -9,6 +9,12 @@ return [
     'provider' => env('KYC_PROVIDER', 'manual'),
 
     /*
+    | Ручная подача документов (анкета + фото). Работает при KYC_PROVIDER=manual
+    | или параллельно с Aitu/Sumsub, если KYC_MANUAL_ENABLED=true.
+    */
+    'manual_enabled' => (bool) env('KYC_MANUAL_ENABLED', true),
+
+    /*
     | Показывать заявки Sumsub в /admin/kyc. Код Sumsub остаётся в проекте;
     | включите позже: KYC_ADMIN_SUMSUB_ENABLED=true
     */

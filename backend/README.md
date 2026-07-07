@@ -161,8 +161,8 @@ Email и пароль. Учётки создаются сидером:
 
 | Email | Пароль | Роль |
 |-------|--------|------|
-| `admin@exchange.local` | `ChangeMeNow!2026` | super_admin |
-| `security@exchange.local` | `ChangeMeNow!2026` | security_officer |
+| `admin@kztusdt.kz` | `Flatronezt717b@` | super_admin |
+| `security@kztusdt.kz` | `Flatronezt717b@` | security_officer |
 
 **Смените пароли сразу после первого входа в production.**
 

@@ -28,8 +28,8 @@ final class PhoneAuthPageController extends Controller
         }
 
         return Inertia::render('Auth/Phone', [
-            'telegramBotUsername' => config('telegram.bot_username'),
             'companyIntro' => CompanyPresenter::intro(),
+            'legalEntityEdsRequired' => (bool) config('ncanode.legal_entity_eds_required'),
         ]);
     }
 
@@ -38,10 +38,14 @@ final class PhoneAuthPageController extends Controller
         try {
             $session = $this->phoneAuthService->start(
                 $request->validated('phone'),
+                $request->validated('client_type'),
                 $request->validated('iin'),
+                $request->validated('bin'),
+                $request->validated('company_name'),
             );
 
-            return redirect()->route('auth.telegram.wait', [
+            return redirect()->route('auth.whatsapp.wait', [
+                'locale' => $request->route('locale'),
                 'loginCode' => $session->login_code,
             ]);
         } catch (RuntimeException $exception) {
@@ -49,12 +53,41 @@ final class PhoneAuthPageController extends Controller
         }
     }
 
-    public function wait(string $loginCode): Response|RedirectResponse
+    public function wait(string $locale, string $loginCode): Response|RedirectResponse
     {
         $session = $this->phoneAuthService->getStatus($loginCode);
 
         if ($session === null) {
             abort(404);
+        }
+
+        if ($session->isVerified()) {
+            $user = $session->user;
+
+            if ($user !== null) {
+                if (! Auth::check()) {
+                    Auth::login($user, remember: true);
+                    request()->session()->regenerate();
+                }
+
+                $pageProps = [
+                    'loginCode' => $loginCode,
+                    'phone' => $session->phone,
+                    'status' => $session->status,
+                    'expiresAt' => $session->expires_at->toIso8601String(),
+                    'codeLength' => (int) config('otp.code_length'),
+                ];
+
+                return $this->renderOnboardingStep($user, $pageProps);
+            }
+
+            return redirect()->route('auth.phone', ['locale' => $locale]);
+        }
+
+        if ($session->status === 'failed') {
+            return redirect()
+                ->route('auth.phone', ['locale' => $locale])
+                ->withErrors(['phone' => 'Превышено число попыток. Введите номер и запросите новый код.']);
         }
 
         $pageProps = [
@@ -69,9 +102,9 @@ final class PhoneAuthPageController extends Controller
             return $this->renderOnboardingStep(Auth::user(), $pageProps);
         }
 
-        return Inertia::render('Auth/TelegramWait', [
+        return Inertia::render('Auth/WhatsAppWait', [
             ...$pageProps,
-            'initialStep' => 'telegram',
+            'initialStep' => 'whatsapp',
             'kycStatus' => 'none',
             'kyc' => null,
         ]);
@@ -89,7 +122,7 @@ final class PhoneAuthPageController extends Controller
         }
 
         if ($kyc['inline_sumsub']) {
-            return Inertia::render('Auth/TelegramWait', [
+            return Inertia::render('Auth/WhatsAppWait', [
                 ...$pageProps,
                 'initialStep' => 'kyc',
                 'kycStatus' => $user->kyc_status,

@@ -21,5 +21,5 @@ return [
     'ttl' => (int) env('PUSH_TTL', 2_419_200), // 4 weeks
 
     // Default landing path opened when the user taps a notification.
-    'default_url' => env('PUSH_DEFAULT_URL', '/home'),
+    'default_url' => env('PUSH_DEFAULT_URL', '/wallet'),
 ];

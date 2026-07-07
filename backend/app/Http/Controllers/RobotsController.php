@@ -24,6 +24,7 @@ final class RobotsController extends Controller
             'Disallow: /kyc',
             'Disallow: /admin',
             'Disallow: /auth/telegram',
+            'Disallow: /auth/whatsapp',
             'Disallow: /login',
             'Disallow: /register',
             'Disallow: /api',

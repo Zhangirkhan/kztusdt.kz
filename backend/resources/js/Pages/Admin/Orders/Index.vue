@@ -1,7 +1,13 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
+import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
+import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatKzt, formatUsdt } from '@/utils/formatNumber';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps({
     orders: Object,
@@ -23,12 +29,33 @@ const statusLabels = {
     manual_review: 'Ручная проверка',
 };
 
-const statusColors = {
-    completed: 'text-accent',
-    cancelled: 'text-text-dim',
-    failed: 'text-red-400',
-    dispute: 'text-red-400',
-};
+const statItems = computed(() => [
+    { label: 'Ожидают действия', value: props.stats.pending, color: '#faad14' },
+    { label: 'Выполнено', value: props.stats.completed, color: '#52c41a' },
+    { label: 'Отменено / ошибки', value: props.stats.cancelled, color: '#ff4d4f' },
+]);
+
+const statusOptions = [
+    { label: 'Активные', value: 'active' },
+    { label: 'Ждут подтверждения', value: 'pending_admin_confirmation' },
+    { label: 'Выполненные', value: 'completed' },
+    { label: 'Отменённые', value: 'cancelled' },
+    { label: 'Все', value: 'all' },
+];
+
+const directionOptions = [
+    { label: 'Покупка + продажа', value: 'all' },
+    { label: 'Покупка', value: 'buy' },
+    { label: 'Продажа', value: 'sell' },
+];
+
+const columns = [
+    { title: 'Заявка', key: 'order' },
+    { title: 'Сумма', key: 'amount', width: 160 },
+    { title: 'Статус', key: 'status', width: 180 },
+    { title: 'Время', key: 'time', width: 160 },
+    { title: '', key: 'actions', width: 90, align: 'right' },
+];
 
 function setFilter(status) {
     router.get('/admin/orders', { status, direction: props.filterDirection }, { preserveState: true });
@@ -49,97 +76,62 @@ function formatDate(value) {
     <AdminLayout>
         <template #title>Заявки обмена KZT/USDT</template>
 
-        <div class="mb-6 grid grid-cols-3 gap-3">
-            <div class="card">
-                <p class="text-body-sm text-text-dim">Ожидают действия</p>
-                <p class="text-headline-md text-amber-400">{{ stats.pending }}</p>
-            </div>
-            <div class="card">
-                <p class="text-body-sm text-text-dim">Выполнено</p>
-                <p class="text-headline-md text-accent">{{ stats.completed }}</p>
-            </div>
-            <div class="card">
-                <p class="text-body-sm text-text-dim">Отменено / ошибки</p>
-                <p class="text-headline-md text-red-400">{{ stats.cancelled }}</p>
-            </div>
-        </div>
+        <AdminPage>
+            <AdminStatsRow :items="statItems" />
 
-        <div class="mb-3 flex flex-wrap gap-2">
-            <button
-                v-for="item in [
-                    { key: 'active', label: 'Активные' },
-                    { key: 'pending_admin_confirmation', label: 'Ждут подтверждения' },
-                    { key: 'completed', label: 'Выполненные' },
-                    { key: 'cancelled', label: 'Отменённые' },
-                    { key: 'all', label: 'Все' },
-                ]"
-                :key="item.key"
-                class="rounded-xl px-4 py-2 text-sm font-semibold transition"
-                :class="filterStatus === item.key ? 'bg-accent text-on-accent' : 'bg-surface-container text-text-dim'"
-                @click="setFilter(item.key)"
-            >
-                {{ item.label }}
-            </button>
-        </div>
+            <AdminFilters :model-value="filterStatus" :options="statusOptions" @change="setFilter" />
+            <AdminFilters :model-value="filterDirection" :options="directionOptions" size="small" @change="setDirection" />
 
-        <div class="mb-6 flex gap-2">
-            <button
-                v-for="item in [
-                    { key: 'all', label: 'Покупка + продажа' },
-                    { key: 'buy', label: 'Покупка' },
-                    { key: 'sell', label: 'Продажа' },
-                ]"
-                :key="item.key"
-                class="rounded-xl px-3 py-1 text-xs font-semibold transition"
-                :class="filterDirection === item.key ? 'bg-accent/20 text-accent' : 'bg-surface-container text-text-dim'"
-                @click="setDirection(item.key)"
-            >
-                {{ item.label }}
-            </button>
-        </div>
+            <a-card :bordered="false" size="small">
+                <a-table
+                    :columns="columns"
+                    :data-source="orders.data"
+                    :pagination="false"
+                    row-key="id"
+                    size="middle"
+                >
+                    <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'order'">
+                            <div>
+                                <a-typography-text strong>
+                                    №{{ record.id }} · {{ record.direction === 'buy' ? 'Покупка' : 'Продажа' }}
+                                </a-typography-text>
+                                <div class="admin-ant-meta">
+                                    {{ record.user?.name ?? '—' }} · {{ record.user?.phone ?? '—' }}
+                                </div>
+                            </div>
+                        </template>
 
-        <div class="space-y-3">
-            <Link
-                v-for="order in orders.data"
-                :key="order.id"
-                :href="`/admin/orders/${order.id}`"
-                class="card block"
-            >
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <p class="font-semibold">
-                            №{{ order.id }} ·
-                            <span :class="order.direction === 'buy' ? 'text-accent' : 'text-sky-400'">
-                                {{ order.direction === 'buy' ? 'Покупка' : 'Продажа' }}
-                            </span>
-                            · {{ formatKzt(order.fiat_amount) }} ₸ ↔
-                            {{ formatUsdt(order.crypto_amount, 2) }} USDT
-                        </p>
-                        <p class="mt-1 text-body-sm text-text-muted">
-                            {{ order.user?.name ?? '—' }} · {{ order.user?.phone ?? '—' }} · {{ formatDate(order.created_at) }}
-                        </p>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs font-semibold uppercase" :class="statusColors[order.status] ?? 'text-amber-400'">
-                            {{ statusLabels[order.status] ?? order.status }}
-                        </span>
-                        <p v-if="order.fiat_payment_request?.proof_file_path" class="mt-1 text-xs text-accent">📎 скрин загружен</p>
-                    </div>
-                </div>
-            </Link>
+                        <template v-else-if="column.key === 'amount'">
+                            <a-typography-text strong>{{ formatKzt(record.fiat_amount) }} ₸</a-typography-text>
+                            <div class="admin-ant-meta">{{ formatUsdt(record.crypto_amount, 2) }} USDT</div>
+                        </template>
 
-            <p v-if="orders.data.length === 0" class="text-center text-text-dim">Нет заявок</p>
-        </div>
+                        <template v-else-if="column.key === 'status'">
+                            <a-tag :color="statusTagColor(record.status)">
+                                {{ statusLabels[record.status] ?? record.status }}
+                            </a-tag>
+                            <div v-if="record.fiat_payment_request?.proof_file_path" class="admin-ant-meta">📎 скрин</div>
+                        </template>
 
-        <div v-if="orders.links" class="mt-6 flex flex-wrap justify-center gap-1">
-            <Link
-                v-for="(link, i) in orders.links"
-                :key="i"
-                :href="link.url ?? '#'"
-                class="rounded-lg px-3 py-1 text-sm"
-                :class="link.active ? 'bg-accent text-on-accent' : link.url ? 'bg-surface-container text-text-dim' : 'text-text-dim/40'"
-                v-html="link.label"
-            />
-        </div>
+                        <template v-else-if="column.key === 'time'">
+                            <span class="admin-ant-meta">{{ formatDate(record.created_at) }}</span>
+                        </template>
+
+                        <template v-else-if="column.key === 'actions'">
+                            <Link :href="`/admin/orders/${record.id}`">
+                                <a-button type="link" size="small">Открыть</a-button>
+                            </Link>
+                        </template>
+                    </template>
+
+                    <template #emptyText>
+                        <a-empty description="Нет заявок" />
+                    </template>
+                </a-table>
+
+                <AdminPagination :pagination="orders" />
+            </a-card>
+        </AdminPage>
     </AdminLayout>
 </template>
