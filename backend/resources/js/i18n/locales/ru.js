@@ -1,4 +1,10 @@
 export default {
+    landing: {
+        tagline: 'Крипто-обменник USDT / KZT',
+        signIn: 'Войти',
+        terms: 'Пользовательское соглашение',
+        privacy: 'Политика конфиденциальности',
+    },
     locale: {
         label: 'Язык',
     },

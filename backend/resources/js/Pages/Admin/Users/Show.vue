@@ -68,6 +68,17 @@ function submitStatus() {
                             <a-descriptions-item label="Телефон">{{ user.phone || '—' }}</a-descriptions-item>
                             <a-descriptions-item label="Email">{{ user.email || '—' }}</a-descriptions-item>
                             <a-descriptions-item label="KYC">{{ user.kyc_status }}</a-descriptions-item>
+                            <a-descriptions-item v-if="user.kyc_profile" label="KYC заявка">
+                                <template v-if="user.kyc_profile.submitted_at">
+                                    Отправлена {{ formatDateTime(user.kyc_profile.submitted_at) }}
+                                </template>
+                                <template v-else>
+                                    Не отправлена (черновик)
+                                </template>
+                                <template v-if="user.kyc_profile.reviewed_at">
+                                    · Решение {{ formatDateTime(user.kyc_profile.reviewed_at) }}
+                                </template>
+                            </a-descriptions-item>
                             <a-descriptions-item label="Статус">
                                 <a-tag :color="statusTagColor(user.status)">{{ user.status }}</a-tag>
                             </a-descriptions-item>

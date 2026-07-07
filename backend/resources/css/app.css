@@ -174,6 +174,21 @@
         @apply focus:border-accent focus:ring-2 focus:ring-primary-light;
     }
 
+    select.input-field {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        padding-right: 3rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        background-size: 18px 18px;
+    }
+
+    select.input-field:hover {
+        @apply border-outline-variant;
+    }
+
     /* Bottom navigation (krip style) */
     .bottom-nav {
         position: fixed;

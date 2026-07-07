@@ -2,6 +2,9 @@
 import { Head, Link } from '@inertiajs/vue3';
 import AppLogo from '@/Components/AppLogo.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 defineProps({
     company: {
@@ -32,7 +35,7 @@ defineProps({
                 </h1>
 
                 <p class="mt-3 text-body-sm leading-relaxed text-text-muted">
-                    {{ company.tagline }}
+                    {{ t('landing.tagline') }}
                 </p>
 
                 <img
@@ -42,17 +45,17 @@ defineProps({
                 />
 
                 <Link :href="route('auth.phone')" class="btn-primary mt-stack-section no-underline">
-                    Войти
+                    {{ t('landing.signIn') }}
                 </Link>
             </section>
 
             <footer class="pb-6 text-center text-body-sm text-text-dim">
                 <nav class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                     <Link :href="route('legal.show', 'terms')" class="text-accent hover:underline">
-                        Пользовательское соглашение
+                        {{ t('landing.terms') }}
                     </Link>
                     <Link :href="route('legal.show', 'privacy')" class="text-accent hover:underline">
-                        Политика конфиденциальности
+                        {{ t('landing.privacy') }}
                     </Link>
                 </nav>
             </footer>

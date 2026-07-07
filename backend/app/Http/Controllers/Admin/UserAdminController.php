@@ -67,7 +67,7 @@ final class UserAdminController extends Controller
     public function show(User $user): Response
     {
         $user->loadCount(['exchangeOrders', 'withdrawals', 'deposits'])
-            ->load(['kycProfile:id,user_id,status,first_name,last_name,company_name', 'roles:id,code']);
+            ->load(['kycProfile:id,user_id,status,first_name,last_name,company_name,document_type,document_number,submitted_at,reviewed_at', 'roles:id,code']);
 
         return Inertia::render('Admin/Users/Show', [
             'user' => [
@@ -89,6 +89,13 @@ final class UserAdminController extends Controller
                 'kyc_profile' => $user->kycProfile ? [
                     'id' => $user->kycProfile->id,
                     'status' => $user->kycProfile->status,
+                    'first_name' => $user->kycProfile->first_name,
+                    'last_name' => $user->kycProfile->last_name,
+                    'company_name' => $user->kycProfile->company_name,
+                    'document_type' => $user->kycProfile->document_type,
+                    'document_number' => $user->kycProfile->document_number,
+                    'submitted_at' => $user->kycProfile->submitted_at?->toIso8601String(),
+                    'reviewed_at' => $user->kycProfile->reviewed_at?->toIso8601String(),
                     'name' => $user->kycProfile->company_name
                         ?: trim(($user->kycProfile->first_name ?? '').' '.($user->kycProfile->last_name ?? '')),
                 ] : null,

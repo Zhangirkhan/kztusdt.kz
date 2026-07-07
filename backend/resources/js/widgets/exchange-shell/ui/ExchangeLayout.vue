@@ -38,7 +38,7 @@ const navItems = computed(() => buildExchangeNavItems(canUseWallet.value));
             </header>
 
             <main
-                class="flex-1 px-margin-page pb-4"
+                class="flex-1 px-margin-page pt-4 pb-4"
                 style="padding-bottom: calc(var(--bottom-nav-height) + 24px + var(--safe-bottom))"
             >
                 <NotificationOptIn />

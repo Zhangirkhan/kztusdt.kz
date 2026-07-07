@@ -59,7 +59,7 @@ onMounted(() => {
     >
         <div
             v-if="visible"
-            class="mb-stack-element flex items-start gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container-high/60 p-4"
+            class="mt-4 mb-stack-element flex items-start gap-3 rounded-2xl border border-outline-variant/40 bg-surface-container-high/60 p-4"
         >
             <span class="material-symbols-outlined mt-0.5 text-2xl text-accent">notifications_active</span>
 

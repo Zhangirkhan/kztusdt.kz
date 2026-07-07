@@ -1,6 +1,7 @@
 <script setup>
 import { KYC_DOCUMENT_TYPES } from '@/entities/kyc/lib/pendingReviewHint';
 import { useKycManualForm } from '@/features/kyc-manual-form/model/useKycManualForm';
+import { ref } from 'vue';
 
 const props = defineProps({
     profile: {
@@ -14,12 +15,24 @@ const props = defineProps({
 });
 
 const { form, submit, onFile } = useKycManualForm(props.profile);
+
+const selectedFiles = ref({
+    id_front: '',
+    id_back: '',
+    selfie: '',
+});
+
+function onPick(field, event) {
+    const file = event?.target?.files?.[0];
+    selectedFiles.value[field] = file?.name ?? '';
+    onFile(field, event);
+}
 </script>
 
 <template>
     <section class="card space-y-stack-element">
         <div>
-            <p class="text-label-caps uppercase text-text-dim">Ручная верификация</p>
+            <p class="text-label-caps uppercase tracking-wide text-text-dim">Ручная верификация</p>
             <p class="mt-2 text-body-sm text-text-muted">
                 Заполните анкету и загрузите фото документа. Служба безопасности проверит заявку вручную.
             </p>
@@ -50,12 +63,41 @@ const { form, submit, onFile } = useKycManualForm(props.profile);
             </div>
 
             <div class="space-y-3">
-                <label class="block text-label-caps uppercase text-text-dim">Документы</label>
-                <label v-for="field in ['id_front', 'id_back', 'selfie']" :key="field" class="card block cursor-pointer">
-                    <span class="text-sm">
-                        {{ field === 'id_front' ? 'Лицевая сторона' : field === 'id_back' ? 'Обратная сторона' : 'Селфи с документом' }}
-                    </span>
-                    <input type="file" accept="image/*" class="mt-2 block w-full text-sm" required @change="onFile(field, $event)" />
+                <label class="block text-label-caps uppercase tracking-wide text-text-dim">Документы</label>
+                <p class="-mt-1 text-xs text-text-muted">JPG/PNG, хорошее освещение, без бликов</p>
+
+                <label
+                    v-for="field in ['id_front', 'id_back', 'selfie']"
+                    :key="field"
+                    class="card block cursor-pointer transition hover:bg-surface-container-low"
+                >
+                    <div class="flex items-start gap-3">
+                        <span class="material-symbols-outlined mt-0.5 text-2xl text-accent">
+                            {{ field === 'selfie' ? 'photo_camera' : 'id_card' }}
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold text-on-surface">
+                                {{ field === 'id_front' ? 'Лицевая сторона' : field === 'id_back' ? 'Обратная сторона' : 'Селфи с документом' }}
+                            </p>
+                            <p class="mt-1 truncate text-xs text-text-muted">
+                                {{ selectedFiles[field] ? selectedFiles[field] : 'Файл не выбран' }}
+                            </p>
+                            <div class="mt-3">
+                                <span class="btn-secondary inline-flex w-auto gap-2 px-4 py-2 text-sm">
+                                    <span class="material-symbols-outlined text-xl">upload</span>
+                                    Выбрать файл
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="sr-only"
+                        required
+                        @change="onPick(field, $event)"
+                    />
                     <p v-if="form.errors[field]" class="mt-2 text-sm text-error">{{ form.errors[field] }}</p>
                 </label>
             </div>

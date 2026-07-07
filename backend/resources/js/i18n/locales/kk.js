@@ -1,4 +1,10 @@
 export default {
+    landing: {
+        tagline: 'USDT / KZT крипто-алмастырғыш',
+        signIn: 'Кіру',
+        terms: 'Пайдаланушы келісімі',
+        privacy: 'Құпиялылық саясаты',
+    },
     locale: {
         label: 'Тіл',
     },

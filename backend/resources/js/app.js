@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { applyLocale, i18n } from './i18n';
+import { showServerErrorOverlay } from './serverErrorOverlay';
 
 const appName = import.meta.env.VITE_APP_NAME || 'kztusdt.kz';
 
@@ -29,6 +30,16 @@ createInertiaApp({
         router.on('navigate', (event) => {
             applyLocale(event.detail.page.props.locale?.current ?? 'ru');
             applyZiggy(event.detail.page.props.ziggy);
+        });
+
+        router.on('invalid', (event) => {
+            const html = event.detail.response?.data;
+            if (typeof html !== 'string' || !html.includes('class="panel"')) {
+                return;
+            }
+
+            event.preventDefault();
+            showServerErrorOverlay(html);
         });
 
         return createApp({ render: () => h(App, props) })

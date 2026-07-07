@@ -1,4 +1,10 @@
 export default {
+    landing: {
+        tagline: 'Crypto exchange USDT / KZT',
+        signIn: 'Sign in',
+        terms: 'Terms of Service',
+        privacy: 'Privacy Policy',
+    },
     locale: {
         label: 'Language',
     },

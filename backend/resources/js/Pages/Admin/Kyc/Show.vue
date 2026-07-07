@@ -25,7 +25,9 @@ const displayName = computed(() => {
         return [sumsub.first_name, sumsub.middle_name, sumsub.last_name].filter(Boolean).join(' ');
     }
 
-    return [props.profile.first_name, props.profile.last_name].filter(Boolean).join(' ') || props.profile.user?.name || '—';
+    // Prefer the identity that the user submitted for KYC.
+    // Account name/phone can be anything and should not be treated as KYC identity.
+    return [props.profile.first_name, props.profile.last_name].filter(Boolean).join(' ') || '—';
 });
 
 const documentLine = computed(() => {
@@ -93,7 +95,10 @@ function formatDate(value) {
                             <a-descriptions-item label="Телефон">{{ profile.user?.phone ?? '—' }}</a-descriptions-item>
                             <a-descriptions-item label="User ID">{{ profile.user?.id ?? '—' }}</a-descriptions-item>
                             <a-descriptions-item label="Документ">{{ documentLine }}</a-descriptions-item>
-                            <a-descriptions-item label="Отправлено">{{ formatDate(profile.submitted_at) }}</a-descriptions-item>
+                            <a-descriptions-item label="Отправлено">
+                                <template v-if="profile.submitted_at">{{ formatDate(profile.submitted_at) }}</template>
+                                <template v-else>Не отправлено (черновик)</template>
+                            </a-descriptions-item>
                             <a-descriptions-item label="Решение">{{ formatDate(profile.reviewed_at) }}</a-descriptions-item>
                         </a-descriptions>
                         <a-alert
