@@ -13,15 +13,26 @@ use Illuminate\Validation\ValidationException;
 final class UserBankCardService
 {
     /**
-     * @return list<array{code: string, name: string}>
+     * @return list<array{code: string, name: string, bik: string|null}>
      */
     public function bankCatalog(): array
     {
         return collect(config('banks.catalog', []))
-            ->map(fn (string $name, string $code): array => [
-                'code' => $code,
-                'name' => $name,
-            ])
+            ->map(function (array|string $entry, string $code): array {
+                if (is_string($entry)) {
+                    return [
+                        'code' => $code,
+                        'name' => $entry,
+                        'bik' => null,
+                    ];
+                }
+
+                return [
+                    'code' => $code,
+                    'name' => (string) ($entry['name'] ?? $code),
+                    'bik' => $this->normalizeBik((string) ($entry['bik'] ?? '')),
+                ];
+            })
             ->values()
             ->all();
     }
@@ -46,18 +57,26 @@ final class UserBankCardService
     }
 
     /**
-     * @param  array{bank_code: string, label: string, holder_name: string, phone?: string|null, iban?: string|null}  $data
+     * @param  array{bank_code: string, bik: string, label?: string, holder_name: string, phone?: string|null, iban: string}  $data
      */
     public function create(User $user, array $data): UserBankCard
     {
+        $bankCode = $data['bank_code'];
+        $bik = $this->resolveBik($bankCode, $data['bik'] ?? null);
         [$phone, $iban] = $this->normalizeRequisites($data);
 
-        $this->assertAtLeastOneRequisite($phone, $iban);
-        $this->assertUnique($user, $data['bank_code'], $phone, $iban);
+        $this->assertIbanRequired($iban);
+        $this->assertUnique($user, $bankCode, $phone, $iban);
+
+        $label = trim((string) ($data['label'] ?? ''));
+        if ($label === '') {
+            $label = UserBankCard::bankNameForCode($bankCode);
+        }
 
         return $user->bankCards()->create([
-            'bank_code' => $data['bank_code'],
-            'label' => trim($data['label']),
+            'bank_code' => $bankCode,
+            'bik' => $bik,
+            'label' => $label,
             'holder_name' => trim($data['holder_name']),
             'phone' => $phone,
             'iban' => $iban,
@@ -65,11 +84,12 @@ final class UserBankCardService
     }
 
     /**
-     * @param  array{bank_code?: string, label?: string, holder_name?: string, phone?: string|null, iban?: string|null}  $data
+     * @param  array{bank_code?: string, bik?: string, label?: string, holder_name?: string, phone?: string|null, iban?: string}  $data
      */
     public function update(UserBankCard $card, array $data): UserBankCard
     {
         $bankCode = $data['bank_code'] ?? $card->bank_code;
+        $bik = $this->resolveBik($bankCode, $data['bik'] ?? $card->bik);
         $label = array_key_exists('label', $data) ? trim((string) $data['label']) : $card->label;
         $holder = array_key_exists('holder_name', $data) ? trim((string) $data['holder_name']) : $card->holder_name;
 
@@ -81,12 +101,13 @@ final class UserBankCardService
             'iban' => $ibanSource,
         ]);
 
-        $this->assertAtLeastOneRequisite($phone, $iban);
+        $this->assertIbanRequired($iban);
         $this->assertUnique($card->user, $bankCode, $phone, $iban, $card->id);
 
         $card->update([
             'bank_code' => $bankCode,
-            'label' => $label,
+            'bik' => $bik,
+            'label' => $label !== '' ? $label : UserBankCard::bankNameForCode($bankCode),
             'holder_name' => $holder,
             'phone' => $phone,
             'iban' => $iban,
@@ -108,7 +129,7 @@ final class UserBankCardService
     }
 
     /**
-     * @return array{bank_name: string, recipient_name: string, recipient_account: string}
+     * @return array{bank_name: string, bik: string|null, recipient_name: string, recipient_account: string}
      */
     public function payoutDetails(UserBankCard $card, string $payoutType): array
     {
@@ -122,6 +143,7 @@ final class UserBankCardService
 
         return [
             'bank_name' => $card->bankName(),
+            'bik' => $card->bik,
             'recipient_name' => $card->holder_name,
             'recipient_account' => $account,
         ];
@@ -179,12 +201,43 @@ final class UserBankCardService
         return [$phone, $iban];
     }
 
-    private function assertAtLeastOneRequisite(?string $phone, ?string $iban): void
+    private function resolveBik(string $bankCode, ?string $bik): string
     {
-        if ($phone === null && $iban === null) {
+        $normalized = $this->normalizeBik((string) $bik);
+
+        if ($normalized === null) {
             throw ValidationException::withMessages([
-                'phone' => 'Укажите телефон и/или IBAN.',
-                'iban' => 'Укажите телефон и/или IBAN.',
+                'bik' => 'Укажите корректный БИК банка (8 символов).',
+            ]);
+        }
+
+        $expected = UserBankCard::bikForCode($bankCode);
+
+        if ($expected !== null && $normalized !== $expected) {
+            throw ValidationException::withMessages([
+                'bik' => 'БИК не соответствует выбранному банку.',
+            ]);
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeBik(string $bik): ?string
+    {
+        $normalized = strtoupper(preg_replace('/\s+/', '', $bik) ?? '');
+
+        if ($normalized === '' || ! preg_match('/^[A-Z0-9]{8}$/', $normalized)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function assertIbanRequired(?string $iban): void
+    {
+        if ($iban === null) {
+            throw ValidationException::withMessages([
+                'iban' => 'Укажите номер счёта IBAN.',
             ]);
         }
     }

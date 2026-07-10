@@ -530,6 +530,78 @@ final class ExchangeOrderService
         );
     }
 
+    /**
+     * Cancel orders that exceeded the listing payment term without completion.
+     */
+    public function expireOverdue(): int
+    {
+        $orders = ExchangeOrder::query()
+            ->where(function ($query): void {
+                $query->where(function ($buy): void {
+                    $buy->where('direction', ExchangeOrder::DIRECTION_BUY)
+                        ->where('status', ExchangeOrder::STATUS_AWAITING_KZT_PAYMENT);
+                })->orWhere(function ($sell): void {
+                    $sell->where('direction', ExchangeOrder::DIRECTION_SELL)
+                        ->where('status', ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION);
+                });
+            })
+            ->orderBy('id')
+            ->get();
+
+        $count = 0;
+
+        foreach ($orders as $order) {
+            if (! $this->isPastPaymentDeadline($order)) {
+                continue;
+            }
+
+            try {
+                $this->cancelByTimeout($order);
+                $count++;
+            } catch (RuntimeException) {
+                // Order status changed concurrently — skip.
+            }
+        }
+
+        return $count;
+    }
+
+    public function paymentDeadlineFor(ExchangeOrder $order): ?\Illuminate\Support\Carbon
+    {
+        $minutes = $this->listingService->paymentTermMinutes($order->payment_term);
+
+        if ($minutes === null || $minutes <= 0 || $order->created_at === null) {
+            return null;
+        }
+
+        return $order->created_at->copy()->addMinutes($minutes);
+    }
+
+    public function isPastPaymentDeadline(ExchangeOrder $order): bool
+    {
+        $deadline = $this->paymentDeadlineFor($order);
+
+        if ($deadline === null) {
+            return false;
+        }
+
+        return now()->greaterThan($deadline);
+    }
+
+    public function cancelByTimeout(ExchangeOrder $order): void
+    {
+        $reason = 'Истекло время на завершение сделки';
+
+        $this->cancelInternal($order, $reason, $order->user, 'order.cancelled_by_timeout');
+
+        $this->notifier->notifyKey(
+            $order->user,
+            'order_cancelled',
+            ['id' => $order->id],
+            ['url' => '/exchange'],
+        );
+    }
+
     private function cancelInternal(ExchangeOrder $order, string $reason, User $actor, string $auditAction): void
     {
         DB::transaction(function () use ($order, $reason, $actor, $auditAction): void {

@@ -131,12 +131,18 @@ onMounted(() => {
             return;
         }
 
-        if (isBuy.value && activeStep.value < 2) {
+        if (isBuy.value && activeStep.value < 2 && !countdownExpired.value) {
             return;
         }
 
         refreshStatus({ silent: true });
     }, 5000);
+});
+
+watch(countdownExpired, (expired) => {
+    if (expired && !isCompleted.value && !isCancelled.value) {
+        refreshStatus({ silent: true });
+    }
 });
 
 watch(

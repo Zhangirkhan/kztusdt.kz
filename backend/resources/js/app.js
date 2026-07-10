@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { applyLocale, i18n } from './i18n';
+import { applyThemePreference, getStoredTheme } from './composables/useTheme';
 import { showServerErrorOverlay } from './serverErrorOverlay';
 
 const appName = import.meta.env.VITE_APP_NAME || 'kztusdt.kz';
@@ -25,6 +26,7 @@ createInertiaApp({
         ),
     setup({ el, App, props, plugin }) {
         applyLocale(props.initialPage.props.locale?.current ?? 'ru');
+        applyThemePreference(getStoredTheme());
         applyZiggy(props.initialPage.props.ziggy);
 
         router.on('navigate', (event) => {

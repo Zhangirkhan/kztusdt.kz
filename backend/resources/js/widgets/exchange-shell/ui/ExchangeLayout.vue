@@ -6,6 +6,7 @@ import NotificationOptIn from '@/Components/NotificationOptIn.vue';
 import { buildExchangeNavItems } from '@/shared/config/exchange-nav';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     showBrand: {
@@ -23,6 +24,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const current = computed(() => page.url);
 const companyName = computed(() => page.props.company?.name ?? 'kztusdt.kz');
 const canUseWallet = computed(() => page.props.auth?.user?.can_use_wallet ?? false);
@@ -72,19 +74,12 @@ onUnmounted(() => {
                     <div class="min-w-0">
                         <p v-if="showBrand" class="page-header__brand text-label-caps uppercase text-text-dim">{{ companyName }}</p>
                         <h1 class="page-header__title truncate" :class="showBrand ? '' : 'text-base'">
-                            <slot name="title">Кошелёк</slot>
+                            <slot name="title">{{ t('wallet.title') }}</slot>
                         </h1>
                     </div>
                 </div>
-                <div class="flex shrink-0 items-center gap-2">
+                <div v-if="$slots['header-actions']" class="flex shrink-0 items-center gap-2">
                     <slot name="header-actions" />
-                    <Link
-                        :href="route('profile.show')"
-                        class="btn-icon wallet-header-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent"
-                        aria-label="Профиль"
-                    >
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">person</span>
-                    </Link>
                 </div>
             </header>
 
@@ -99,7 +94,7 @@ onUnmounted(() => {
                 <slot />
             </main>
 
-            <nav v-if="keyboardInsetPx === 0" class="bottom-nav" aria-label="Основная навигация">
+            <nav v-if="keyboardInsetPx === 0" class="bottom-nav" :aria-label="t('nav.main')">
                 <div class="bottom-nav__inner">
                     <Link
                         v-for="item in navItems"
@@ -110,7 +105,7 @@ onUnmounted(() => {
                             'bottom-nav__item--active': item.active(current) && !item.locked,
                             'bottom-nav__item--locked': item.locked,
                         }"
-                        :aria-label="item.locked ? `${item.label} — пройдите KYC` : item.label"
+                        :aria-label="item.locked ? `${item.label} — ${t('nav.kycLockHint')}` : item.label"
                     >
                         <span class="bottom-nav__pill">
                             <AppIcon

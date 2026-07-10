@@ -2,19 +2,20 @@
 import ExchangeLayout from '@/widgets/exchange-shell/ui/ExchangeLayout.vue';
 import ProfileSettingsShell from '@/widgets/profile-settings-shell/ui/ProfileSettingsShell.vue';
 import FlashBanner from '@/shared/ui/flash-banner/FlashBanner.vue';
+import ToggleSwitch from '@/shared/ui/toggle-switch/ToggleSwitch.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     profile: Object,
 });
 
 const page = usePage();
-const prefs = props.profile.notification_preferences ?? { push: true, email: true, sms: true };
+const { t } = useI18n();
 
+const prefs = props.profile.notification_preferences ?? { push: true };
 const form = useForm({
     push: Boolean(prefs.push),
-    email: Boolean(prefs.email),
-    sms: Boolean(prefs.sms),
 });
 
 function submit() {
@@ -23,36 +24,25 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Уведомления" />
+    <Head :title="t('notifications.title')" />
 
     <ExchangeLayout>
-        <template #title>Уведомления</template>
+        <template #title>{{ t('notifications.title') }}</template>
 
         <ProfileSettingsShell>
             <FlashBanner v-if="page.props.flash?.success" :message="page.props.flash.success" tone="success" />
 
-            <form class="settings-list" @submit.prevent="submit">
-                <label class="settings-item cursor-pointer">
-                    <span class="settings-item__icon"><span class="material-symbols-outlined">notifications</span></span>
-                    <span class="settings-item__label">Push-уведомления</span>
-                    <input v-model="form.push" type="checkbox" class="h-5 w-5 accent-accent" />
-                </label>
-                <label class="settings-item cursor-pointer">
-                    <span class="settings-item__icon"><span class="material-symbols-outlined">mail</span></span>
-                    <span class="settings-item__label">Email</span>
-                    <input v-model="form.email" type="checkbox" class="h-5 w-5 accent-accent" />
-                </label>
-                <label class="settings-item cursor-pointer">
-                    <span class="settings-item__icon"><span class="material-symbols-outlined">sms</span></span>
-                    <span class="settings-item__label">SMS</span>
-                    <input v-model="form.sms" type="checkbox" class="h-5 w-5 accent-accent" />
-                </label>
-                <div class="border-t border-outline-variant/40 bg-surface p-4">
-                    <button type="submit" class="btn-primary w-full" :disabled="form.processing">
-                        {{ form.processing ? 'Сохранение…' : 'Сохранить' }}
-                    </button>
+            <p class="mb-4 text-sm text-text-muted">{{ t('notifications.hint') }}</p>
+
+            <div class="settings-list">
+                <div class="settings-item">
+                    <span class="settings-item__icon">
+                        <span class="material-symbols-outlined">notifications</span>
+                    </span>
+                    <span class="settings-item__label">{{ t('notifications.push') }}</span>
+                    <ToggleSwitch v-model="form.push" :label="t('notifications.push')" @update:model-value="submit" />
                 </div>
-            </form>
+            </div>
         </ProfileSettingsShell>
     </ExchangeLayout>
 </template>

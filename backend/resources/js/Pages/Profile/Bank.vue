@@ -3,16 +3,10 @@ import ExchangeLayout from '@/widgets/exchange-shell/ui/ExchangeLayout.vue';
 import ProfileSettingsShell from '@/widgets/profile-settings-shell/ui/ProfileSettingsShell.vue';
 import FlashBanner from '@/shared/ui/flash-banner/FlashBanner.vue';
 import BankLogo from '@/shared/ui/bank-logo/BankLogo.vue';
-import { usePhoneMaskInput } from '@/composables/usePhoneMaskInput';
 import { formatKzIban, isKzIbanComplete } from '@/utils/accountMask';
-import {
-    formatNational,
-    isKzPhoneComplete,
-    MIN_PHONE,
-    parseNationalDigits,
-} from '@/utils/phoneMask';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, nextTick, ref, toRef, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     profile: Object,
@@ -21,6 +15,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 
 const showForm = ref(false);
 const editingCardId = ref(null);
@@ -28,32 +23,35 @@ const renamingCardId = ref(null);
 const renameValue = ref('');
 const deletingCardId = ref(null);
 
+function bikForBank(code) {
+    return props.banks.find((bank) => bank.code === code)?.bik ?? '';
+}
+
 function emptyFormState() {
+    const bankCode = props.banks[0]?.code ?? 'kaspi';
+
     return {
-        bank_code: props.banks[0]?.code ?? 'kaspi',
-        label: '',
+        bank_code: bankCode,
+        bik: bikForBank(bankCode),
         holder_name: '',
         iin: props.profile?.iin ?? '',
-        phone: MIN_PHONE,
         iban: formatKzIban(''),
     };
 }
 
 const form = useForm(emptyFormState());
-const phoneRef = toRef(form, 'phone');
-const { phoneInput, onPhoneInput, onPhoneKeydown, syncInput } = usePhoneMaskInput(phoneRef);
 
-const formTitle = computed(() => (editingCardId.value ? 'Изменить карту' : 'Добавить карту'));
+const formTitle = computed(() => (editingCardId.value ? t('bank.editCard') : t('bank.addCard')));
 
 const selectedBankName = computed(() => bankName(form.bank_code));
 
 const canSubmitCard = computed(() => {
-    const hasPhone = isKzPhoneComplete(form.phone);
     const hasIban = isKzIbanComplete(form.iban);
-    const hasMeta = form.bank_code && form.label.trim() && form.holder_name.trim();
+    const hasBik = /^[A-Za-z0-9]{8}$/.test(String(form.bik ?? ''));
+    const hasMeta = form.bank_code && form.holder_name.trim();
     const hasIin = /^\d{12}$/.test(String(form.iin ?? ''));
 
-    return hasMeta && hasIin && (hasPhone || hasIban) && !form.processing;
+    return hasMeta && hasIin && hasBik && hasIban && !form.processing;
 });
 
 watch(
@@ -72,7 +70,6 @@ function openCreateForm() {
     form.defaults(next);
     Object.assign(form, next);
     showForm.value = true;
-    nextTick(() => syncInput());
 }
 
 function openEditForm(card) {
@@ -80,15 +77,14 @@ function openEditForm(card) {
     form.clearErrors();
     const next = {
         bank_code: card.bank_code,
-        label: card.label ?? '',
+        bik: card.bik ?? bikForBank(card.bank_code),
         holder_name: card.holder_name ?? '',
-        phone: card.phone ? formatNational(parseNationalDigits(card.phone)) : MIN_PHONE,
+        iin: props.profile?.iin ?? '',
         iban: card.iban ? formatKzIban(card.iban) : formatKzIban(''),
     };
     form.defaults(next);
     Object.assign(form, next);
     showForm.value = true;
-    nextTick(() => syncInput());
 }
 
 function cancelForm() {
@@ -100,7 +96,9 @@ function cancelForm() {
 
 function selectBank(code) {
     form.bank_code = code;
+    form.bik = bikForBank(code);
     form.clearErrors('bank_code');
+    form.clearErrors('bik');
 }
 
 function onIbanInput(event) {
@@ -177,10 +175,10 @@ function bankName(code) {
 </script>
 
 <template>
-    <Head title="Банковские реквизиты" />
+    <Head :title="t('bank.title')" />
 
     <ExchangeLayout>
-        <template #title>Банковские реквизиты</template>
+        <template #title>{{ t('bank.title') }}</template>
 
         <ProfileSettingsShell>
             <FlashBanner v-if="page.props.flash?.success" :message="page.props.flash.success" tone="success" />
@@ -189,12 +187,11 @@ function bankName(code) {
                 <div class="bank-empty__icon">
                     <span class="material-symbols-outlined">credit_card</span>
                 </div>
-                <p class="font-semibold text-lg">Карт пока нет</p>
+                <p class="font-semibold text-lg">{{ t('bank.emptyTitle') }}</p>
                 <p class="mt-2 text-sm text-text-muted">
-                    Добавьте карту Kaspi, BCC, Altyn, Halyk или Freedom — с телефоном и/или IBAN.
-                    На обмене вы будете выбирать из сохранённых карт.
+                    {{ t('bank.emptyHint') }}
                 </p>
-                <button type="button" class="btn-primary mt-4" @click="openCreateForm">Добавить карту</button>
+                <button type="button" class="btn-primary mt-4" @click="openCreateForm">{{ t('bank.addCard') }}</button>
             </div>
 
             <div v-else class="mb-4 space-y-3">
@@ -212,13 +209,17 @@ function bankName(code) {
                             </div>
                             <p class="mt-1 text-sm text-text-dim">{{ card.holder_name }}</p>
                             <div class="mt-2 space-y-1 text-sm text-text-muted">
-                                <p v-if="card.phone_masked" class="flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-base text-accent">call</span>
-                                    {{ card.phone_masked }}
+                                <p v-if="card.bik" class="flex items-center gap-2 font-mono">
+                                    <span class="material-symbols-outlined text-base text-accent">tag</span>
+                                    {{ t('bank.bikLabel', { bik: card.bik }) }}
                                 </p>
                                 <p v-if="card.iban_masked" class="flex items-center gap-2 font-mono">
                                     <span class="material-symbols-outlined text-base text-accent">account_balance</span>
                                     {{ card.iban_masked }}
+                                </p>
+                                <p v-if="card.phone_masked" class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-base text-accent">call</span>
+                                    {{ card.phone_masked }}
                                 </p>
                             </div>
                         </div>
@@ -227,37 +228,37 @@ function bankName(code) {
                     <div v-if="renamingCardId === card.id" class="mt-3 space-y-2">
                         <input v-model="renameValue" class="input-field" maxlength="255" placeholder="Название карты" />
                         <div class="flex gap-2">
-                            <button type="button" class="btn-primary flex-1" @click="submitRename(card)">Сохранить</button>
-                            <button type="button" class="btn-secondary flex-1" @click="cancelRename">Отмена</button>
+                            <button type="button" class="btn-primary flex-1" @click="submitRename(card)">{{ t('common.save') }}</button>
+                            <button type="button" class="btn-secondary flex-1" @click="cancelRename">{{ t('common.cancel') }}</button>
                         </div>
                     </div>
 
                     <div v-else-if="deletingCardId === card.id" class="mt-3 space-y-2">
-                        <p class="text-sm text-error">Удалить карту «{{ card.label }}»?</p>
+                        <p class="text-sm text-error">{{ t('bank.deleteConfirm', { label: card.label }) }}</p>
                         <div class="flex gap-2">
-                            <button type="button" class="btn-primary flex-1" @click="destroyCard(card)">Удалить</button>
-                            <button type="button" class="btn-secondary flex-1" @click="cancelDelete">Отмена</button>
+                            <button type="button" class="btn-primary flex-1" @click="destroyCard(card)">{{ t('bank.delete') }}</button>
+                            <button type="button" class="btn-secondary flex-1" @click="cancelDelete">{{ t('common.cancel') }}</button>
                         </div>
                     </div>
 
                     <div v-else class="bank-card__actions mt-3">
                         <button type="button" class="bank-card__action" @click="startRename(card)">
                             <span class="material-symbols-outlined text-base">edit</span>
-                            Переименовать
+                            {{ t('bank.rename') }}
                         </button>
                         <button type="button" class="bank-card__action" @click="openEditForm(card)">
                             <span class="material-symbols-outlined text-base">tune</span>
-                            Изменить
+                            {{ t('bank.edit') }}
                         </button>
                         <button type="button" class="bank-card__action bank-card__action--danger" @click="confirmDelete(card)">
                             <span class="material-symbols-outlined text-base">delete</span>
-                            Удалить
+                            {{ t('bank.delete') }}
                         </button>
                     </div>
                 </article>
 
                 <button v-if="!showForm" type="button" class="btn-secondary w-full" @click="openCreateForm">
-                    Добавить ещё карту
+                    {{ t('bank.addAnother') }}
                 </button>
             </div>
 
@@ -265,12 +266,12 @@ function bankName(code) {
                 <section class="card space-y-5">
                     <div>
                         <p class="text-label-caps uppercase text-text-dim">{{ formTitle }}</p>
-                        <p class="mt-1 text-sm text-text-muted">Реквизиты для выплат при продаже USDT</p>
+                        <p class="mt-1 text-sm text-text-muted">{{ t('bank.formHint') }}</p>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">Банк</label>
-                        <div class="bank-picker" role="radiogroup" aria-label="Банк">
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('bank.bank') }}</label>
+                        <div class="bank-picker" role="radiogroup" :aria-label="t('bank.bank')">
                             <button
                                 v-for="bank in banks"
                                 :key="bank.code"
@@ -296,31 +297,48 @@ function bankName(code) {
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">Название карты</label>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('bank.bik') }}</label>
                         <input
-                            v-model="form.label"
-                            class="input-field"
+                            v-model="form.bik"
+                            class="input-field font-mono uppercase"
                             required
-                            maxlength="255"
-                            :placeholder="`Моя ${selectedBankName}`"
+                            maxlength="8"
+                            autocomplete="off"
+                            placeholder="CASPKZKA"
+                            @input="(e) => { form.bik = e.target.value.replace(/\\s/g, '').toUpperCase().slice(0, 8); e.target.value = form.bik; }"
                         />
-                        <p v-if="form.errors.label" class="mt-2 text-sm text-error">{{ form.errors.label }}</p>
+                        <p v-if="form.errors.bik" class="mt-2 text-sm text-error">{{ form.errors.bik }}</p>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">Получатель (ФИО)</label>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('bank.iban') }}</label>
+                        <input
+                            :value="form.iban"
+                            class="input-field font-mono uppercase"
+                            required
+                            inputmode="text"
+                            autocomplete="off"
+                            maxlength="25"
+                            placeholder="KZ00 0000 0000 0000 0000"
+                            @input="onIbanInput"
+                        />
+                        <p v-if="form.errors.iban" class="mt-2 text-sm text-error">{{ form.errors.iban }}</p>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('bank.holderName') }}</label>
                         <input
                             v-model="form.holder_name"
                             class="input-field"
                             required
                             maxlength="255"
-                            placeholder="Иванов Иван"
+                            placeholder="Иванов Иван Иванович"
                         />
                         <p v-if="form.errors.holder_name" class="mt-2 text-sm text-error">{{ form.errors.holder_name }}</p>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">ИИН</label>
+                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('bank.iin') }}</label>
                         <input
                             v-model="form.iin"
                             class="input-field font-mono"
@@ -333,54 +351,20 @@ function bankName(code) {
                         />
                         <p v-if="form.errors.iin" class="mt-2 text-sm text-error">{{ form.errors.iin }}</p>
                     </div>
-
-                    <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">Телефон</label>
-                        <input
-                            ref="phoneInput"
-                            :value="form.phone"
-                            class="input-field"
-                            inputmode="tel"
-                            autocomplete="tel"
-                            maxlength="18"
-                            placeholder="+7 (7__) ___-__-__"
-                            @input="onPhoneInput"
-                            @keydown="onPhoneKeydown"
-                        />
-                        <p v-if="form.errors.phone" class="mt-2 text-sm text-error">{{ form.errors.phone }}</p>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">IBAN</label>
-                        <input
-                            :value="form.iban"
-                            class="input-field font-mono uppercase"
-                            inputmode="text"
-                            autocomplete="off"
-                            maxlength="25"
-                            placeholder="KZ00 0000 0000 0000 0000"
-                            @input="onIbanInput"
-                        />
-                        <p v-if="form.errors.iban" class="mt-2 text-sm text-error">{{ form.errors.iban }}</p>
-                    </div>
-
-                    <p class="rounded-xl bg-primary-light/60 px-3 py-2.5 text-sm text-text-dim">
-                        Укажите телефон и/или IBAN — достаточно одного реквизита.
-                    </p>
                 </section>
 
                 <div class="flex gap-2">
                     <button type="submit" class="btn-primary flex-1" :disabled="!canSubmitCard">
-                        {{ form.processing ? 'Сохранение…' : 'Сохранить' }}
+                        {{ form.processing ? t('bank.saving') : t('bank.save') }}
                     </button>
                     <button type="button" class="btn-secondary flex-1" :disabled="form.processing" @click="cancelForm">
-                        Отмена
+                        {{ t('bank.cancel') }}
                     </button>
                 </div>
             </form>
 
             <p class="mt-4 text-sm text-text-muted">
-                Карты используются для выплат при продаже USDT. Название помогает не путать реквизиты.
+                {{ t('bank.footerHint') }}
             </p>
         </ProfileSettingsShell>
     </ExchangeLayout>

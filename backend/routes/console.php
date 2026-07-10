@@ -41,6 +41,11 @@ Schedule::command('withdrawals:process')
 // Expire subscriptions that passed their expires_at.
 Schedule::command('subscriptions:expire')->hourly();
 
+Schedule::command('exchange:expire-orders')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Schedule::command('rates:refresh')
     ->everyMinute()
     ->withoutOverlapping()

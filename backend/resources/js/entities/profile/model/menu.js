@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n';
 import { localizedPath } from '@/utils/localizedPath';
 
 export function buildProfileMenuItems(languageLabel, canUseWallet = true) {
@@ -11,6 +12,7 @@ export function buildProfileMenuItems(languageLabel, canUseWallet = true) {
         },
         { href: localizedPath('/profile/security'), icon: 'security', labelKey: 'profile.menu.security' },
         { href: localizedPath('/profile/language'), icon: 'translate', labelKey: 'profile.menu.language', value: languageLabel },
+        { href: localizedPath('/profile/appearance'), icon: 'dark_mode', labelKey: 'profile.menu.appearance' },
         { href: localizedPath('/profile/notifications'), icon: 'notifications', labelKey: 'profile.menu.notifications' },
         { href: localizedPath('/profile/support'), icon: 'support_agent', labelKey: 'profile.menu.support' },
     ];
@@ -21,13 +23,15 @@ export function isProfileKycVerified(profile) {
 }
 
 export function kycGateMessage(kycStatus) {
+    const t = i18n.global.t;
+
     if (kycStatus === 'pending_review') {
-        return 'Заявка на KYC на проверке. Кошелёк, обмен и вывод откроются после одобрения.';
+        return t('profile.kycGate.pending_review');
     }
 
     if (kycStatus === 'rejected') {
-        return 'KYC отклонён. Пройдите верификацию заново, чтобы открыть кошелёк и обмен.';
+        return t('profile.kycGate.rejected');
     }
 
-    return 'Пройдите KYC-верификацию, чтобы открыть кошелёк, обмен USDT и вывод средств.';
+    return t('profile.kycGate.default');
 }

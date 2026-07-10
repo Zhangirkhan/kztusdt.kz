@@ -145,16 +145,23 @@ final class ProfileController extends Controller
     {
         $validated = $request->validate([
             'push' => ['required', 'boolean'],
-            'email' => ['required', 'boolean'],
-            'sms' => ['required', 'boolean'],
         ]);
 
         $request->user()->update([
-            'notification_preferences' => $validated,
+            'notification_preferences' => [
+                'push' => $validated['push'],
+                'email' => false,
+                'sms' => false,
+            ],
         ]);
 
         return redirect()
             ->route('profile.notifications')
-            ->with('success', 'Настройки уведомлений сохранены.');
+            ->with('success', __('profile.notifications_saved'));
+    }
+
+    public function appearance(Request $request): Response
+    {
+        return Inertia::render('Profile/Appearance');
     }
 }

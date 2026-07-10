@@ -12,6 +12,7 @@ final class UserBankCard extends Model
     protected $fillable = [
         'user_id',
         'bank_code',
+        'bik',
         'label',
         'holder_name',
         'phone',
@@ -25,9 +26,31 @@ final class UserBankCard extends Model
 
     public function bankName(): string
     {
-        $catalog = config('banks.catalog', []);
+        return self::bankNameForCode($this->bank_code);
+    }
 
-        return (string) ($catalog[$this->bank_code] ?? $this->bank_code);
+    public static function bankNameForCode(string $code): string
+    {
+        $entry = config("banks.catalog.{$code}");
+
+        if (is_array($entry)) {
+            return (string) ($entry['name'] ?? $code);
+        }
+
+        return (string) ($entry ?? $code);
+    }
+
+    public static function bikForCode(string $code): ?string
+    {
+        $entry = config("banks.catalog.{$code}");
+
+        if (! is_array($entry)) {
+            return null;
+        }
+
+        $bik = strtoupper(trim((string) ($entry['bik'] ?? '')));
+
+        return $bik !== '' ? $bik : null;
     }
 
     public function hasPhone(): bool
@@ -76,6 +99,7 @@ final class UserBankCard extends Model
             'id' => $this->id,
             'bank_code' => $this->bank_code,
             'bank_name' => $this->bankName(),
+            'bik' => $this->bik,
             'label' => $this->label,
             'holder_name' => $this->holder_name,
             'phone' => $this->phone,

@@ -14,38 +14,43 @@ final class UserBankCardTest extends TestCase
     use ExchangeTestHelpers;
     use RefreshDatabase;
 
-    public function test_user_can_create_card_with_phone_and_iban(): void
+    private const VALID_IIN = '900101100014';
+
+    private const VALID_IBAN = 'KZ12 3456 7890 1234 5678';
+
+    public function test_user_can_create_card_with_required_fields(): void
     {
         $user = $this->createClient();
 
         $this->actingAs($user)->post('/ru/profile/bank/cards', [
             'bank_code' => 'kaspi',
-            'label' => 'Моя Kaspi',
+            'bik' => 'CASPKZKA',
             'holder_name' => 'Иванов Иван',
-            'phone' => '+7 (701) 234-56-78',
-            'iban' => 'KZ12 3456 7890 1234 5678',
+            'iin' => self::VALID_IIN,
+            'iban' => self::VALID_IBAN,
         ])->assertRedirect(route('profile.bank'));
 
         $card = UserBankCard::query()->where('user_id', $user->id)->firstOrFail();
 
         $this->assertSame('kaspi', $card->bank_code);
-        $this->assertSame('Моя Kaspi', $card->label);
+        $this->assertSame('CASPKZKA', $card->bik);
+        $this->assertSame('Kaspi Bank', $card->label);
         $this->assertSame('Иванов Иван', $card->holder_name);
-        $this->assertSame('+77012345678', $card->phone);
         $this->assertSame('KZ123456789012345678', $card->iban);
+        $this->assertSame(self::VALID_IIN, $user->fresh()->iin);
     }
 
-    public function test_card_requires_phone_or_iban(): void
+    public function test_card_requires_iban_bik_and_iin(): void
     {
         $user = $this->createClient();
 
         $this->actingAs($user)->post('/ru/profile/bank/cards', [
             'bank_code' => 'halyk',
-            'label' => 'Пустая',
+            'bik' => 'INVALID',
             'holder_name' => 'Тест',
-            'phone' => '+7',
-            'iban' => 'KZ',
-        ])->assertSessionHasErrors(['phone', 'iban']);
+            'iin' => '123',
+            'iban' => '',
+        ])->assertSessionHasErrors(['bik', 'iin', 'iban']);
 
         $this->assertSame(0, UserBankCard::query()->count());
     }
@@ -55,10 +60,11 @@ final class UserBankCardTest extends TestCase
         $user = $this->createClient();
         $card = $user->bankCards()->create([
             'bank_code' => 'bcc',
+            'bik' => 'KCJBKZKX',
             'label' => 'Старое',
             'holder_name' => 'Петров',
-            'phone' => '+77011234567',
-            'iban' => null,
+            'phone' => null,
+            'iban' => 'KZ861234567890123456',
         ]);
 
         $this->actingAs($user)->patch("/ru/profile/bank/cards/{$card->id}/rename", [
@@ -69,14 +75,14 @@ final class UserBankCardTest extends TestCase
 
         $this->actingAs($user)->patch("/ru/profile/bank/cards/{$card->id}", [
             'bank_code' => 'freedom',
-            'label' => 'Зарплатная Freedom',
+            'bik' => 'KSNVKZKA',
             'holder_name' => 'Петров Пётр',
-            'phone' => '+77011234567',
             'iban' => 'KZ86 1234 5678 9012 3456',
         ])->assertRedirect(route('profile.bank'));
 
         $card->refresh();
         $this->assertSame('freedom', $card->bank_code);
+        $this->assertSame('KSNVKZKA', $card->bik);
         $this->assertSame('Петров Пётр', $card->holder_name);
         $this->assertSame('KZ861234567890123456', $card->iban);
 
@@ -93,6 +99,7 @@ final class UserBankCardTest extends TestCase
         $other = $this->createClient();
         $card = $owner->bankCards()->create([
             'bank_code' => 'altyn',
+            'bik' => 'ATYNKZKA',
             'label' => 'Чужая',
             'holder_name' => 'Владелец',
             'phone' => null,
@@ -101,9 +108,9 @@ final class UserBankCardTest extends TestCase
 
         $this->actingAs($other)
             ->patch("/ru/profile/bank/cards/{$card->id}", [
-                'label' => 'Хак',
                 'holder_name' => 'Хакер',
                 'bank_code' => 'altyn',
+                'bik' => 'ATYNKZKA',
                 'iban' => 'KZ112233445566778899',
             ])
             ->assertForbidden();
@@ -118,10 +125,11 @@ final class UserBankCardTest extends TestCase
         $user = $this->createClient();
         $user->bankCards()->create([
             'bank_code' => 'kaspi',
+            'bik' => 'CASPKZKA',
             'label' => 'Основная',
             'holder_name' => 'Иван',
-            'phone' => '+77015556677',
-            'iban' => null,
+            'phone' => null,
+            'iban' => 'KZ123456789012345678',
         ]);
 
         $this->actingAs($user)
@@ -132,7 +140,8 @@ final class UserBankCardTest extends TestCase
                 ->has('banks', 7)
                 ->has('cards', 1)
                 ->where('cards.0.label', 'Основная')
-                ->where('banks.0.code', 'kaspi'));
+                ->where('banks.0.code', 'kaspi')
+                ->where('banks.0.bik', 'CASPKZKA'));
     }
 
     public function test_duplicate_iban_for_same_bank_is_rejected(): void
@@ -140,6 +149,7 @@ final class UserBankCardTest extends TestCase
         $user = $this->createClient();
         $user->bankCards()->create([
             'bank_code' => 'kaspi',
+            'bik' => 'CASPKZKA',
             'label' => 'Первая',
             'holder_name' => 'Иван',
             'phone' => null,
@@ -148,10 +158,24 @@ final class UserBankCardTest extends TestCase
 
         $this->actingAs($user)->post('/ru/profile/bank/cards', [
             'bank_code' => 'kaspi',
-            'label' => 'Дубль',
+            'bik' => 'CASPKZKA',
             'holder_name' => 'Иван',
+            'iin' => self::VALID_IIN,
             'iban' => 'KZ12 3456 7890 1234 5678',
         ])->assertSessionHasErrors(['iban']);
+    }
+
+    public function test_bik_must_match_selected_bank(): void
+    {
+        $user = $this->createClient();
+
+        $this->actingAs($user)->post('/ru/profile/bank/cards', [
+            'bank_code' => 'kaspi',
+            'bik' => 'HSBKKZKX',
+            'holder_name' => 'Иван',
+            'iin' => self::VALID_IIN,
+            'iban' => self::VALID_IBAN,
+        ])->assertSessionHasErrors(['bik']);
     }
 
     public function test_legacy_requisites_migrate_into_cards(): void
@@ -162,11 +186,11 @@ final class UserBankCardTest extends TestCase
             'bank_account' => 'KZ55 6677 8899 0011 2233',
         ]);
 
-        // Simulate migration insert that would have happened for pre-existing users.
         $normalizedIban = 'KZ556677889900112233';
         UserBankCard::query()->create([
             'user_id' => $user->id,
             'bank_code' => 'kaspi',
+            'bik' => 'CASPKZKA',
             'label' => 'Kaspi Bank',
             'holder_name' => 'Сидоров',
             'phone' => null,

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 return [
     'catalog' => [
-        'kaspi' => 'Kaspi Bank',
-        'bcc' => 'Банк ЦентрКредит',
-        'altyn' => 'Altyn Bank',
-        'halyk' => 'Halyk Bank',
-        'freedom' => 'Freedom Bank',
-        'jusan' => 'Jusan Bank',
-        'forte' => 'ForteBank',
+        'kaspi' => ['name' => 'Kaspi Bank', 'bik' => 'CASPKZKA'],
+        'bcc' => ['name' => 'Банк ЦентрКредит', 'bik' => 'KCJBKZKX'],
+        'altyn' => ['name' => 'Altyn Bank', 'bik' => 'ATYNKZKA'],
+        'halyk' => ['name' => 'Halyk Bank', 'bik' => 'HSBKKZKX'],
+        'freedom' => ['name' => 'Freedom Bank', 'bik' => 'KSNVKZKA'],
+        'jusan' => ['name' => 'Jusan Bank', 'bik' => 'TSESKZKA'],
+        'forte' => ['name' => 'ForteBank', 'bik' => 'IRTYKZKA'],
     ],
 ];

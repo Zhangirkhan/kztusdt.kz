@@ -3,6 +3,7 @@
 return [
     'saved' => 'Профиль сақталды.',
     'saved_phone_changed' => 'Профиль сақталды. Жаңа нөмірді WhatsApp арқылы растаңыз.',
+    'notifications_saved' => 'Хабарлама баптаулары сақталды.',
 
     'validation' => [
         'name_required' => 'Атыңызды енгізіңіз.',

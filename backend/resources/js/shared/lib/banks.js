@@ -15,13 +15,13 @@ export const BANK_META = {
         short: 'A',
         tone: 'altyn',
         label: 'Altyn Bank',
-        logo: '/images/banks/altyn.png',
+        logo: '/images/banks/altyn.svg',
     },
     halyk: {
         short: 'H',
         tone: 'halyk',
         label: 'Halyk Bank',
-        logo: '/images/banks/halyk.png',
+        logo: '/images/banks/halyk.svg',
     },
     freedom: {
         short: 'F',
@@ -33,13 +33,13 @@ export const BANK_META = {
         short: 'J',
         tone: 'jusan',
         label: 'Jusan Bank',
-        logo: null,
+        logo: '/images/banks/jusan.svg',
     },
     forte: {
         short: 'F',
         tone: 'forte',
         label: 'ForteBank',
-        logo: null,
+        logo: '/images/banks/forte.svg',
     },
 };
 

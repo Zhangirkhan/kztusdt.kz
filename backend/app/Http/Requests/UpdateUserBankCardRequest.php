@@ -27,10 +27,11 @@ final class UpdateUserBankCardRequest extends FormRequest
 
         return [
             'bank_code' => ['sometimes', 'required', 'string', Rule::in($bankCodes)],
-            'label' => ['sometimes', 'required', 'string', 'max:255'],
+            'bik' => ['sometimes', 'required', 'string', 'size:8', 'regex:/^[A-Za-z0-9]{8}$/'],
+            'label' => ['sometimes', 'nullable', 'string', 'max:255'],
             'holder_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'iban' => ['sometimes', 'required', 'string', 'max:25'],
             'phone' => ['nullable', 'string', 'max:32'],
-            'iban' => ['nullable', 'string', 'max:25'],
         ];
     }
 }

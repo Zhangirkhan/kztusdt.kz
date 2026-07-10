@@ -50,9 +50,12 @@ return new class extends Migration
                     $holder = trim((string) ($user->bank_holder ?: $user->name ?: 'Получатель'));
                     $bankName = trim((string) ($user->bank_name ?: ''));
                     $bankCode = $this->resolveBankCode($bankName, $catalog);
-                    $label = $bankName !== '' && $bankName !== ($catalog[$bankCode] ?? '')
+                    $catalogName = is_array($catalog[$bankCode] ?? null)
+                        ? ($catalog[$bankCode]['name'] ?? $bankCode)
+                        : ($catalog[$bankCode] ?? $bankCode);
+                    $label = $bankName !== '' && $bankName !== $catalogName
                         ? $bankName
-                        : ($catalog[$bankCode] ?? 'Карта');
+                        : $catalogName;
 
                     DB::table('user_bank_cards')->insert([
                         'user_id' => $user->id,

@@ -20,6 +20,8 @@
         --color-bg: #ffffff;
         --color-surface: #ffffff;
         --color-surface-muted: #f8fafc;
+        --color-surface-container-low: #f1f5f9;
+        --color-surface-container-high: #e2e8f0;
         --color-border: #e2e8f0;
         --color-text: #0f172a;
         --color-text-strong: #191b23;
@@ -52,6 +54,42 @@
         --radius-2xl: 24px;
     }
 
+    html.dark {
+        --color-primary: #3b82f6;
+        --color-primary-dark: #2563eb;
+        --color-primary-light: #1e3a5f;
+        --color-accent: #60a5fa;
+        --color-accent-bright: #3b82f6;
+        --color-nav-active: #93c5fd;
+        --color-timer: #60a5fa;
+        --color-login: #60a5fa;
+        --color-app-bg: #0b1120;
+        --color-bg: #111827;
+        --color-surface: #151c2e;
+        --color-surface-muted: #1a2236;
+        --color-surface-container-low: #1f2937;
+        --color-surface-container-high: #273449;
+        --color-border: #2d3a52;
+        --color-text: #f1f5f9;
+        --color-text-strong: #f8fafc;
+        --color-text-body: #cbd5e1;
+        --color-text-secondary: #94a3b8;
+        --color-text-muted: #64748b;
+        --color-label: #94a3b8;
+        --color-placeholder: #475569;
+        --color-success: #4ade80;
+        --color-success-light: #14532d;
+        --color-error: #f87171;
+        --color-error-light: #450a0a;
+        --color-warning: #fbbf24;
+        --color-warning-light: #451a03;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
+        --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.45);
+        --shadow-btn: 0 4px 14px rgba(37, 99, 235, 0.25);
+        --shadow-fab: 0 4px 20px rgba(59, 130, 246, 0.3);
+        --shadow-balance: 0 8px 32px rgba(37, 99, 235, 0.2);
+    }
+
     html {
         scrollbar-gutter: stable;
         overflow-x: hidden;
@@ -63,6 +101,13 @@
         letter-spacing: -0.01em;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
+        background: var(--color-app-bg);
+        color: var(--color-text);
+    }
+
+    html.dark body {
+        background: var(--color-app-bg);
+        color: var(--color-text);
     }
 
     button,
@@ -98,11 +143,14 @@
 
     /* App shell (krip phone frame) */
     .app-frame {
-        @apply flex min-h-dvh justify-center bg-background;
+        @apply flex min-h-dvh justify-center;
+        background: var(--color-app-bg);
     }
 
     .app-shell {
-        @apply relative w-full overflow-x-hidden border-x border-outline-variant bg-surface;
+        @apply relative w-full overflow-x-hidden border-x;
+        background: var(--color-surface);
+        border-color: var(--color-border);
         max-width: var(--app-max-width);
         min-height: 100dvh;
         box-shadow: var(--shadow-md);
@@ -149,14 +197,17 @@
 
     .btn-secondary,
     a.btn-secondary {
-        @apply w-full border-2 border-outline-variant bg-surface-container font-semibold text-on-surface;
+        @apply w-full border-2 font-semibold;
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+        color: var(--color-text);
         box-shadow: none;
     }
 
     .btn-secondary:hover:not(:disabled),
     a.btn-secondary:hover:not(:disabled) {
-        @apply bg-surface-container-low;
-        border-color: #94a3b8;
+        background: var(--color-surface-container-low);
+        border-color: var(--color-text-muted);
     }
 
     .btn-secondary:active:not(:disabled),
@@ -220,7 +271,10 @@
 
     /* Cards */
     .card {
-        @apply rounded-2xl border border-outline-variant bg-surface p-4;
+        @apply rounded-2xl border p-4;
+        background: var(--color-surface);
+        border-color: var(--color-border);
+        color: var(--color-text);
         box-shadow: var(--shadow-sm);
     }
 
@@ -232,8 +286,15 @@
 
     /* Inputs */
     .input-field {
-        @apply w-full min-h-[52px] rounded-xl border border-input-border bg-surface-container px-input-padding py-3.5 text-base text-on-surface outline-none transition;
-        @apply focus:border-accent focus:ring-2 focus:ring-primary-light;
+        @apply w-full min-h-[52px] rounded-xl border px-input-padding py-3.5 text-base outline-none transition;
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    .input-field:focus {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary-light) 80%, transparent);
     }
 
     select.input-field {
@@ -262,7 +323,7 @@
         height: calc(var(--bottom-nav-height) + var(--safe-bottom));
         padding: 0 24px calc(12px + var(--safe-bottom));
         background: var(--color-surface);
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid var(--color-border);
         box-shadow: var(--shadow-nav);
         z-index: 100;
         pointer-events: none;
@@ -626,7 +687,7 @@
     }
 
     .exchange-listing-card__bank {
-        @apply inline-flex items-center gap-0.5 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-green-800;
+        @apply inline-flex items-center gap-0.5 rounded-full border border-outline-variant/60 bg-surface-container px-1.5 py-0.5 text-[10px] font-medium leading-tight text-text-muted;
     }
 
     .exchange-listing-card__action {
@@ -1215,8 +1276,8 @@
     }
 
     .status-badge--pending {
-        background: var(--color-warning-light);
-        color: #b45309;
+        background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-muted));
+        color: #475569;
     }
 
     .status-badge--error {
@@ -1292,8 +1353,9 @@
     }
 
     .bank-logo {
-        @apply relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white;
-        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+        @apply relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl;
+        background: var(--color-surface);
+        box-shadow: inset 0 0 0 1px var(--color-border);
     }
 
     .bank-logo--md {
@@ -1324,7 +1386,9 @@
     .bank-logo[data-tone='kaspi'] .bank-logo__img,
     .bank-logo[data-tone='bcc'] .bank-logo__img,
     .bank-logo[data-tone='altyn'] .bank-logo__img,
-    .bank-logo[data-tone='halyk'] .bank-logo__img {
+    .bank-logo[data-tone='halyk'] .bank-logo__img,
+    .bank-logo[data-tone='jusan'] .bank-logo__img,
+    .bank-logo[data-tone='forte'] .bank-logo__img {
         padding: 0;
     }
 
@@ -1397,8 +1461,46 @@
     }
 
     .settings-item {
-        @apply flex w-full items-center gap-3.5 border-b bg-surface px-4 py-4 text-left no-underline transition hover:bg-surface-container-low;
-        border-bottom-color: #cbd5e1; /* darker divider for readability */
+        @apply flex w-full items-center gap-3.5 border-b px-4 py-4 text-left no-underline transition;
+        background: var(--color-surface);
+        border-bottom-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    .settings-item:hover {
+        background: var(--color-surface-container-low);
+    }
+
+    .settings-item--active {
+        @apply bg-primary-light/40;
+    }
+
+    html.dark .settings-item--active {
+        background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+    }
+
+    .toggle-switch {
+        @apply relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-0 p-0 transition;
+        background: var(--color-surface-container-high);
+        box-shadow: inset 0 0 0 1px var(--color-border);
+    }
+
+    .toggle-switch:disabled {
+        @apply cursor-not-allowed opacity-50;
+    }
+
+    .toggle-switch__thumb {
+        @apply absolute left-0.5 h-6 w-6 rounded-full bg-white transition-transform;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-switch--on {
+        background: var(--color-accent);
+        box-shadow: none;
+    }
+
+    .toggle-switch--on .toggle-switch__thumb {
+        transform: translateX(20px);
     }
 
     .settings-item:last-child {
@@ -1961,6 +2063,101 @@
 
     .text-sell {
         @apply text-error;
+    }
+
+    html.dark .bg-background,
+    html.dark .bg-surface,
+    html.dark .bg-surface-container,
+    html.dark .bg-surface-container-low,
+    html.dark .bg-surface-container-high {
+        background-color: var(--color-surface-muted) !important;
+    }
+
+    html.dark .bg-surface {
+        background-color: var(--color-surface) !important;
+    }
+
+    html.dark .text-on-surface,
+    html.dark .text-on-surface-variant {
+        color: var(--color-text) !important;
+    }
+
+    html.dark .text-text-muted {
+        color: var(--color-text-secondary) !important;
+    }
+
+    html.dark .text-text-dim {
+        color: var(--color-text-muted) !important;
+    }
+
+    html.dark .border-outline-variant,
+    html.dark .border-input-border {
+        border-color: var(--color-border) !important;
+    }
+
+    html.dark .bg-primary-light {
+        background-color: var(--color-primary-light) !important;
+    }
+
+    html.dark .bank-picker__option,
+    html.dark .card-picker__option,
+    html.dark .bank-card,
+    html.dark .selected-card-panel {
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    html.dark .page-header {
+        background: var(--color-surface);
+        border-color: var(--color-border);
+    }
+
+    html.dark .exchange-listing-card {
+        background: var(--color-surface);
+        border-color: var(--color-border);
+    }
+
+    html.dark .exchange-listing-card__rate {
+        color: var(--color-text);
+    }
+
+    html.dark .exchange-listing-card__bank {
+        background: var(--color-surface-container-high);
+        border-color: var(--color-border);
+        color: var(--color-text-secondary);
+    }
+
+    html.dark .exchange-listing-card__margin {
+        background: color-mix(in srgb, var(--color-success) 20%, transparent);
+        color: #86efac;
+    }
+
+    html.dark .bottom-nav__label {
+        color: var(--color-text-muted);
+    }
+
+    html.dark .bottom-nav__item:not(.bottom-nav__item--active):not(.bottom-nav__item--locked) .bottom-nav__pill {
+        color: var(--color-text-muted);
+    }
+
+    html.dark .bottom-nav__item--active .bottom-nav__pill {
+        background: rgba(255, 255, 255, 0.14);
+        color: var(--color-text);
+        box-shadow: none;
+    }
+
+    html.dark .bottom-nav__item--active .bottom-nav__label {
+        color: var(--color-text);
+    }
+
+    html.dark .bottom-nav__item:active .bottom-nav__pill {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    html.dark .status-badge--pending {
+        background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface-muted));
+        color: var(--color-text-secondary);
     }
 }
 

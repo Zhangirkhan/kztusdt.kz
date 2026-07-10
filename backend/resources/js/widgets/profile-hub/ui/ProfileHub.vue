@@ -1,7 +1,5 @@
 <script setup>
-import { formatPercent } from '@/shared/lib/format/number';
-import { formatDate } from '@/shared/lib/format/date';
-import { isProfileKycVerified, kycGateMessage } from '@/entities/profile/model/menu';
+import { kycGateMessage } from '@/entities/profile/model/menu';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -10,10 +8,6 @@ const props = defineProps({
     profile: {
         type: Object,
         required: true,
-    },
-    userId: {
-        type: [String, Number],
-        default: '—',
     },
     menuItems: {
         type: Array,
@@ -25,8 +19,7 @@ const props = defineProps({
     },
 });
 
-const { locale } = useI18n();
-const kycVerified = computed(() => isProfileKycVerified(props.profile));
+const { t } = useI18n();
 const kycBannerMessage = computed(() => kycGateMessage(props.profile?.kyc_status));
 </script>
 
@@ -38,31 +31,10 @@ const kycBannerMessage = computed(() => kycGateMessage(props.profile?.kyc_status
     >
         <span class="material-symbols-outlined shrink-0 text-xl text-accent">verified_user</span>
         <div class="min-w-0">
-            <p class="text-sm font-semibold text-on-surface">Требуется KYC</p>
+            <p class="text-sm font-semibold text-on-surface">{{ t('profile.kycRequired') }}</p>
             <p class="mt-1 text-sm text-text-muted">{{ kycBannerMessage }}</p>
         </div>
         <span class="material-symbols-outlined ml-auto shrink-0 text-text-dim">chevron_right</span>
-    </Link>
-
-    <Link :href="route('profile.personal')" class="profile-card profile-card--clickable mb-4 no-underline">
-        <div class="profile-card__avatar">
-            <span class="material-symbols-outlined text-3xl">person</span>
-        </div>
-        <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="truncate text-lg font-semibold text-on-surface">{{ profile.name }}</span>
-                <span v-if="kycVerified" class="verified-badge">Verified</span>
-            </div>
-            <div class="text-sm text-text-muted">{{ profile.phone }}</div>
-            <div class="mt-1 flex items-center gap-2 text-sm text-text-muted">ID: {{ userId }}</div>
-            <p v-if="profile.has_subscription" class="mt-2 text-xs text-accent">
-                {{ profile.tariffs.subscription.name }} · до {{ formatDate(profile.subscription?.expires_at, locale) }}
-            </p>
-            <p v-else class="mt-2 text-xs text-text-dim">
-                {{ profile.tariffs.standard.name }} · комиссия {{ formatPercent(profile.fee_percent) }}%
-            </p>
-        </div>
-        <span class="profile-card__chevron material-symbols-outlined">chevron_right</span>
     </Link>
 
     <div class="settings-list">

@@ -3,6 +3,7 @@
 return [
     'saved' => 'Профиль сохранён.',
     'saved_phone_changed' => 'Профиль сохранён. Подтвердите новый номер через WhatsApp.',
+    'notifications_saved' => 'Настройки уведомлений сохранены.',
 
     'validation' => [
         'name_required' => 'Укажите имя.',

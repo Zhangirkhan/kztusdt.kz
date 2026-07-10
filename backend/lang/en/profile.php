@@ -3,6 +3,7 @@
 return [
     'saved' => 'Profile saved.',
     'saved_phone_changed' => 'Profile saved. Confirm your new number via WhatsApp.',
+    'notifications_saved' => 'Notification settings saved.',
 
     'validation' => [
         'name_required' => 'Please enter your name.',
