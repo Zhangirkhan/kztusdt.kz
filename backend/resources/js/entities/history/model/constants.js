@@ -6,15 +6,15 @@ export const HISTORY_STATUS_FILTERS = [
 ];
 
 export const HISTORY_WALLET_SUB_TABS = [
-    { id: 'all', label: 'Все', icon: 'sync_alt' },
-    { id: 'deposit', label: 'Ввод', icon: 'south' },
-    { id: 'withdraw', label: 'Вывод', icon: 'north' },
+    { id: 'all', label: 'Все', icon: 'sync_alt', tone: 'all' },
+    { id: 'deposit', label: 'Ввод', icon: 'south', tone: 'in' },
+    { id: 'withdraw', label: 'Вывод', icon: 'north', tone: 'out' },
 ];
 
 export const HISTORY_EXCHANGE_SUB_TABS = [
-    { id: 'all', label: 'Все', icon: 'sync_alt' },
-    { id: 'buy', label: 'Покупка', icon: 'south' },
-    { id: 'sell', label: 'Продажа', icon: 'north' },
+    { id: 'all', label: 'Все', icon: 'sync_alt', tone: 'all' },
+    { id: 'buy', label: 'Покупка', icon: 'south', tone: 'in' },
+    { id: 'sell', label: 'Продажа', icon: 'north', tone: 'out' },
 ];
 
 export function historySubTabs(section) {

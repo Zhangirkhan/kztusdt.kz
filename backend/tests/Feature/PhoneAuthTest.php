@@ -153,7 +153,7 @@ final class PhoneAuthTest extends TestCase
         $this->assertSame(self::VALID_IIN, User::query()->find($userId)->iin);
     }
 
-    public function test_legal_entity_bin_and_company_name_are_stored(): void
+    public function test_legal_entity_bin_and_company_name_are_taken_from_eds(): void
     {
         config([
             'ncanode.legal_entity_eds_required' => true,
@@ -163,8 +163,6 @@ final class PhoneAuthTest extends TestCase
         $this->fakeOtp();
 
         $code = $this->postJson('/api/auth/legal-entity/eds/start', [
-            'bin' => '900101000008',
-            'company_name' => 'ТОО KZT USDT',
             'phone' => '+77079876543',
         ])->assertCreated()->json('login_code');
 
@@ -176,7 +174,7 @@ final class PhoneAuthTest extends TestCase
             'login_code' => $code,
             'client_type' => 'legal_entity',
             'bin' => '900101000008',
-            'company_name' => 'ТОО KZT USDT',
+            'company_name' => 'Тест Юрлицо',
         ]);
 
         $this->postJson("/api/auth/phone/verify/{$code}", ['code' => $this->lastCode()])
@@ -188,7 +186,7 @@ final class PhoneAuthTest extends TestCase
 
         $this->assertSame('legal_entity', $user->client_type);
         $this->assertSame('900101000008', $user->bin);
-        $this->assertSame('ТОО KZT USDT', $user->company_name);
+        $this->assertSame('Тест Юрлицо', $user->company_name);
         $this->assertNull($user->iin);
         $this->assertNotNull($user->eds_verified_at);
     }

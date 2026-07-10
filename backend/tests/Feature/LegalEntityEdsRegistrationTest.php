@@ -47,8 +47,6 @@ final class LegalEntityEdsRegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/auth/legal-entity/eds/start', [
             'phone' => '+77079876543',
-            'bin' => self::VALID_BIN,
-            'company_name' => 'ТОО KZT USDT',
         ])->assertCreated();
 
         $loginCode = $response->json('login_code');
@@ -58,8 +56,8 @@ final class LegalEntityEdsRegistrationTest extends TestCase
         $this->assertDatabaseHas('auth_sessions', [
             'login_code' => $loginCode,
             'client_type' => 'legal_entity',
-            'bin' => self::VALID_BIN,
-            'company_name' => 'ТОО KZT USDT',
+            'bin' => null,
+            'company_name' => null,
         ]);
 
         $session = AuthSession::query()->where('login_code', $loginCode)->firstOrFail();
@@ -71,8 +69,6 @@ final class LegalEntityEdsRegistrationTest extends TestCase
     {
         $loginCode = $this->postJson('/api/auth/legal-entity/eds/start', [
             'phone' => '+77079876543',
-            'bin' => self::VALID_BIN,
-            'company_name' => 'ТОО KZT USDT',
         ])->assertCreated()->json('login_code');
 
         $this->postJson("/api/auth/legal-entity/eds/{$loginCode}/verify", [
@@ -81,6 +77,8 @@ final class LegalEntityEdsRegistrationTest extends TestCase
 
         $session = AuthSession::query()->where('login_code', $loginCode)->firstOrFail();
         $this->assertNotNull($session->eds_verified_at);
+        $this->assertSame(self::VALID_BIN, $session->bin);
+        $this->assertSame('Тест Юрлицо', $session->company_name);
 
         $this->postJson("/api/auth/phone/verify/{$loginCode}", ['code' => self::OTP_CODE])
             ->assertOk();
@@ -95,8 +93,6 @@ final class LegalEntityEdsRegistrationTest extends TestCase
     {
         $this->postJson('/api/auth/phone/start', [
             'client_type' => 'legal_entity',
-            'bin' => self::VALID_BIN,
-            'company_name' => 'ТОО KZT USDT',
             'phone' => '+77079876543',
         ])->assertStatus(422)
             ->assertJsonPath('message', 'Для юр. лица сначала подпишите заявку ЭЦП.');

@@ -1,8 +1,8 @@
-/* ─── Admin panel (Ant Design tokens) ─── */
+/* ─── Admin panel (Krip desktop layout) ─── */
 .admin-root {
   display: flex;
   min-height: 100dvh;
-  background: #f5f5f5;
+  background: #f1f5f9;
   color: rgba(0, 0, 0, 0.88);
 }
 
@@ -11,7 +11,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #001529;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
   color: rgba(255, 255, 255, 0.65);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
@@ -43,9 +43,9 @@
 }
 
 .admin-sidebar__brand .brand-logo {
-  background: #2563eb;
-  border: 2px solid #1d4ed8;
-  color: white;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .admin-sidebar__nav {
@@ -80,7 +80,7 @@
 }
 
 .admin-sidebar__link--active {
-  background: #1677ff;
+  background: #2563eb;
   color: #fff;
   border-left: none;
 }
@@ -175,11 +175,12 @@
 .admin-stat {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .admin-stat__label {
@@ -218,10 +219,10 @@
 
 .admin-panel {
   background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   padding: 20px 24px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .admin-panel h2 {
@@ -436,7 +437,7 @@
 .admin-badge--live { background: #dcfce7; color: #15803d; }
 
 .admin-link {
-  color: #1677ff;
+  color: #2563eb;
   font-weight: 600;
   font-size: 13px;
   text-decoration: none;
@@ -921,8 +922,8 @@
 }
 
 .admin-filter--active {
-  background: #1677ff;
-  border-color: #1677ff;
+  background: #2563eb;
+  border-color: #2563eb;
   color: #fff;
 }
 
@@ -999,8 +1000,8 @@
 }
 
 .admin-pagination__link--active {
-  background: #1677ff;
-  border-color: #1677ff;
+  background: #2563eb;
+  border-color: #2563eb;
   color: #fff;
 }
 
@@ -1042,14 +1043,14 @@
 }
 
 .admin-btn-sm--primary {
-  background: #1677ff;
-  border-color: #1677ff;
+  background: #2563eb;
+  border-color: #2563eb;
   color: #fff;
 }
 
 .admin-btn-sm--primary:hover {
-  background: #4096ff;
-  border-color: #4096ff;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 .admin-btn-sm--danger {

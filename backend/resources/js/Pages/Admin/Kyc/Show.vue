@@ -93,6 +93,7 @@ function formatDate(value) {
                         <a-descriptions :column="1" size="small">
                             <a-descriptions-item label="ФИО">{{ displayName }}</a-descriptions-item>
                             <a-descriptions-item label="Телефон">{{ profile.user?.phone ?? '—' }}</a-descriptions-item>
+                            <a-descriptions-item label="ИИН">{{ profile.user?.iin ?? profile.document_number ?? '—' }}</a-descriptions-item>
                             <a-descriptions-item label="User ID">{{ profile.user?.id ?? '—' }}</a-descriptions-item>
                             <a-descriptions-item label="Документ">{{ documentLine }}</a-descriptions-item>
                             <a-descriptions-item label="Отправлено">
@@ -108,6 +109,26 @@ function formatDate(value) {
                             show-icon
                             style="margin-top: 16px"
                         />
+                    </a-card>
+                </a-col>
+
+                <a-col v-if="profile.provider === 'aitu'" :xs="24" :lg="12">
+                    <a-card title="Aitu Passport" size="small">
+                        <a-descriptions :column="1" size="small">
+                            <a-descriptions-item label="sessionDocumentId">
+                                <a-typography-text code copyable>
+                                    {{ profile.provider_verification_id ?? '—' }}
+                                </a-typography-text>
+                            </a-descriptions-item>
+                            <a-descriptions-item label="sid">
+                                <a-typography-text code copyable>
+                                    {{ profile.provider_session_id ?? '—' }}
+                                </a-typography-text>
+                            </a-descriptions-item>
+                            <a-descriptions-item label="Дата верификации">
+                                {{ formatDate(profile.reviewed_at) }}
+                            </a-descriptions-item>
+                        </a-descriptions>
                     </a-card>
                 </a-col>
 

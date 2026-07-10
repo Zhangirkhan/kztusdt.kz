@@ -3,7 +3,7 @@ export function statusTagColor(status) {
         return 'success';
     }
 
-    if (['suspended', 'pending_review', 'pending_admin_confirmation', 'payment_proof_uploaded', 'awaiting_kzt_payment', 'needs_reconcile', 'manual_review'].includes(status)) {
+    if (['suspended', 'pending_review', 'pending_admin_confirmation', 'payment_proof_uploaded', 'awaiting_kzt_payment', 'needs_reconcile', 'manual_review', 'kzt_sent'].includes(status)) {
         return 'warning';
     }
 

@@ -35,8 +35,7 @@ export function localizedPath(url = '/') {
     const cleanPath = unlocalizedPath(path);
 
     if (
-        cleanPath === '/'
-        || cleanPath.startsWith('/admin')
+        cleanPath.startsWith('/admin')
         || cleanPath.startsWith('/api')
         || cleanPath.startsWith('/webauthn')
         || cleanPath.startsWith('/auth/aitu')
@@ -44,7 +43,39 @@ export function localizedPath(url = '/') {
         return `${cleanPath}${suffix}`;
     }
 
+    if (cleanPath === '/') {
+        return `/${currentLocale()}${suffix}`;
+    }
+
     return `/${currentLocale()}${cleanPath}${suffix}`;
+}
+
+export function localizedPathFor(locale, url = window.location.pathname + window.location.search + window.location.hash) {
+    if (!SUPPORTED_LOCALES.includes(locale)) {
+        locale = 'ru';
+    }
+
+    if (/^(https?:)?\/\//.test(url) || url.startsWith('mailto:') || url.startsWith('tel:')) {
+        return url;
+    }
+
+    const { path, suffix } = splitUrl(url.startsWith('/') ? url : `/${url}`);
+    const cleanPath = unlocalizedPath(path);
+
+    if (
+        cleanPath.startsWith('/admin')
+        || cleanPath.startsWith('/api')
+        || cleanPath.startsWith('/webauthn')
+        || cleanPath.startsWith('/auth/aitu')
+    ) {
+        return `${cleanPath}${suffix}`;
+    }
+
+    if (cleanPath === '/') {
+        return `/${locale}${suffix}`;
+    }
+
+    return `/${locale}${cleanPath}${suffix}`;
 }
 
 export function localizedRoute(name, params, absolute, config) {

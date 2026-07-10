@@ -87,13 +87,14 @@ final class PhoneAuthService
      */
     public function startPendingLegalEntity(
         string $phone,
-        string $bin,
-        string $companyName,
+        ?string $bin = null,
+        ?string $companyName = null,
         ?string $ip = null,
     ): AuthSession {
         $normalizedPhone = $this->normalizePhone($phone);
-        $normalizedBin = $this->normalizeBin($bin);
-        $companyName = trim($companyName);
+        $normalizedBin = $bin !== null && $bin !== '' ? $this->normalizeBin($bin) : null;
+        $companyName = is_string($companyName) ? trim($companyName) : '';
+        $companyName = $companyName !== '' ? $companyName : null;
 
         $recentAttempts = AuthSession::query()
             ->where('phone', $normalizedPhone)

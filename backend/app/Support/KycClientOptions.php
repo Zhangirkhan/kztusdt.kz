@@ -26,7 +26,7 @@ final class KycClientOptions
     public static function forUser(User $user): array
     {
         $configuredProvider = (string) config('kyc.provider', 'manual');
-        $manualEnabled = self::manualEnabled();
+        $manualEnabled = self::manualEnabledForUser($user);
 
         $automatedProvider = self::resolveAutomatedProvider($configuredProvider);
         $effectiveProvider = $automatedProvider ?? 'manual';
@@ -50,13 +50,26 @@ final class KycClientOptions
         ];
     }
 
-    public static function manualEnabled(): bool
+    public static function manualEnabledForUser(User $user): bool
     {
         if ((string) config('kyc.provider', 'manual') === 'manual') {
             return true;
         }
 
-        return (bool) config('kyc.manual_enabled', true);
+        if ((bool) config('kyc.manual_enabled', false)) {
+            return true;
+        }
+
+        return (bool) $user->manual_kyc_enabled;
+    }
+
+    /**
+     * @deprecated Use manualEnabledForUser() — глобальный флаг без привязки к клиенту.
+     */
+    public static function manualEnabled(): bool
+    {
+        return (bool) config('kyc.manual_enabled', false)
+            || (string) config('kyc.provider', 'manual') === 'manual';
     }
 
     private static function resolveAutomatedProvider(string $configuredProvider): ?string

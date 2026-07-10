@@ -66,7 +66,7 @@
         <env name="WITHDRAWAL_CONFIRMATION_TTL" value="30"/>
         <env name="FEE_PERCENT_DEFAULT" value="0.5"/>
         <env name="FEE_PERCENT_SUBSCRIPTION" value="0.05"/>
-        <env name="EXCHANGE_MIN_BUY_KZT" value="1000"/>
+        <env name="EXCHANGE_MIN_BUY_KZT" value="5000"/>
         <env name="EXCHANGE_MAX_BUY_KZT" value="5000000"/>
         <env name="EXCHANGE_MIN_SELL_USDT" value="5"/>
         <env name="EXCHANGE_MAX_SELL_USDT" value="10000"/>

@@ -8,8 +8,10 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DisputeAdminController;
 use App\Http\Controllers\Admin\FinanceAdminController;
 use App\Http\Controllers\Admin\KycReviewController;
+use App\Http\Controllers\Admin\ListingController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\SettingsAdminController;
+use App\Http\Controllers\Admin\SupportChatController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\SweepController;
 use App\Http\Controllers\Admin\UserAdminController;
@@ -22,6 +24,7 @@ use App\Http\Controllers\Api\BiometricAuthController;
 use App\Http\Controllers\Api\LegalEntityEdsController;
 use App\Http\Controllers\Api\PhoneAuthController;
 use App\Http\Controllers\Api\PushSubscriptionController;
+use App\Http\Controllers\Api\SupportChatController as ApiSupportChatController;
 use App\Http\Controllers\Api\SumsubWebhookController;
 use App\Http\Controllers\ExchangeController;
 use App\Http\Controllers\ExchangeOrderController;
@@ -33,6 +36,7 @@ use App\Http\Controllers\PhoneAuthPageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RobotsController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SupportChatPageController;
 use App\Http\Controllers\WithdrawalController;
 use App\Support\CompanyPresenter;
 use App\Support\LocaleManager;
@@ -135,7 +139,7 @@ Route::prefix('{locale}')
         Route::middleware(['auth', 'no_security_pwa'])->group(function (): void {
             Route::get('/home', [ExchangeController::class, 'homeRedirect'])->name('home');
             Route::get('/market', fn () => redirect()->route('exchange'));
-            Route::get('/wallet/withdraw', fn () => redirect()->route('withdraw'));
+            Route::get('/wallet/withdraw', fn () => redirect()->route('wallet', ['tab' => 'withdraw']));
 
             Route::middleware('kyc.approved:wallet')->group(function (): void {
                 Route::get('/wallet', [ExchangeController::class, 'wallet'])->name('wallet');
@@ -146,8 +150,12 @@ Route::prefix('{locale}')
                 Route::get('/exchange', [ExchangeController::class, 'exchange'])->name('exchange');
                 Route::post('/exchange/orders', [ExchangeOrderController::class, 'store'])->name('exchange.orders.store');
                 Route::get('/exchange/orders/{order}', [ExchangeOrderController::class, 'show'])->name('exchange.orders.show');
+                Route::get('/exchange/orders/{order}/proof', [ExchangeOrderController::class, 'downloadProof'])->name('exchange.orders.proof.show');
                 Route::post('/exchange/orders/{order}/proof', [ExchangeOrderController::class, 'uploadProof'])->name('exchange.orders.proof');
+                Route::post('/exchange/orders/{order}/mark-paid', [ExchangeOrderController::class, 'markPaid'])->name('exchange.orders.mark-paid');
+                Route::post('/exchange/orders/{order}/mark-received', [ExchangeOrderController::class, 'markReceived'])->name('exchange.orders.mark-received');
                 Route::post('/exchange/orders/{order}/cancel', [ExchangeOrderController::class, 'cancel'])->name('exchange.orders.cancel');
+                Route::get('/support/chat', [SupportChatPageController::class, 'show'])->name('support.chat');
             });
 
             Route::middleware('kyc.approved:withdraw')->group(function (): void {
@@ -165,7 +173,10 @@ Route::prefix('{locale}')
             Route::get('/profile/personal', [ProfileController::class, 'personal'])->name('profile.personal');
             Route::middleware('kyc.approved:bank')->group(function (): void {
                 Route::get('/profile/bank', [ProfileController::class, 'bank'])->name('profile.bank');
-                Route::patch('/profile/bank', [ProfileController::class, 'updateBank'])->name('profile.bank.update');
+                Route::post('/profile/bank/cards', [ProfileController::class, 'storeBankCard'])->name('profile.bank.cards.store');
+                Route::patch('/profile/bank/cards/{card}', [ProfileController::class, 'updateBankCard'])->name('profile.bank.cards.update');
+                Route::patch('/profile/bank/cards/{card}/rename', [ProfileController::class, 'renameBankCard'])->name('profile.bank.cards.rename');
+                Route::delete('/profile/bank/cards/{card}', [ProfileController::class, 'destroyBankCard'])->name('profile.bank.cards.destroy');
             });
             Route::get('/profile/security', [ProfileController::class, 'security'])->name('profile.security');
             Route::get('/profile/language', [ProfileController::class, 'language'])->name('profile.language');
@@ -186,6 +197,7 @@ Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manage
     Route::get('/users', [UserAdminController::class, 'index'])->name('users.index');
     Route::get('/users/{user}', [UserAdminController::class, 'show'])->name('users.show');
     Route::patch('/users/{user}/status', [UserAdminController::class, 'updateStatus'])->name('users.status');
+    Route::patch('/users/{user}/manual-kyc', [UserAdminController::class, 'updateManualKyc'])->name('users.manual-kyc');
     Route::post('/users/{user}/kyc/manual-approve', [UserAdminController::class, 'manualKycApprove'])->name('users.kyc.manual-approve');
     Route::get('/finance', [FinanceAdminController::class, 'index'])->name('finance.index');
     Route::get('/settings', [SettingsAdminController::class, 'index'])->name('settings.index');
@@ -211,8 +223,19 @@ Route::middleware(['auth', 'role:super_admin,super_admin_manager'])->prefix('adm
     Route::get('/wallets', [WalletAdminController::class, 'index'])->name('wallets.index');
 });
 
-// Exchange orders: KZT payment confirmation and USDT settlement.
 Route::middleware(['auth', 'role:super_admin,super_admin_manager,exchange_admin,security_officer'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/listings', [ListingController::class, 'index'])->name('listings.index');
+    Route::get('/listings/create', [ListingController::class, 'create'])->name('listings.create');
+    Route::post('/listings', [ListingController::class, 'store'])->name('listings.store');
+    Route::get('/listings/{listing}/edit', [ListingController::class, 'edit'])->name('listings.edit');
+    Route::put('/listings/{listing}', [ListingController::class, 'update'])->name('listings.update');
+    Route::patch('/listings/{listing}/toggle', [ListingController::class, 'toggle'])->name('listings.toggle');
+    Route::delete('/listings/{listing}', [ListingController::class, 'destroy'])->name('listings.destroy');
+
+    Route::get('/support', [SupportChatController::class, 'index'])->name('support.index');
+    Route::get('/support/{conversation}', [SupportChatController::class, 'show'])->name('support.show');
+    Route::post('/support/{conversation}/messages', [SupportChatController::class, 'store'])->name('support.messages.store');
+
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::get('/orders/{order}/proof', [OrderController::class, 'proof'])->name('orders.proof');
@@ -230,6 +253,18 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('admin')->name('admin.')
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::prefix('api/support/chat/orders/{order}')->group(function (): void {
+        Route::get('/', [ApiSupportChatController::class, 'show'])
+            ->middleware('throttle:60,1')
+            ->name('support.chat.show');
+        Route::get('/unread', [ApiSupportChatController::class, 'unreadCount'])
+            ->middleware('throttle:60,1')
+            ->name('support.chat.unread');
+        Route::post('/messages', [ApiSupportChatController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('support.chat.messages.store');
+    });
+
     Route::post('/api/push/subscribe', [PushSubscriptionController::class, 'store'])
         ->middleware('throttle:30,1')
         ->name('push.subscribe');

@@ -27,16 +27,29 @@ return [
     'default_network' => 'BEP20',
 
     // Order limits (human units).
-    'min_buy_kzt' => (float) env('EXCHANGE_MIN_BUY_KZT', 1000),
+    'min_buy_kzt' => (float) env('EXCHANGE_MIN_BUY_KZT', 5000),
     'max_buy_kzt' => (float) env('EXCHANGE_MAX_BUY_KZT', 5000000),
     'min_sell_usdt' => (float) env('EXCHANGE_MIN_SELL_USDT', 5),
     'max_sell_usdt' => (float) env('EXCHANGE_MAX_SELL_USDT', 10000),
+
+    // Minutes for countdown timers on the client order page.
+    'confirmation_term_minutes' => (int) env('EXCHANGE_CONFIRMATION_TERM_MINUTES', 20),
+
+    'payment_term_minutes' => [
+        '15_min' => 15,
+        '30_min' => 30,
+        '60_min' => 60,
+        '180_min' => 180,
+    ],
 
     // Bank requisites of the exchanger shown to clients for KZT transfers (buy flow).
     'requisites' => [
         'bank_name' => env('EXCHANGE_BANK_NAME', env('COMPANY_BANK_NAME', 'АО «Банк ЦентрКредит»')),
         'recipient_name' => env('EXCHANGE_BANK_RECIPIENT', env('COMPANY_LEGAL_NAME', 'ТОО «100k.kz»')),
         'recipient_account' => env('EXCHANGE_BANK_ACCOUNT', env('COMPANY_BANK_ACCOUNT', 'KZ428562203154554848')),
+        'bin' => env('EXCHANGE_BANK_BIN', env('COMPANY_BIN', '260340021560')),
+        'kbe' => env('EXCHANGE_BANK_KBE', env('COMPANY_KBE', '17')),
+        'bic' => env('EXCHANGE_BANK_BIC', env('COMPANY_BANK_BIC', 'KCJBKZKX')),
         'comment' => env('EXCHANGE_BANK_COMMENT', 'Укажите номер заявки в комментарии к переводу'),
     ],
 

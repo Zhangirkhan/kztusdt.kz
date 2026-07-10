@@ -25,7 +25,8 @@ return [
     'order_sell_created' => "🟢 Sell order #:id created.\n\n:usdt USDT locked → :fiat ₸\nRate: :rate ₸/USDT\n\nAn administrator will transfer KZT to your details and confirm the order.",
     'order_proof_uploaded' => "📎 Payment screenshot for order #:id received.\n\nPlease wait for administrator confirmation.",
     'order_buy_completed' => "✅ Order #:id completed!\n\nKZT payment confirmed, :usdt USDT has been credited to your balance.",
-    'order_sell_completed' => "✅ Order #:id completed!\n\nKZT has been sent to your details: :fiat ₸.",
+    'order_sell_kzt_sent' => "💸 KZT sent for order #:id: :fiat ₸.\n\nCheck your account and confirm receipt on the order page.",
+    'order_sell_completed' => "✅ Order #:id completed!\n\nKZT receipt confirmed: :fiat ₸.",
     'order_rejected' => "❌ Order #:id rejected.\n\nReason: :reason",
     'order_cancelled' => "🚫 Order #:id cancelled.",
 

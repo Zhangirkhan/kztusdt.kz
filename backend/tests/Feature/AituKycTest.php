@@ -26,7 +26,7 @@ final class AituKycTest extends TestCase
 
         config([
             'kyc.provider' => 'aitu',
-            'kyc.manual_enabled' => true,
+            'kyc.manual_enabled' => false,
             'aitu.client_id' => 'test-client',
             'aitu.client_secret' => 'test-secret',
             'aitu.kyc_scope' => '',
@@ -149,12 +149,89 @@ final class AituKycTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('provider', 'aitu')
-                ->where('manualEnabled', true)
+                ->where('manualEnabled', false)
                 ->where('showAitu', true)
-                ->where('showManualForm', true)
+                ->where('showManualForm', false)
                 ->where('aituVerifyUrl', route('auth.aitu.redirect', ['intent' => 'kyc']))
                 ->where('aituKycScopeConfigured', false)
                 ->etc());
+    }
+
+    public function test_gov_doc_verification_json_string_approves_kyc(): void
+    {
+        Queue::fake();
+
+        $user = $this->createUnverifiedClient();
+
+        $status = app(AituKycService::class)->applyFromClaims($user, [
+            'phone' => '77476644108',
+            'sessionDocumentId' => 'doc-session-789',
+            'sid' => 'sid-789',
+            'gov_doc_verification' => json_encode([
+                'iin' => '900101300123',
+                'firstName' => 'Аят',
+                'lastName' => 'Тестов',
+            ], JSON_THROW_ON_ERROR),
+            'confidence_level' => json_encode(['faceMatch' => 'VERIFIED'], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->assertSame('approved', $status);
+        $this->assertSame('approved', $user->fresh()->kyc_status);
+
+        $profile = KycProfile::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('doc-session-789', $profile->provider_verification_id);
+        $this->assertSame('900101300123', $profile->document_number);
+    }
+
+    public function test_gov_doc_verification_object_approves_kyc(): void
+    {
+        Queue::fake();
+
+        $user = $this->createUnverifiedClient();
+
+        $status = app(AituKycService::class)->applyFromClaims($user, [
+            'phone' => '77071234567',
+            'sessionDocumentId' => 'doc-session-123',
+            'sid' => 'sid-456',
+            'gov_doc_verification' => [
+                'iin' => '900101300123',
+                'firstName' => 'Аят',
+                'lastName' => 'Тестов',
+                'documentNumber' => '123456789',
+            ],
+        ]);
+
+        $this->assertSame('approved', $status);
+
+        $user->refresh();
+        $this->assertSame('approved', $user->kyc_status);
+        $this->assertSame('900101300123', $user->iin);
+        $this->assertSame('+77071234567', $user->phone);
+
+        $profile = KycProfile::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('Аят', $profile->first_name);
+        $this->assertSame('900101300123', $profile->document_number);
+        $this->assertSame('doc-session-123', $profile->provider_verification_id);
+        $this->assertSame('sid-456', $profile->provider_session_id);
+        $this->assertNotNull($profile->reviewed_at);
+    }
+
+    public function test_confidence_level_face_match_verdict(): void
+    {
+        Queue::fake();
+
+        $user = $this->createUnverifiedClient();
+
+        $approved = app(AituKycService::class)->applyFromClaims($user, [
+            'confidence_level' => ['faceMatch' => 'VERIFIED'],
+        ]);
+        $this->assertSame('approved', $approved);
+
+        $user2 = $this->createUnverifiedClient();
+        $rejected = app(AituKycService::class)->applyFromClaims($user2, [
+            'confidence_level' => ['faceMatch' => 'LOW_SIMILARITY'],
+        ]);
+        $this->assertSame('rejected', $rejected);
     }
 
     public function test_scope_for_kyc_includes_extra_when_configured(): void

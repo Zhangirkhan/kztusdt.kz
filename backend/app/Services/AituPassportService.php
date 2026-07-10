@@ -215,7 +215,76 @@ final class AituPassportService
         $this->assertTimeClaims($claims);
         $this->assertIssuerAndAudience($claims);
 
+        return $this->normalizeNestedClaims($claims);
+    }
+
+    /**
+     * Aitu иногда кладёт вложенные объекты (gov_doc_verification, confidence_level)
+     * в id_token как JSON-строки, а не как объекты.
+     *
+     * @param  array<string, mixed>  $claims
+     * @return array<string, mixed>
+     */
+    private function normalizeNestedClaims(array $claims): array
+    {
+        foreach (['gov_doc_verification', 'confidence_level', 'confidenceLevel'] as $key) {
+            if (! array_key_exists($key, $claims)) {
+                continue;
+            }
+
+            $parsed = $this->parseStructuredClaimValue($claims[$key]);
+
+            if ($parsed !== null) {
+                $claims[$key] = $parsed;
+            }
+        }
+
         return $claims;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function parseStructuredClaimValue(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_object($value)) {
+            return (array) $value;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if ($trimmed === '' || $trimmed === 'null') {
+            return null;
+        }
+
+        if (! str_starts_with($trimmed, '{') && ! str_starts_with($trimmed, '[')) {
+            return null;
+        }
+
+        $decoded = json_decode($trimmed, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     * @return array<string, mixed>|null
+     */
+    public function structuredClaim(array $claims, string $key): ?array
+    {
+        if (! array_key_exists($key, $claims)) {
+            return null;
+        }
+
+        return $this->parseStructuredClaimValue($claims[$key]);
     }
 
     /**
@@ -599,6 +668,30 @@ final class AituPassportService
     public function phoneFromClaims(array $claims): ?string
     {
         return $this->normalizePhone($this->extractPhone($claims));
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     */
+    public function iinFromClaims(array $claims): ?string
+    {
+        $govDoc = $this->structuredClaim($claims, 'gov_doc_verification');
+
+        if ($govDoc !== null && is_string($govDoc['iin'] ?? null)) {
+            $iin = trim($govDoc['iin']);
+
+            if ($iin !== '') {
+                return $iin;
+            }
+        }
+
+        if (isset($claims['iin']) && is_scalar($claims['iin'])) {
+            $iin = trim((string) $claims['iin']);
+
+            return $iin !== '' ? $iin : null;
+        }
+
+        return null;
     }
 
     /**

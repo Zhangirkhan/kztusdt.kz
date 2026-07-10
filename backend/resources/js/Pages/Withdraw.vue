@@ -1,8 +1,19 @@
 <script setup>
 import ExchangeLayout from '@/Layouts/ExchangeLayout.vue';
+import { clampDecimalAmount, formatAmountForInput, maxWithdrawableAmount } from '@/utils/amountInput';
 import { formatPercent, formatUsdt } from '@/utils/formatNumber';
+import {
+    clearWalletAddressMask,
+    formatWalletAddress,
+    isWalletAddressComplete,
+    isWalletAddressValid,
+    walletAddressError,
+    walletAddressHint,
+    walletAddressMaxLength,
+    walletAddressPlaceholder,
+} from '@/utils/walletAddressMask';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     balance: Object,
@@ -16,6 +27,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const addressTouched = ref(false);
 
 const form = useForm({
     network: props.networks[0]?.code ?? 'BEP20',
@@ -27,9 +39,31 @@ const currentNetwork = computed(
     () => props.networks.find((n) => n.code === form.network) || props.networks[0] || {},
 );
 
-const isTron = computed(() => currentNetwork.value.address_format === 'tron');
+const addressFormat = computed(() => currentNetwork.value.address_format || 'evm');
 
-const addressPlaceholder = computed(() => (isTron.value ? 'T...' : '0x...'));
+const isTron = computed(() => addressFormat.value === 'tron');
+
+const addressPlaceholder = computed(() => walletAddressPlaceholder(addressFormat.value));
+
+const addressHint = computed(() => walletAddressHint(addressFormat.value));
+
+const addressMaxLength = computed(() => walletAddressMaxLength(addressFormat.value));
+
+const maxAmount = computed(() => maxWithdrawableAmount(
+    props.balance.available,
+    props.feePercent,
+    props.networkFee,
+));
+
+const localAddressError = computed(() => {
+    if (!addressTouched.value && !form.errors.to_address) {
+        return null;
+    }
+
+    return walletAddressError(form.to_address, addressFormat.value);
+});
+
+const addressFieldError = computed(() => form.errors.to_address || localAddressError.value);
 
 const statusLabels = {
     created: 'Создана',
@@ -56,8 +90,49 @@ const preview = computed(() => {
     };
 });
 
+watch(
+    () => form.network,
+    (code) => {
+        const net = props.networks.find((n) => n.code === code);
+        const format = net?.address_format || 'evm';
+        form.to_address = clearWalletAddressMask(format);
+        addressTouched.value = false;
+        form.clearErrors('to_address', 'network');
+    },
+);
+
+function onAddressInput(event) {
+    addressTouched.value = true;
+    const next = formatWalletAddress(event.target.value, addressFormat.value);
+    form.to_address = next;
+    event.target.value = next;
+    form.clearErrors('to_address');
+}
+
+function onAmountInput(event) {
+    const next = clampDecimalAmount(event.target.value, maxAmount.value, { maxDecimals: 2 });
+    form.amount = next;
+    event.target.value = next;
+}
+
+function setMaxAmount() {
+    form.amount = formatAmountForInput(maxAmount.value, 2);
+    form.clearErrors('amount');
+}
+
 function submit() {
-    form.post(route('withdraw.store'), { preserveScroll: true, onSuccess: () => form.reset() });
+    addressTouched.value = true;
+    form.to_address = formatWalletAddress(form.to_address, addressFormat.value);
+    form.amount = clampDecimalAmount(form.amount, maxAmount.value, { maxDecimals: 2 });
+
+    if (!isWalletAddressValid(form.to_address, addressFormat.value)) {
+        return;
+    }
+
+    form.post(route('withdraw.store'), { preserveScroll: true, onSuccess: () => {
+        addressTouched.value = false;
+        form.reset('to_address', 'amount');
+    } });
 }
 
 function cancelWithdrawal(id) {
@@ -117,14 +192,52 @@ function formatDate(value) {
 
             <div>
                 <label class="mb-2 block text-label-caps uppercase text-text-dim">Адрес получателя ({{ currentNetwork.code }})</label>
-                <input v-model="form.to_address" class="input-field font-mono text-sm" :placeholder="addressPlaceholder" />
-                <p v-if="form.errors.to_address" class="mt-1 text-sm text-red-400">{{ form.errors.to_address }}</p>
+                <p class="mb-2 text-xs text-text-dim">{{ addressHint }}</p>
+                <input
+                    :value="form.to_address"
+                    class="input-field font-mono text-sm"
+                    :placeholder="addressPlaceholder"
+                    :maxlength="addressMaxLength"
+                    inputmode="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    @input="onAddressInput"
+                    @blur="addressTouched = true"
+                />
+                <p
+                    v-if="form.to_address && !isWalletAddressComplete(form.to_address, addressFormat)"
+                    class="mt-1 text-xs text-text-dim"
+                >
+                    {{ isTron ? `${form.to_address.length} / 34` : `${form.to_address.length} / 42` }}
+                </p>
+                <p v-if="addressFieldError" class="mt-1 text-sm text-red-400">{{ addressFieldError }}</p>
             </div>
 
             <div>
                 <label class="mb-2 block text-label-caps uppercase text-text-dim">Сумма USDT</label>
-                <input v-model="form.amount" type="number" class="input-field" min="0" step="0.01" />
-                <p class="mt-1 text-xs text-text-dim">Минимум {{ formatUsdt(minAmount, 2) }} USDT. Все выводы проходят ручную проверку СБ.</p>
+                <div class="wallet-amount-row">
+                    <input
+                        :value="form.amount"
+                        type="text"
+                        class="input-field"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        placeholder="0.00"
+                        @input="onAmountInput"
+                    />
+                    <button
+                        type="button"
+                        class="wallet-amount-max"
+                        :disabled="maxAmount <= 0"
+                        @click="setMaxAmount"
+                    >
+                        MAX
+                    </button>
+                </div>
+                <p class="mt-1 text-xs text-text-dim">
+                    Можно вывести до {{ formatUsdt(maxAmount, 2) }} USDT (с учётом комиссий).
+                    Минимум {{ formatUsdt(minAmount, 2) }} USDT. Все выводы проходят ручную проверку СБ.
+                </p>
                 <p v-if="form.errors.amount" class="mt-1 text-sm text-red-400">{{ form.errors.amount }}</p>
             </div>
 

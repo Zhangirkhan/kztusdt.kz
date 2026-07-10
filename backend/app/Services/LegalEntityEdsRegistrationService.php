@@ -23,8 +23,6 @@ final class LegalEntityEdsRegistrationService
      */
     public function startRegistration(
         string $phone,
-        string $bin,
-        string $companyName,
         ?string $ip = null,
     ): array {
         if (! config('ncanode.legal_entity_eds_required')) {
@@ -32,17 +30,11 @@ final class LegalEntityEdsRegistrationService
         }
 
         $normalizedPhone = $this->phoneAuthService->normalizePhone($phone);
-        $normalizedBin = $this->phoneAuthService->normalizeBin($bin);
-        $companyName = trim($companyName);
-
-        if ($companyName === '') {
-            throw new RuntimeException('Укажите наименование организации.');
-        }
 
         $session = $this->phoneAuthService->startPendingLegalEntity(
             phone: $normalizedPhone,
-            bin: $normalizedBin,
-            companyName: $companyName,
+            bin: null,
+            companyName: null,
             ip: $ip,
         );
 
@@ -63,7 +55,6 @@ final class LegalEntityEdsRegistrationService
             entityId: $session->id,
             payload: [
                 'phone' => $normalizedPhone,
-                'bin' => $normalizedBin,
             ],
             request: request(),
         );
@@ -93,9 +84,9 @@ final class LegalEntityEdsRegistrationService
 
         if (config('ncanode.skip_verification')) {
             $this->markVerified($session, [
-                'subject' => 'SKIP_VERIFICATION',
+                'subject' => $session->company_name ?: 'Тест Юрлицо',
                 'iin' => null,
-                'bin' => $session->bin,
+                'bin' => $session->bin ?? '900101000008',
             ]);
         } else {
             $verify = $this->ncaNodeClient->verifyCms($cms, $challengeBase64);
@@ -255,8 +246,12 @@ final class LegalEntityEdsRegistrationService
      */
     private function assertSignerMatchesSession(AuthSession $session, array $signer): void
     {
-        if ($signer['bin'] !== null && $session->bin !== null && $signer['bin'] !== $session->bin) {
-            throw new RuntimeException('БИН в сертификате не совпадает с указанным БИН организации.');
+        if ($signer['bin'] === null || ! preg_match('/^\d{12}$/', $signer['bin'])) {
+            throw new RuntimeException('В сертификате ЭЦП не найден БИН организации.');
+        }
+
+        if ($session->bin !== null && $signer['bin'] !== $session->bin) {
+            throw new RuntimeException('БИН в сертификате не совпадает с БИН сессии.');
         }
     }
 
@@ -265,11 +260,24 @@ final class LegalEntityEdsRegistrationService
      */
     private function markVerified(AuthSession $session, array $signer): void
     {
+        $bin = $signer['bin'] ?? $session->bin;
+        $companyName = $session->company_name;
+
+        if (($companyName === null || $companyName === '') && is_string($signer['subject']) && $signer['subject'] !== '' && $signer['subject'] !== 'SKIP_VERIFICATION') {
+            $companyName = $signer['subject'];
+        }
+
+        if ($companyName === null || $companyName === '') {
+            $companyName = $bin !== null ? 'BIN '.$bin : 'Legal entity';
+        }
+
         $session->update([
+            'bin' => $bin,
+            'company_name' => $companyName,
             'eds_verified_at' => now(),
             'eds_certificate_subject' => $signer['subject'],
             'eds_signer_iin' => $signer['iin'],
-            'eds_signer_bin' => $signer['bin'] ?? $session->bin,
+            'eds_signer_bin' => $bin,
             'eds_challenge' => null,
             'eds_challenge_expires_at' => null,
         ]);

@@ -1,10 +1,26 @@
 <script setup>
 import AppLogo from '@/shared/ui/app-logo/AppLogo.vue';
+import AppIcon from '@/shared/ui/icon/AppIcon.vue';
 import SeoHead from '@/shared/ui/seo-head/SeoHead.vue';
 import NotificationOptIn from '@/Components/NotificationOptIn.vue';
 import { buildExchangeNavItems } from '@/shared/config/exchange-nav';
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+
+const props = defineProps({
+    showBrand: {
+        type: Boolean,
+        default: true,
+    },
+    hideHeader: {
+        type: Boolean,
+        default: false,
+    },
+    flushMain: {
+        type: Boolean,
+        default: false,
+    },
+});
 
 const page = usePage();
 const current = computed(() => page.url);
@@ -12,40 +28,78 @@ const companyName = computed(() => page.props.company?.name ?? 'kztusdt.kz');
 const canUseWallet = computed(() => page.props.auth?.user?.can_use_wallet ?? false);
 
 const navItems = computed(() => buildExchangeNavItems(canUseWallet.value));
+
+const keyboardInsetPx = ref(0);
+let viewportResizeHandler = null;
+
+function updateKeyboardInset() {
+    if (!window.visualViewport) {
+        keyboardInsetPx.value = 0;
+        return;
+    }
+
+    const vv = window.visualViewport;
+    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    keyboardInsetPx.value = Math.round(inset);
+}
+
+onMounted(() => {
+    viewportResizeHandler = () => updateKeyboardInset();
+    updateKeyboardInset();
+    window.visualViewport?.addEventListener('resize', viewportResizeHandler);
+    window.visualViewport?.addEventListener('scroll', viewportResizeHandler);
+});
+
+onUnmounted(() => {
+    if (viewportResizeHandler) {
+        window.visualViewport?.removeEventListener('resize', viewportResizeHandler);
+        window.visualViewport?.removeEventListener('scroll', viewportResizeHandler);
+    }
+});
 </script>
 
 <template>
     <SeoHead />
 
     <div class="app-frame">
-        <div class="app-shell page-enter">
-            <header class="page-header">
-                <div class="flex min-w-0 flex-1 items-center gap-3">
-                    <AppLogo :size="40" />
+        <div
+            class="app-shell page-enter"
+            :class="{ 'app-shell--chat-fullscreen': hideHeader && flushMain }"
+        >
+            <header v-if="!hideHeader" class="page-header">
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                    <AppLogo v-if="showBrand" :size="32" />
                     <div class="min-w-0">
-                        <p class="text-label-caps uppercase text-text-dim">{{ companyName }}</p>
-                        <h1 class="truncate text-headline-md">
+                        <p v-if="showBrand" class="page-header__brand text-label-caps uppercase text-text-dim">{{ companyName }}</p>
+                        <h1 class="page-header__title truncate" :class="showBrand ? '' : 'text-base'">
                             <slot name="title">Кошелёк</slot>
                         </h1>
                     </div>
                 </div>
-                <Link
-                    :href="route('profile.show')"
-                    class="btn-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-accent"
-                >
-                    <span class="material-symbols-outlined text-xl">person</span>
-                </Link>
+                <div class="flex shrink-0 items-center gap-2">
+                    <slot name="header-actions" />
+                    <Link
+                        :href="route('profile.show')"
+                        class="btn-icon wallet-header-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent"
+                        aria-label="Профиль"
+                    >
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">person</span>
+                    </Link>
+                </div>
             </header>
 
             <main
-                class="flex-1 px-margin-page pt-4 pb-4"
-                style="padding-bottom: calc(var(--bottom-nav-height) + 24px + var(--safe-bottom))"
+                class="flex-1 pb-4"
+                :class="flushMain ? 'px-0 pt-0' : 'px-margin-page pt-4'"
+                :style="{ paddingBottom: flushMain
+                    ? 'calc(var(--bottom-nav-height) + var(--safe-bottom))'
+                    : 'calc(var(--bottom-nav-height) + 24px + var(--safe-bottom))' }"
             >
                 <NotificationOptIn />
                 <slot />
             </main>
 
-            <nav class="bottom-nav" aria-label="Основная навигация">
+            <nav v-if="keyboardInsetPx === 0" class="bottom-nav" aria-label="Основная навигация">
                 <div class="bottom-nav__inner">
                     <Link
                         v-for="item in navItems"
@@ -59,9 +113,11 @@ const navItems = computed(() => buildExchangeNavItems(canUseWallet.value));
                         :aria-label="item.locked ? `${item.label} — пройдите KYC` : item.label"
                     >
                         <span class="bottom-nav__pill">
-                            <span class="material-symbols-outlined text-xl">
-                                {{ item.locked ? 'lock' : item.icon }}
-                            </span>
+                            <AppIcon
+                                :name="item.locked ? 'lock' : item.icon"
+                                :size="20"
+                                :stroke-width="2.2"
+                            />
                         </span>
                         <span class="bottom-nav__label">{{ item.label }}</span>
                     </Link>

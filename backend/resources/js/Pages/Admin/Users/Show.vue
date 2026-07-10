@@ -18,6 +18,10 @@ const form = useForm({
     status: props.user.status,
 });
 
+const manualKycForm = useForm({
+    manual_kyc_enabled: props.user.manual_kyc_enabled,
+});
+
 const canManualApprove = computed(() => props.user.kyc_status !== 'approved');
 
 const statusOptions = [
@@ -38,6 +42,13 @@ function submitStatus() {
         onSuccess: () => {
             showStatusModal.value = false;
         },
+    });
+}
+
+function submitManualKyc(enabled) {
+    manualKycForm.manual_kyc_enabled = enabled;
+    manualKycForm.patch(route('admin.users.manual-kyc', props.user.id), {
+        preserveScroll: true,
     });
 }
 </script>
@@ -68,6 +79,15 @@ function submitStatus() {
                             <a-descriptions-item label="Телефон">{{ user.phone || '—' }}</a-descriptions-item>
                             <a-descriptions-item label="Email">{{ user.email || '—' }}</a-descriptions-item>
                             <a-descriptions-item label="KYC">{{ user.kyc_status }}</a-descriptions-item>
+                            <a-descriptions-item label="Ручная KYC (клиент)">
+                                <a-switch
+                                    :checked="user.manual_kyc_enabled"
+                                    :loading="manualKycForm.processing"
+                                    checked-children="Вкл"
+                                    un-checked-children="Выкл"
+                                    @change="submitManualKyc"
+                                />
+                            </a-descriptions-item>
                             <a-descriptions-item v-if="user.kyc_profile" label="KYC заявка">
                                 <template v-if="user.kyc_profile.submitted_at">
                                     Отправлена {{ formatDateTime(user.kyc_profile.submitted_at) }}

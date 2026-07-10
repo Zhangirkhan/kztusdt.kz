@@ -51,12 +51,12 @@ final class KycSubmissionTest extends TestCase
     {
         config([
             'kyc.provider' => 'aitu',
-            'kyc.manual_enabled' => true,
+            'kyc.manual_enabled' => false,
             'aitu.client_id' => 'test-client',
             'aitu.client_secret' => 'test-secret',
         ]);
 
-        $user = $this->createUnverifiedClient();
+        $user = $this->createUnverifiedClient(['manual_kyc_enabled' => true]);
 
         $this->actingAs($user)
             ->get('/kyc')
@@ -67,6 +67,45 @@ final class KycSubmissionTest extends TestCase
                 ->where('manualEnabled', true)
                 ->where('showAitu', true)
                 ->where('showManualForm', true));
+    }
+
+    public function test_kyc_page_hides_manual_form_for_aitu_when_not_enabled_for_user(): void
+    {
+        config([
+            'kyc.provider' => 'aitu',
+            'kyc.manual_enabled' => false,
+            'aitu.client_id' => 'test-client',
+            'aitu.client_secret' => 'test-secret',
+        ]);
+
+        $user = $this->createUnverifiedClient(['manual_kyc_enabled' => false]);
+
+        $this->actingAs($user)
+            ->get('/kyc')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Kyc')
+                ->where('provider', 'aitu')
+                ->where('manualEnabled', false)
+                ->where('showAitu', true)
+                ->where('showManualForm', false));
+    }
+
+    public function test_manual_submission_forbidden_when_not_enabled_for_user(): void
+    {
+        Storage::fake('local');
+
+        config([
+            'kyc.provider' => 'aitu',
+            'kyc.manual_enabled' => false,
+            'aitu.client_id' => 'test-client',
+            'aitu.client_secret' => 'test-secret',
+        ]);
+
+        $user = $this->createUnverifiedClient(['manual_kyc_enabled' => false]);
+
+        $this->actingAs($user)->post('/kyc', $this->validPayload())
+            ->assertForbidden();
     }
 
     public function test_client_submits_kyc_with_documents(): void

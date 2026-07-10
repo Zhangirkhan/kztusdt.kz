@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RenameUserBankCardRequest;
+use App\Http\Requests\StoreUserBankCardRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\UpdateUserBankCardRequest;
+use App\Models\UserBankCard;
 use App\Services\ProfileService;
+use App\Services\UserBankCardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,6 +20,7 @@ final class ProfileController extends Controller
 {
     public function __construct(
         private readonly ProfileService $profileService,
+        private readonly UserBankCardService $bankCardService,
     ) {}
 
     public function show(Request $request): Response
@@ -33,9 +39,65 @@ final class ProfileController extends Controller
 
     public function bank(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('Profile/Bank', [
-            'profile' => $this->profileService->profilePayload($request->user()),
+            'profile' => $this->profileService->profilePayload($user),
+            'banks' => $this->bankCardService->bankCatalog(),
+            'cards' => $this->bankCardService->cardsPayload($user),
         ]);
+    }
+
+    public function storeBankCard(StoreUserBankCardRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        $data = $request->validated();
+
+        $iin = preg_replace('/\D+/', '', (string) ($data['iin'] ?? '')) ?? '';
+        if ($iin !== '' && $user->iin !== $iin) {
+            $user->update(['iin' => $iin]);
+        }
+
+        unset($data['iin']);
+        $this->bankCardService->create($user, $data);
+
+        return redirect()
+            ->route('profile.bank')
+            ->with('success', 'Карта добавлена.');
+    }
+
+    public function updateBankCard(UpdateUserBankCardRequest $request, string $locale, UserBankCard $card): RedirectResponse
+    {
+        abort_unless((int) $card->user_id === (int) $request->user()->id, 403);
+
+        $this->bankCardService->update($card, $request->validated());
+
+        return redirect()
+            ->route('profile.bank')
+            ->with('success', 'Карта обновлена.');
+    }
+
+    public function renameBankCard(RenameUserBankCardRequest $request, string $locale, UserBankCard $card): RedirectResponse
+    {
+        abort_unless((int) $card->user_id === (int) $request->user()->id, 403);
+
+        $this->bankCardService->rename($card, $request->validated('label'));
+
+        return redirect()
+            ->route('profile.bank')
+            ->with('success', 'Название карты обновлено.');
+    }
+
+    public function destroyBankCard(Request $request, string $locale, UserBankCard $card): RedirectResponse
+    {
+        abort_unless((int) $card->user_id === (int) $request->user()->id, 403);
+        abort_unless($request->user()->canUseWallet(), 403);
+
+        $this->bankCardService->delete($card);
+
+        return redirect()
+            ->route('profile.bank')
+            ->with('success', 'Карта удалена.');
     }
 
     public function security(): Response
@@ -77,21 +139,6 @@ final class ProfileController extends Controller
         return redirect()
             ->route('profile.personal')
             ->with('success', $message);
-    }
-
-    public function updateBank(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'bank_name' => ['required', 'string', 'max:255'],
-            'bank_holder' => ['required', 'string', 'max:255'],
-            'bank_account' => ['required', 'string', 'max:255'],
-        ]);
-
-        $request->user()->update($validated);
-
-        return redirect()
-            ->route('profile.bank')
-            ->with('success', 'Банковские реквизиты сохранены.');
     }
 
     public function updateNotifications(Request $request): RedirectResponse

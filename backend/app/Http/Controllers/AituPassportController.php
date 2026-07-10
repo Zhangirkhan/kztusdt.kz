@@ -126,8 +126,9 @@ final class AituPassportController extends Controller
 
         // When Aitu is the active KYC provider, apply the verification verdict
         // delivered inside the id_token (auto-approve / reject).
+        $kycStatus = (string) $user->kyc_status;
         if ($this->aituKyc->isEnabled()) {
-            $this->aituKyc->applyFromClaims($user, $claims);
+            $kycStatus = $this->aituKyc->applyFromClaims($user, $claims);
             $user->refresh();
         }
 
@@ -137,7 +138,7 @@ final class AituPassportController extends Controller
             'kyc_status' => $user->kyc_status,
         ]);
 
-        return $this->redirectAfterAuth($returnTo);
+        return $this->redirectAfterAuth($returnTo, $kycStatus);
     }
 
     /**
@@ -150,12 +151,19 @@ final class AituPassportController extends Controller
 
             if ($linked !== null) {
                 $phone = $this->aituPassport->phoneFromClaims($claims);
+                $iin = $this->aituPassport->iinFromClaims($claims);
 
                 if ($phone !== null && $linked->phone === $phone) {
-                    $linked->update([
+                    $updates = [
                         'phone_verified' => true,
                         'phone_verified_at' => now(),
-                    ]);
+                    ];
+
+                    if ($iin !== null) {
+                        $updates['iin'] = $iin;
+                    }
+
+                    $linked->update($updates);
 
                     return $linked;
                 }
@@ -230,11 +238,21 @@ final class AituPassportController extends Controller
             ->with('status', 'Номер телефона изменён. Войдите заново.');
     }
 
-    private function redirectAfterAuth(string $returnTo = 'phone'): RedirectResponse
+    private function redirectAfterAuth(string $returnTo = 'phone', ?string $kycStatus = null): RedirectResponse
     {
         $user = Auth::user();
 
         if ($returnTo === 'kyc') {
+            if ($kycStatus === 'approved') {
+                return redirect()->route('kyc')
+                    ->with('success', 'Верификация пройдена! Ваш аккаунт подтверждён.');
+            }
+
+            if ($kycStatus === 'rejected') {
+                return redirect()->route('kyc')
+                    ->withErrors(['form' => 'Верификация Aitu Passport не пройдена. Попробуйте ещё раз или обратитесь в поддержку.']);
+            }
+
             return redirect()->route('kyc');
         }
 

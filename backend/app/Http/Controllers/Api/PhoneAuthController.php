@@ -28,8 +28,8 @@ final class PhoneAuthController extends Controller
                 $request->validated('phone'),
                 $request->validated('client_type'),
                 $request->validated('iin'),
-                $request->validated('bin'),
-                $request->validated('company_name'),
+                $request->validated('bin') ?? null,
+                $request->validated('company_name') ?? null,
             );
 
             return response()->json([

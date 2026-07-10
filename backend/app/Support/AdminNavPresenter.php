@@ -35,6 +35,8 @@ final class AdminNavPresenter
                 'disputes' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin', 'security_officer']),
                 'audit' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'subscriptions' => self::canManageSubscriptions($user),
+                'listings' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin']),
+                'support' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin']),
             ],
         ];
     }

@@ -2,11 +2,11 @@
 import KycManualForm from '@/features/kyc-manual-form/ui/KycManualForm.vue';
 import { pendingReviewHint } from '@/entities/kyc/lib/pendingReviewHint';
 import { Link } from '@inertiajs/vue3';
-import { defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
 
-defineProps({
+const props = defineProps({
     profile: Object,
     kycStatus: String,
     rejectionReason: String,
@@ -18,6 +18,15 @@ defineProps({
     aituVerifyUrl: { type: String, default: null },
     aituKycScopeConfigured: { type: Boolean, default: true },
 });
+
+const kycStatusLabels = {
+    none: 'Не пройден',
+    pending_review: 'На проверке',
+    approved: 'Подтверждён',
+    rejected: 'Отклонён',
+};
+
+const kycStatusLabel = computed(() => kycStatusLabels[props.kycStatus] ?? props.kycStatus);
 </script>
 
 <template>
@@ -25,7 +34,7 @@ defineProps({
         <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
                 <p class="text-label-caps uppercase tracking-wide text-text-dim">Статус</p>
-                <p class="mt-2 text-headline-md capitalize text-on-surface">{{ kycStatus }}</p>
+                <p class="mt-2 text-headline-md text-on-surface">{{ kycStatusLabel }}</p>
             </div>
             <span
                 class="shrink-0 rounded-full border border-outline-variant/60 bg-surface-container-high px-3 py-1 text-xs font-semibold text-text-muted"

@@ -28,29 +28,45 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
         vibrate: [80, 40, 80],
-        data: { url: payload.url || '/home' },
+        data: { url: payload.url || '/wallet' },
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
 });
 
+function resolveNotificationUrl(rawUrl) {
+    const fallback = new URL('/wallet', self.location.origin).href;
+
+    if (!rawUrl || typeof rawUrl !== 'string') {
+        return fallback;
+    }
+
+    try {
+        return new URL(rawUrl, self.location.origin).href;
+    } catch (e) {
+        return fallback;
+    }
+}
+
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    const targetUrl = (event.notification.data && event.notification.data.url) || '/home';
+    const targetUrl = resolveNotificationUrl(event.notification.data && event.notification.data.url);
 
     event.waitUntil(
         self.clients
             .matchAll({ type: 'window', includeUncontrolled: true })
             .then((clientList) => {
                 for (const client of clientList) {
-                    if ('focus' in client) {
-                        if ('navigate' in client) {
-                            client.navigate(targetUrl).catch(() => {});
-                        }
-
-                        return client.focus();
+                    if (!('focus' in client)) {
+                        continue;
                     }
+
+                    const navigate = 'navigate' in client
+                        ? client.navigate(targetUrl).catch(() => {})
+                        : Promise.resolve();
+
+                    return navigate.then(() => client.focus());
                 }
 
                 if (self.clients.openWindow) {

@@ -45,6 +45,29 @@ final class AituKycService
      */
     public function verificationResult(array $claims): ?bool
     {
+        $govDoc = $claims['gov_doc_verification'] ?? null;
+        if (is_array($govDoc) && $govDoc !== []) {
+            return true;
+        }
+
+        if (array_key_exists('gov_doc_verification', $claims) && $this->scalarClaim($claims, 'sessionDocumentId') !== null) {
+            return true;
+        }
+
+        // confidence_level.faceMatch: VERIFIED | LOW_SIMILARITY
+        $confidence = $claims['confidence_level'] ?? $claims['confidenceLevel'] ?? null;
+        if (is_array($confidence)) {
+            $faceMatch = mb_strtolower(trim((string) ($confidence['faceMatch'] ?? '')));
+
+            if ($faceMatch === 'verified') {
+                return true;
+            }
+
+            if ($faceMatch === 'low_similarity') {
+                return false;
+            }
+        }
+
         /** @var list<string> $keys */
         $keys = (array) config('aitu.verification.claims', []);
         /** @var list<string> $passed */
@@ -107,6 +130,10 @@ final class AituKycService
         AppLog::authWarning('kyc.aitu.no_verdict', [
             'user_id' => $user->id,
             'claim_keys' => array_keys($claims),
+            'claim_types' => array_map(
+                static fn (mixed $value): string => is_object($value) ? 'object' : gettype($value),
+                $claims,
+            ),
         ]);
 
         return (string) $user->kyc_status;
@@ -118,27 +145,65 @@ final class AituKycService
     private function approve(User $user, array $claims): void
     {
         DB::transaction(function () use ($user, $claims): void {
+            /** @var array<string, mixed>|null $govDoc */
+            $govDoc = $this->passport->structuredClaim($claims, 'gov_doc_verification');
+
+            $iin = $this->extractIin($claims, $govDoc);
+            $phone = $this->passport->phoneFromClaims($claims);
+            $sessionDocumentId = $this->scalarClaim($claims, 'sessionDocumentId');
+            $sessionId = $this->scalarClaim($claims, 'sid');
+            $verifiedAt = now();
+
             $profile = KycProfile::query()->updateOrCreate(
                 ['user_id' => $user->id],
                 [
                     'provider' => self::PROVIDER,
-                    'first_name' => $this->claim($claims, ['given_name', 'first_name']) ?? $user->kycProfile?->first_name,
-                    'last_name' => $this->claim($claims, ['family_name', 'last_name']) ?? $user->kycProfile?->last_name,
-                    'document_number' => $this->claim($claims, ['iin', 'sub']) ?? $user->kycProfile?->document_number,
+                    'first_name' => $this->claim($claims, ['given_name', 'first_name'])
+                        ?? (is_string($govDoc['firstName'] ?? null) ? $govDoc['firstName'] : null)
+                        ?? $user->kycProfile?->first_name,
+                    'last_name' => $this->claim($claims, ['family_name', 'last_name'])
+                        ?? (is_string($govDoc['lastName'] ?? null) ? $govDoc['lastName'] : null)
+                        ?? $user->kycProfile?->last_name,
+                    'document_number' => $iin
+                        ?? $this->claim($claims, ['sub'])
+                        ?? (is_string($govDoc['documentNumber'] ?? null) ? $govDoc['documentNumber'] : null)
+                        ?? $user->kycProfile?->document_number,
+                    'provider_verification_id' => $sessionDocumentId,
+                    'provider_session_id' => $sessionId,
                     'status' => 'approved',
-                    'submitted_at' => now(),
-                    'reviewed_at' => now(),
+                    'submitted_at' => $verifiedAt,
+                    'reviewed_at' => $verifiedAt,
                     'rejection_reason' => null,
                 ],
             );
 
-            $user->update(['kyc_status' => 'approved']);
+            $userUpdates = ['kyc_status' => 'approved'];
+
+            if ($iin !== null) {
+                $userUpdates['iin'] = $iin;
+            }
+
+            if ($phone !== null) {
+                $userUpdates['phone'] = $phone;
+                $userUpdates['phone_verified'] = true;
+                $userUpdates['phone_verified_at'] = $verifiedAt;
+            }
+
+            $user->update($userUpdates);
 
             $this->auditLogService->log(
                 action: 'kyc.aitu.approved',
                 userId: $user->id,
                 entityType: 'kyc_profile',
                 entityId: $profile->id,
+                payload: [
+                    'provider' => self::PROVIDER,
+                    'provider_verification_id' => $sessionDocumentId,
+                    'provider_session_id' => $sessionId,
+                    'verified_at' => $verifiedAt->toIso8601String(),
+                    'iin' => $iin,
+                    'phone' => $phone,
+                ],
             );
 
             $this->notifier->notifyKey(
@@ -211,5 +276,34 @@ final class AituKycService
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     * @param  array<string, mixed>|null  $govDoc
+     */
+    private function extractIin(array $claims, ?array $govDoc): ?string
+    {
+        $fromGovDoc = is_string($govDoc['iin'] ?? null) ? trim($govDoc['iin']) : '';
+
+        if ($fromGovDoc !== '') {
+            return $fromGovDoc;
+        }
+
+        return $this->claim($claims, ['iin']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims
+     */
+    private function scalarClaim(array $claims, string $key): ?string
+    {
+        if (! isset($claims[$key]) || ! is_scalar($claims[$key])) {
+            return null;
+        }
+
+        $value = trim((string) $claims[$key]);
+
+        return $value !== '' ? $value : null;
     }
 }

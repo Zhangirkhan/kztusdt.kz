@@ -29,7 +29,7 @@ final class ExchangeOrderSellTest extends TestCase
         $user = $this->createClient();
         $this->giveBalance($user, '500');
 
-        $this->actingAs($user)->post('/exchange/orders', $this->sellPayload(100));
+        $this->actingAs($user)->post('/ru/exchange/orders', $this->sellPayload($user, 100));
 
         $order = ExchangeOrder::query()->firstOrFail();
 
@@ -48,7 +48,9 @@ final class ExchangeOrderSellTest extends TestCase
         // Реквизиты клиента для выплаты.
         $paymentRequest = $order->fiatPaymentRequest;
         $this->assertSame(FiatPaymentRequest::DIRECTION_EXCHANGE_TO_USER, $paymentRequest->direction);
-        $this->assertSame('Kaspi Gold', $paymentRequest->bank_name);
+        $this->assertSame('Kaspi Bank', $paymentRequest->bank_name);
+        $this->assertSame('Иванов Иван', $paymentRequest->recipient_name);
+        $this->assertSame('KZ123456789012345678', $paymentRequest->recipient_account);
     }
 
     public function test_sell_with_insufficient_balance_is_rejected_atomically(): void
@@ -59,7 +61,7 @@ final class ExchangeOrderSellTest extends TestCase
         $this->giveBalance($user, '10');
 
         $this->actingAs($user)
-            ->post('/exchange/orders', $this->sellPayload(100))
+            ->post('/ru/exchange/orders', $this->sellPayload($user, 100))
             ->assertSessionHasErrors(['form']);
 
         // Транзакция откатилась полностью — нет ни заявки, ни блокировки.
@@ -78,27 +80,73 @@ final class ExchangeOrderSellTest extends TestCase
         $this->giveBalance($user, '20000');
 
         $this->actingAs($user)
-            ->post('/exchange/orders', $this->sellPayload(4)) // min 5
+            ->post('/ru/exchange/orders', $this->sellPayload($user, 4)) // min 5
             ->assertSessionHasErrors(['form']);
 
         $this->actingAs($user)
-            ->post('/exchange/orders', $this->sellPayload(10001)) // max 10 000
+            ->post('/ru/exchange/orders', $this->sellPayload($user, 10001)) // max 10 000
             ->assertSessionHasErrors(['form']);
 
         $this->assertSame(0, ExchangeOrder::query()->count());
     }
 
-    public function test_sell_requires_bank_details(): void
+    public function test_sell_requires_card_and_payout_type(): void
     {
         $this->fakeExternalApis();
 
         $user = $this->createClient();
         $this->giveBalance($user, '500');
 
-        $this->actingAs($user)->post('/exchange/orders', [
+        $this->actingAs($user)->post('/ru/exchange/orders', [
             'direction' => 'sell',
             'usdt_amount' => 100,
-        ])->assertSessionHasErrors(['bank_name', 'recipient_name', 'recipient_account']);
+        ])->assertSessionHasErrors(['card_id', 'payout_type']);
+    }
+
+    public function test_sell_rejects_foreign_card(): void
+    {
+        $this->fakeExternalApis();
+
+        $owner = $this->createClient();
+        $attacker = $this->createClient();
+        $this->giveBalance($attacker, '500');
+
+        $card = $owner->bankCards()->create([
+            'bank_code' => 'kaspi',
+            'label' => 'Чужая',
+            'holder_name' => 'Владелец',
+            'phone' => null,
+            'iban' => 'KZ123456789012345678',
+        ]);
+
+        $this->actingAs($attacker)->post('/ru/exchange/orders', [
+            'direction' => 'sell',
+            'usdt_amount' => 100,
+            'card_id' => $card->id,
+            'payout_type' => 'iban',
+        ])->assertSessionHasErrors(['card_id']);
+    }
+
+    public function test_sell_rejects_unavailable_payout_type(): void
+    {
+        $this->fakeExternalApis();
+
+        $user = $this->createClient();
+        $this->giveBalance($user, '500');
+        $card = $user->bankCards()->create([
+            'bank_code' => 'kaspi',
+            'label' => 'Только IBAN',
+            'holder_name' => 'Иванов Иван',
+            'phone' => null,
+            'iban' => 'KZ123456789012345678',
+        ]);
+
+        $this->actingAs($user)->post('/ru/exchange/orders', [
+            'direction' => 'sell',
+            'usdt_amount' => 100,
+            'card_id' => $card->id,
+            'payout_type' => 'phone',
+        ])->assertSessionHasErrors(['payout_type']);
     }
 
     public function test_admin_confirms_kzt_payout_and_usdt_is_burned(): void
@@ -111,25 +159,35 @@ final class ExchangeOrderSellTest extends TestCase
 
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent", [
-            'payment_reference' => 'KASPI-REF-123',
-            'comment' => 'Выплачено',
-        ])->assertRedirect(route('admin.orders.show', $order));
+        $this->actingAs($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent")
+            ->assertRedirect(route('admin.orders.show', $order));
 
         $order->refresh();
-        $this->assertSame(ExchangeOrder::STATUS_COMPLETED, $order->status);
+        $this->assertSame(ExchangeOrder::STATUS_KZT_SENT, $order->status);
         $this->assertNotNull($order->kzt_sent_at);
 
         $paymentRequest = $order->fiatPaymentRequest;
         $this->assertSame(FiatPaymentRequest::STATUS_CONFIRMED, $paymentRequest->status);
-        $this->assertSame('KASPI-REF-123', $paymentRequest->payment_reference);
+        $this->assertNull($paymentRequest->payment_reference);
+
+        $ledger = app(LedgerService::class);
+        $this->assertSame(0, bccomp('400', $ledger->availableBalance($user->id, 'USDT'), 18));
+        $this->assertSame(0, bccomp('100', $ledger->lockedBalance($user->id, 'USDT'), 18));
+
+        $this->actingAs($user)
+            ->post("/ru/exchange/orders/{$order->id}/mark-received")
+            ->assertRedirect(route('exchange.orders.show', ['locale' => 'ru', 'order' => $order]));
+
+        $order->refresh();
+        $this->assertSame(ExchangeOrder::STATUS_COMPLETED, $order->status);
+        $this->assertNotNull($order->kzt_received_at);
 
         $ledger = app(LedgerService::class);
         $this->assertSame(0, bccomp('400', $ledger->availableBalance($user->id, 'USDT'), 18));
         $this->assertSame(0, bccomp('0', $ledger->lockedBalance($user->id, 'USDT'), 18));
     }
 
-    public function test_payout_requires_payment_reference(): void
+    public function test_admin_can_mark_kzt_sent_without_extra_fields(): void
     {
         $this->fakeExternalApis();
 
@@ -140,8 +198,10 @@ final class ExchangeOrderSellTest extends TestCase
         $admin = $this->createStaff('super_admin');
 
         $this->actingAs($admin)
-            ->post("/admin/orders/{$order->id}/mark-kzt-sent", [])
-            ->assertSessionHasErrors(['payment_reference']);
+            ->post("/admin/orders/{$order->id}/mark-kzt-sent")
+            ->assertRedirect(route('admin.orders.show', $order));
+
+        $this->assertSame(ExchangeOrder::STATUS_KZT_SENT, $order->fresh()->status);
     }
 
     public function test_client_cancel_releases_locked_usdt(): void
@@ -153,7 +213,7 @@ final class ExchangeOrderSellTest extends TestCase
         $order = $this->createSellOrder($user, 100);
 
         $this->actingAs($user)
-            ->post("/exchange/orders/{$order->id}/cancel")
+            ->post("/ru/exchange/orders/{$order->id}/cancel")
             ->assertRedirect(route('exchange'));
 
         $this->assertSame(ExchangeOrder::STATUS_CANCELLED, $order->fresh()->status);
@@ -193,12 +253,12 @@ final class ExchangeOrderSellTest extends TestCase
         $order = $this->createSellOrder($user, 100);
 
         $admin = $this->createStaff('super_admin');
-        $this->actingAs($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent", [
-            'payment_reference' => 'REF-1',
-        ]);
+        $this->actingAs($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent");
+
+        $this->actingAs($user)->post("/ru/exchange/orders/{$order->id}/mark-received");
 
         $this->actingAs($user)
-            ->post("/exchange/orders/{$order->id}/cancel")
+            ->post("/ru/exchange/orders/{$order->id}/cancel")
             ->assertSessionHasErrors(['form']);
 
         $this->assertSame(ExchangeOrder::STATUS_COMPLETED, $order->fresh()->status);
@@ -207,20 +267,31 @@ final class ExchangeOrderSellTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function sellPayload(float $usdt): array
+    private function sellPayload(User $user, float $usdt, string $payoutType = 'iban'): array
     {
+        $card = $user->bankCards()->first();
+
+        if ($card === null) {
+            $card = $user->bankCards()->create([
+                'bank_code' => 'kaspi',
+                'label' => 'Тестовая Kaspi',
+                'holder_name' => 'Иванов Иван',
+                'phone' => '+77012345678',
+                'iban' => 'KZ123456789012345678',
+            ]);
+        }
+
         return [
             'direction' => 'sell',
             'usdt_amount' => $usdt,
-            'bank_name' => 'Kaspi Gold',
-            'recipient_name' => 'Иванов Иван',
-            'recipient_account' => 'KZ12345678901234567890',
+            'card_id' => $card->id,
+            'payout_type' => $payoutType,
         ];
     }
 
     private function createSellOrder(User $user, float $usdt): ExchangeOrder
     {
-        $this->actingAs($user)->post('/exchange/orders', $this->sellPayload($usdt));
+        $this->actingAs($user)->post('/ru/exchange/orders', $this->sellPayload($user, $usdt));
 
         return ExchangeOrder::query()->where('user_id', $user->id)->latest('id')->firstOrFail();
     }

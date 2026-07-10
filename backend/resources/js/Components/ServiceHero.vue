@@ -16,7 +16,7 @@ const data = computed(() => props.company ?? usePage().props.companyHero ?? useP
 <template>
     <section class="card mb-stack-element overflow-hidden">
         <div class="flex items-start gap-3">
-            <AppLogo :size="48" />
+            <AppLogo />
 
             <div class="min-w-0 flex-1">
                 <h2 class="text-headline-md text-on-surface">{{ data.name }}</h2>

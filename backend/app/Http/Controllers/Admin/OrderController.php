@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\ConfirmSellPayoutRequest;
 use App\Http\Requests\Admin\RejectOrderRequest;
 use App\Models\ExchangeOrder;
 use App\Services\ExchangeOrderService;
+use App\Support\PaymentProofPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,7 @@ final class OrderController extends Controller
                     ExchangeOrder::STATUS_AWAITING_KZT_PAYMENT,
                     ExchangeOrder::STATUS_PAYMENT_PROOF_UPLOADED,
                     ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION,
+                    ExchangeOrder::STATUS_KZT_SENT,
                 ])->count(),
                 'completed' => (clone $base)->where('status', ExchangeOrder::STATUS_COMPLETED)->count(),
                 'cancelled' => (clone $base)->whereIn('status', [
@@ -73,6 +75,10 @@ final class OrderController extends Controller
         return Inertia::render('Admin/Orders/Show', [
             'order' => $order,
             'paymentRequest' => $order->fiatPaymentRequest,
+            'paymentProof' => PaymentProofPresenter::payload(
+                $order->fiatPaymentRequest,
+                route('admin.orders.proof', $order),
+            ),
         ]);
     }
 
@@ -84,7 +90,11 @@ final class OrderController extends Controller
 
         abort_unless($path !== null && Storage::disk('local')->exists($path), 404);
 
-        return Storage::disk('local')->response($path);
+        return Storage::disk('local')->response(
+            $path,
+            $order->fiatPaymentRequest->proof_original_name ?? 'payment-proof',
+            ['Content-Type' => $order->fiatPaymentRequest->proof_mime_type ?? 'application/octet-stream'],
+        );
     }
 
     public function confirmPayment(ConfirmBuyPaymentRequest $request, ExchangeOrder $order): RedirectResponse
@@ -114,7 +124,7 @@ final class OrderController extends Controller
             return back()->withErrors(['form' => $exception->getMessage()]);
         }
 
-        return redirect()->route('admin.orders.show', $order)->with('success', 'KZT отправлены, заявка завершена.');
+        return redirect()->route('admin.orders.show', $order)->with('success', 'KZT отправлены. Ожидаем подтверждения клиента.');
     }
 
     public function reject(RejectOrderRequest $request, ExchangeOrder $order): RedirectResponse

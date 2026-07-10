@@ -1,5 +1,5 @@
-<svg width="512" height="512" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="48" height="48" rx="14" fill="#151C26"/>
-  <path d="M14 20H34M31 17L34 20L31 23" stroke="#13EC6D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M34 28H14M17 25L14 28L17 31" stroke="#13EC6D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <rect x="96" y="120" width="280" height="280" transform="translate(40 -40) rotate(15 236 260)" fill="#111111"/>
+  <rect x="112" y="96" width="280" height="280" transform="rotate(15 252 236)" fill="#ffffff" stroke="#111111" stroke-width="10"/>
+  <text x="256" y="460" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="56" font-weight="800" fill="#111111">KZT USDT</text>
 </svg>

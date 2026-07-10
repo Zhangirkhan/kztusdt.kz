@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Withdrawal;
+use App\Services\ExchangeListingService;
 use App\Services\LedgerService;
 use App\Services\RateService;
+use App\Services\UserBankCardService;
 use App\Services\WalletService;
 use App\Support\CompanyPresenter;
 use App\Support\NetworkRegistry;
@@ -23,6 +26,8 @@ final class ExchangeController extends Controller
         private readonly RateService $rateService,
         private readonly LedgerService $ledgerService,
         private readonly WalletService $walletService,
+        private readonly UserBankCardService $bankCardService,
+        private readonly ExchangeListingService $listingService,
     ) {}
 
     public function home(Request $request): Response
@@ -101,6 +106,7 @@ final class ExchangeController extends Controller
                     'pending' => $wallet === null,
                     'confirmationsRequired' => NetworkRegistry::confirmations($code),
                     'explorerTx' => NetworkRegistry::explorerTx($code),
+                    'address_format' => NetworkRegistry::addressFormat($code),
                 ];
             })
             ->values();
@@ -133,14 +139,45 @@ final class ExchangeController extends Controller
                 ];
             });
 
+        $withdrawals = $user->withdrawals()
+            ->latest('id')
+            ->limit(20)
+            ->get([
+                'id', 'network', 'to_address', 'amount', 'fee_amount', 'network_fee', 'total_debit',
+                'status', 'tx_hash', 'created_at',
+            ])
+            ->map(fn (Withdrawal $withdrawal): array => [
+                'id' => $withdrawal->id,
+                'network' => $withdrawal->network,
+                'to_address' => $withdrawal->to_address,
+                'amount' => $withdrawal->amount,
+                'status' => $withdrawal->status,
+                'tx_hash' => $withdrawal->tx_hash,
+                'explorer_tx' => NetworkRegistry::exists($withdrawal->network)
+                    ? NetworkRegistry::explorerTx($withdrawal->network)
+                    : '',
+                'created_at' => $withdrawal->created_at?->toIso8601String(),
+            ]);
+
         return Inertia::render('Wallet', [
             'balance' => [
                 'usdt' => NumberPresenter::withThousands((float) $balances['available'], 2),
+                'available' => $balances['available'],
+                'locked' => $balances['locked'],
             ],
             'asset' => $asset,
             'networks' => $networks,
             'selectedNetwork' => $selected,
             'deposits' => $deposits,
+            'withdraw' => [
+                'feePercent' => $user->feePercent(),
+                'networkFee' => (string) config('withdrawal.network_fee_usdt'),
+                'minAmount' => (float) config('withdrawal.min_amount'),
+                'autoLimit' => (float) config('withdrawal.auto_limit'),
+                'withdrawalsEnabled' => (bool) config('withdrawal.enabled'),
+                'withdrawals' => $withdrawals,
+            ],
+            'initialTab' => $request->string('tab')->toString() === 'withdraw' ? 'withdraw' : 'deposit',
         ]);
     }
 
@@ -155,8 +192,24 @@ final class ExchangeController extends Controller
             ->limit(20)
             ->get([
                 'id', 'direction', 'status', 'fiat_amount', 'crypto_amount',
-                'rate', 'fee_amount', 'created_at',
+                'rate', 'fee_amount', 'payment_term', 'created_at',
             ]);
+
+        $buyListings = $this->listingService->activeForClient('buy')->values()->all();
+        $sellListings = $this->listingService->activeForClient('sell')->values()->all();
+
+        $selectedListing = null;
+        $listingId = $request->integer('listing');
+
+        if ($listingId > 0) {
+            $selectedListing = collect($buyListings)->firstWhere('id', $listingId)
+                ?? collect($sellListings)->firstWhere('id', $listingId);
+        }
+
+        $clientDirection = $request->string('direction')->toString();
+        if (! in_array($clientDirection, ['buy', 'sell'], true)) {
+            $clientDirection = $selectedListing['client_direction'] ?? 'buy';
+        }
 
         return Inertia::render('Exchange', [
             'rates' => $this->rateService->cached(),
@@ -170,6 +223,19 @@ final class ExchangeController extends Controller
                 'max_sell_usdt' => (float) config('exchange.max_sell_usdt'),
             ],
             'orders' => $orders,
+            'cards' => $this->bankCardService->cardsPayload($user),
+            'buyListings' => $buyListings,
+            'sellListings' => $sellListings,
+            'selectedListing' => $selectedListing,
+            'initialDirection' => $clientDirection,
+            'paymentTermLabels' => config('exchange_listings.payment_terms'),
+            'companyRequisites' => [
+                'bank_name' => (string) config('exchange.requisites.bank_name'),
+                'recipient_name' => (string) config('exchange.requisites.recipient_name'),
+                'recipient_account' => (string) config('exchange.requisites.recipient_account'),
+                'bin' => (string) config('exchange.requisites.bin'),
+                'kbe' => (string) config('exchange.requisites.kbe'),
+            ],
         ]);
     }
 }

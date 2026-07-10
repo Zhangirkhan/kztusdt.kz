@@ -22,6 +22,8 @@ return [
 
     'bank_bic' => env('COMPANY_BANK_BIC', 'KCJBKZKX'),
 
+    'kbe' => env('COMPANY_KBE', '17'),
+
     'tagline' => env('COMPANY_TAGLINE', 'Крипто-обменник USDT / KZT'),
 
     'description' => env(

@@ -11,6 +11,7 @@ import {
     FileProtectOutlined,
     HistoryOutlined,
     LogoutOutlined,
+    MessageOutlined,
     SafetyCertificateOutlined,
     SettingOutlined,
     SyncOutlined,
@@ -57,6 +58,8 @@ const iconMap = {
     history: HistoryOutlined,
     sync: SyncOutlined,
     card_membership: AuditOutlined,
+    chat: MessageOutlined,
+    campaign: AuditOutlined,
 };
 
 const navGroups = computed(() => buildAdminNavGroups(sections.value));
@@ -109,7 +112,7 @@ const footerSelectedKeys = computed(() =>
 <template>
     <div class="admin-sidebar-panel">
         <div class="admin-ant-logo" :class="{ 'admin-ant-logo--collapsed': collapsed && !showLogoText }">
-            <AppLogo :size="32" />
+            <AppLogo />
             <div v-if="showLogoText" class="admin-ant-logo__text">
                 <strong>{{ companyName }}</strong>
                 <Text type="secondary">Admin</Text>
@@ -192,9 +195,8 @@ const footerSelectedKeys = computed(() =>
 }
 
 .admin-ant-logo :deep(.brand-logo) {
-    background: #1677ff;
+    background: transparent;
     border: none;
-    color: #fff;
     flex-shrink: 0;
 }
 

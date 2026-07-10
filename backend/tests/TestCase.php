@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Support\LocaleManager;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
@@ -32,6 +34,9 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Named routes use `{locale}`; default it so route() works in assertions.
+        URL::defaults(['locale' => LocaleManager::default()]);
 
         // No test may ever talk to real Telegram / Binance / Sumsub / RPC nodes.
         Http::preventStrayRequests();

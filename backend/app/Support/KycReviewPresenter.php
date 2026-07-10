@@ -49,10 +49,13 @@ final class KycReviewPresenter
             'submitted_at' => $profile->submitted_at?->toIso8601String(),
             'reviewed_at' => $profile->reviewed_at?->toIso8601String(),
             'sumsub_applicant_id' => $profile->sumsub_applicant_id,
+            'provider_verification_id' => $profile->provider_verification_id,
+            'provider_session_id' => $profile->provider_session_id,
             'user' => $user ? [
                 'id' => $user->id,
                 'name' => $user->name,
                 'phone' => $user->phone,
+                'iin' => $user->iin,
                 'kyc_status' => $user->kyc_status,
             ] : null,
             'reviewer' => $profile->reviewer ? [

@@ -25,12 +25,12 @@ const groupedItems = computed(() => groupHistoryItems(props.items));
 const completedCount = computed(() => countHistoryByStatus(props.items, 'COMPLETED'));
 const pendingCount = computed(() => countHistoryByStatus(props.items, 'PENDING'));
 
-const { setSection, setFilter, setStatus, setSearch } = useHistoryFilters({
+const { setSection, setFilter, setStatus, setSearch } = useHistoryFilters(() => ({
     section: props.section,
     filter: props.filter,
     status: props.status,
     search: props.search,
-});
+}));
 </script>
 
 <template>
@@ -66,7 +66,10 @@ const { setSection, setFilter, setStatus, setSearch } = useHistoryFilters({
             :key="tab.id"
             type="button"
             class="history-sub-tab"
-            :class="{ 'history-sub-tab--active': filter === tab.id || (filter === 'all' && tab.id === 'all') }"
+            :class="[
+                `history-sub-tab--${tab.tone}`,
+                { 'history-sub-tab--active': filter === tab.id || (filter === 'all' && tab.id === 'all') },
+            ]"
             @click="setFilter(tab.id)"
         >
             <span class="material-symbols-outlined text-base">{{ tab.icon }}</span>

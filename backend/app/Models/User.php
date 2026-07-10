@@ -33,6 +33,7 @@ use LaravelWebauthn\WebauthnAuthenticatable;
     'phone_verified',
     'phone_verified_at',
     'kyc_status',
+    'manual_kyc_enabled',
     'has_subscription',
     'tenant_id',
     'status',
@@ -55,6 +56,7 @@ final class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'eds_verified_at' => 'datetime',
             'phone_verified' => 'boolean',
+            'manual_kyc_enabled' => 'boolean',
             'has_subscription' => 'boolean',
             'password' => 'hashed',
             'notification_preferences' => 'array',
@@ -99,6 +101,11 @@ final class User extends Authenticatable
     public function exchangeOrders(): HasMany
     {
         return $this->hasMany(ExchangeOrder::class);
+    }
+
+    public function bankCards(): HasMany
+    {
+        return $this->hasMany(UserBankCard::class);
     }
 
     public function withdrawals(): HasMany

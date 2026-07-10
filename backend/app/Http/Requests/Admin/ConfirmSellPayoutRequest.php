@@ -18,10 +18,6 @@ final class ConfirmSellPayoutRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'payment_reference' => ['required', 'string', 'max:255'],
-            'bank_name' => ['nullable', 'string', 'max:255'],
-            'comment' => ['nullable', 'string', 'max:1000'],
-        ];
+        return [];
     }
 }

@@ -22,26 +22,20 @@ defineProps({
 
     <div class="app-frame">
         <main class="app-shell page-enter flex min-h-dvh flex-col px-margin-page">
-            <header class="flex items-center justify-between gap-3 pt-4" style="padding-top: calc(16px + var(--safe-top))">
-                <AppLogo :size="44" show-wordmark />
-                <LocaleSwitcher compact code-only />
+            <header class="relative z-30 flex shrink-0 items-center justify-between gap-3 pt-4" style="padding-top: calc(16px + var(--safe-top))">
+                <AppLogo show-wordmark class="landing-header-logo min-w-0 flex-1 overflow-hidden" />
+                <LocaleSwitcher class="relative z-30 shrink-0" compact code-only />
             </header>
 
             <section class="flex flex-1 flex-col items-center justify-center py-stack-section text-center">
-                <p class="text-label-caps uppercase text-text-dim">USDT / KZT</p>
-
-                <h1 class="mt-3 text-headline-xl text-on-surface">
-                    {{ company.name }}
-                </h1>
-
-                <p class="mt-3 text-body-sm leading-relaxed text-text-muted">
+                <p class="mb-2 -mt-16 text-headline-md font-semibold leading-snug text-on-surface">
                     {{ t('landing.tagline') }}
                 </p>
 
                 <img
-                    src="/logo-wordmark.png"
+                    src="/logo-wordmark.png?v=2"
                     :alt="company.name"
-                    class="mt-stack-section h-auto w-full max-w-[220px]"
+                    class="mt-12 h-auto w-full max-w-[280px]"
                 />
 
                 <Link :href="route('auth.phone')" class="btn-primary mt-stack-section no-underline">

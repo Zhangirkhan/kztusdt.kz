@@ -1,12 +1,37 @@
 <script setup>
 import AppLogo from '@/Components/AppLogo.vue';
 import SeoHead from '@/Components/SeoHead.vue';
-import { Link } from '@inertiajs/vue3';
+import { localizedPath } from '@/utils/localizedPath';
+import { Link, router } from '@inertiajs/vue3';
 
 defineProps({
     documents: Array,
     updatedAt: String,
 });
+
+function goBack() {
+    try {
+        if (window.history.length > 1) {
+            const referrer = document.referrer;
+
+            if (!referrer) {
+                window.history.back();
+                return;
+            }
+
+            const ref = new URL(referrer);
+
+            if (ref.origin === window.location.origin) {
+                window.history.back();
+                return;
+            }
+        }
+    } catch {
+        // fall through
+    }
+
+    router.visit(localizedPath('/'));
+}
 </script>
 
 <template>
@@ -14,10 +39,15 @@ defineProps({
 
     <div class="mx-auto min-h-screen w-full max-w-container-max bg-background px-margin-page py-stack-section">
         <header class="mb-stack-section flex items-center gap-3">
-            <Link :href="route('auth.phone')" class="p-2 -ml-2 text-text-dim transition hover:text-on-surface">
+            <button
+                type="button"
+                class="p-2 -ml-2 text-text-dim transition hover:text-on-surface"
+                aria-label="Назад"
+                @click="goBack"
+            >
                 <span class="material-symbols-outlined">arrow_back</span>
-            </Link>
-            <AppLogo :size="36" show-wordmark />
+            </button>
+            <AppLogo show-wordmark />
         </header>
 
         <h1 class="text-headline-xl">Юридические документы</h1>

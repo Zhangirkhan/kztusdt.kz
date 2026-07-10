@@ -24,7 +24,7 @@ const isCompact = computed(() => props.variant === 'compact');
         :class="isCompact ? 'border border-outline-variant/40 bg-surface-container-low/80' : 'overflow-hidden'"
     >
         <div class="flex items-start gap-3">
-            <AppLogo :size="isCompact ? 40 : 48" />
+            <AppLogo />
 
             <div class="min-w-0 flex-1">
                 <p class="text-label-caps uppercase text-text-dim">О сервисе</p>

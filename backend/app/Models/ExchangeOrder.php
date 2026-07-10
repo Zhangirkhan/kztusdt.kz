@@ -17,6 +17,7 @@ final class ExchangeOrder extends Model
     public const STATUS_AWAITING_KZT_PAYMENT = 'awaiting_kzt_payment';
     public const STATUS_PAYMENT_PROOF_UPLOADED = 'payment_proof_uploaded';
     public const STATUS_PENDING_ADMIN_CONFIRMATION = 'pending_admin_confirmation';
+    public const STATUS_KZT_SENT = 'kzt_sent';
     public const STATUS_KZT_RECEIVED = 'kzt_received';
     public const STATUS_CRYPTO_SENDING = 'crypto_sending';
     public const STATUS_CRYPTO_SENT = 'crypto_sent';
@@ -33,15 +34,24 @@ final class ExchangeOrder extends Model
         self::STATUS_PENDING_ADMIN_CONFIRMATION,
     ];
 
+    protected $appends = [
+        'payment_bank_name',
+    ];
+
     protected $fillable = [
         'user_id',
         'tenant_id',
+        'exchange_listing_id',
         'direction',
         'status',
         'fiat_currency',
         'crypto_asset',
         'network',
         'rate',
+        'payment_term',
+        'payment_bank_code',
+        'listing_conditions',
+        'payment_marked_at',
         'fiat_amount',
         'crypto_amount',
         'fee_percent',
@@ -58,6 +68,7 @@ final class ExchangeOrder extends Model
     {
         return [
             'kzt_received_at' => 'datetime',
+            'payment_marked_at' => 'datetime',
             'kzt_sent_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
@@ -72,6 +83,11 @@ final class ExchangeOrder extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function exchangeListing(): BelongsTo
+    {
+        return $this->belongsTo(ExchangeListing::class);
     }
 
     public function fiatPaymentRequest(): HasOne
@@ -92,6 +108,22 @@ final class ExchangeOrder extends Model
     public function isSell(): bool
     {
         return $this->direction === self::DIRECTION_SELL;
+    }
+
+    public function paymentBankName(): ?string
+    {
+        if ($this->payment_bank_code === null || $this->payment_bank_code === '') {
+            return null;
+        }
+
+        $catalog = (array) config('banks.catalog', []);
+
+        return $catalog[$this->payment_bank_code] ?? $this->payment_bank_code;
+    }
+
+    public function getPaymentBankNameAttribute(): ?string
+    {
+        return $this->paymentBankName();
     }
 
     public function isFinal(): bool

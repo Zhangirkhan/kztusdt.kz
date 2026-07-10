@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 /**
- * One-off: build brand assets from the source logo.
- * Removes the (flattened) white background and emits transparent PNGs plus a
- * maskable icon on the brand-dark background.
+ * Build brand assets from the source logo.
+ *
+ * Only the outer (border-connected) near-white background is removed via flood-fill.
+ * The white top face of the mark is preserved.
  */
 $source = $argv[1] ?? null;
 
@@ -26,7 +27,6 @@ if ($src === false) {
 $w = imagesx($src);
 $h = imagesy($src);
 
-// Master with white knocked out to transparency.
 $master = imagecreatetruecolor($w, $h);
 imagealphablending($master, false);
 imagesavealpha($master, true);
@@ -35,28 +35,69 @@ imagefill($master, 0, 0, imagecolorallocatealpha($master, 0, 0, 0, 127));
 for ($y = 0; $y < $h; $y++) {
     for ($x = 0; $x < $w; $x++) {
         $rgb = imagecolorat($src, $x, $y);
+        $a = ($rgb & 0x7F000000) >> 24;
         $r = ($rgb >> 16) & 0xFF;
         $g = ($rgb >> 8) & 0xFF;
         $b = $rgb & 0xFF;
 
-        $lum = 0.299 * $r + 0.587 * $g + 0.114 * $b;
-
-        if ($lum >= 244) {
-            continue; // leave transparent
-        }
-
-        $alpha = 0; // opaque
-        if ($lum > 230) {
-            $alpha = (int) round(127 * (($lum - 230) / 14));
-        }
-
-        imagesetpixel($master, $x, $y, imagecolorallocatealpha($master, $r, $g, $b, $alpha));
+        // GD truecolor alpha: 0 opaque .. 127 transparent. Also support loaded PNG opacity.
+        $srcA = imagecolorat($src, $x, $y);
+        // Prefer reading via imagecolorsforindex when available through truecolor.
+        imagesetpixel($master, $x, $y, imagecolorallocatealpha($master, $r, $g, $b, 0));
     }
 }
 
-/**
- * Resize the transparent master onto a square transparent canvas.
- */
+imagecopy($master, $src, 0, 0, 0, 0, $w, $h);
+imagealphablending($master, false);
+imagesavealpha($master, true);
+
+$visited = array_fill(0, $w * $h, false);
+$queue = [];
+
+$enqueue = static function (int $x, int $y) use (&$queue, $w, $h, &$visited): void {
+    if ($x < 0 || $y < 0 || $x >= $w || $y >= $h) {
+        return;
+    }
+    $i = $y * $w + $x;
+    if ($visited[$i]) {
+        return;
+    }
+    $visited[$i] = true;
+    $queue[] = [$x, $y];
+};
+
+for ($x = 0; $x < $w; $x++) {
+    $enqueue($x, 0);
+    $enqueue($x, $h - 1);
+}
+for ($y = 0; $y < $h; $y++) {
+    $enqueue(0, $y);
+    $enqueue($w - 1, $y);
+}
+
+$transparent = imagecolorallocatealpha($master, 0, 0, 0, 127);
+
+while ($queue !== []) {
+    [$x, $y] = array_shift($queue);
+    $rgb = imagecolorat($master, $x, $y);
+    $r = ($rgb >> 16) & 0xFF;
+    $g = ($rgb >> 8) & 0xFF;
+    $b = $rgb & 0xFF;
+    $a = ($rgb & 0x7F000000) >> 24;
+
+    $isBg = $a >= 120 || ($r >= 245 && $g >= 245 && $b >= 245);
+
+    if (! $isBg) {
+        continue;
+    }
+
+    imagesetpixel($master, $x, $y, $transparent);
+    $enqueue($x + 1, $y);
+    $enqueue($x - 1, $y);
+    $enqueue($x, $y + 1);
+    $enqueue($x, $y - 1);
+}
+
 function transparentIcon($master, int $size): \GdImage
 {
     $mw = imagesx($master);
@@ -68,15 +109,12 @@ function transparentIcon($master, int $size): \GdImage
     imagefill($out, 0, 0, imagecolorallocatealpha($out, 0, 0, 0, 127));
     imagealphablending($out, true);
     imagecopyresampled($out, $master, 0, 0, 0, 0, $size, $size, $mw, $mh);
+    imagealphablending($out, false);
+    imagesavealpha($out, true);
 
     return $out;
 }
 
-/**
- * Opaque white-background icon (safe for iOS apple-touch & maskable, where
- * transparency would otherwise render as black and hide the dark logo half).
- * $scale controls the logo size inside the square (1.0 = full bleed).
- */
 function whiteIcon($master, int $size, float $scale = 1.0): \GdImage
 {
     $mw = imagesx($master);
@@ -96,10 +134,8 @@ function whiteIcon($master, int $size, float $scale = 1.0): \GdImage
 }
 
 $targets = [
-    // In-app marks (rendered in the DOM over the dark UI) — transparent.
     $publicDir.'/logo.png' => transparentIcon($master, 512),
     $publicDir.'/logo-wordmark.png' => transparentIcon($master, 512),
-    // Installable / home-screen icons — opaque white so both logo halves read.
     $publicDir.'/icons/icon-192.png' => whiteIcon($master, 192),
     $publicDir.'/icons/icon-512.png' => whiteIcon($master, 512),
     $publicDir.'/icons/icon-32.png' => whiteIcon($master, 32),

@@ -33,7 +33,7 @@ const submit = () => {
         <div class="app-shell page-enter flex min-h-dvh flex-col px-margin-page py-stack-section">
             <div class="mx-auto w-full max-w-md">
             <div class="mb-8 text-center">
-                <AppLogo :size="56" show-wordmark class="mx-auto" />
+                <AppLogo show-wordmark class="mx-auto" />
                 <h1 class="mt-6 text-headline-xl text-on-surface">Вход для сотрудников</h1>
                 <p class="mt-2 text-body-sm text-text-muted">
                     Панель администрирования kztusdt.kz

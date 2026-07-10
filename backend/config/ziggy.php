@@ -24,6 +24,7 @@ return [
             'locale.update',
             'home',
             'wallet',
+            'wallet.history',
             'exchange',
             'exchange.orders.*',
             'withdraw',

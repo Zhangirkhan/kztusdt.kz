@@ -120,7 +120,7 @@ final class ExchangeOrderBuyTest extends TestCase
         $user = $this->createClient();
         $order = $this->createBuyOrder($user);
 
-        $this->actingAs($user)->post("/exchange/orders/{$order->id}/proof", [
+        $this->actingAs($user)->post("/ru/exchange/orders/{$order->id}/proof", [
             'proof' => UploadedFile::fake()->image('receipt.jpg'),
         ])->assertRedirect(route('exchange.orders.show', $order));
 
@@ -197,6 +197,65 @@ final class ExchangeOrderBuyTest extends TestCase
         $this->assertSame(0, bccomp('0', app(LedgerService::class)->availableBalance($user->id, 'USDT'), 18));
     }
 
+    public function test_client_marks_payment_without_proof(): void
+    {
+        $this->fakeExternalApis();
+
+        $user = $this->createClient();
+        $order = $this->createBuyOrder($user);
+
+        $this->actingAs($user)
+            ->post("/ru/exchange/orders/{$order->id}/mark-paid")
+            ->assertRedirect(route('exchange.orders.show', ['locale' => 'ru', 'order' => $order]));
+
+        $order->refresh();
+        $this->assertSame(ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION, $order->status);
+        $this->assertNotNull($order->payment_marked_at);
+    }
+
+    public function test_client_uploads_proof_after_marking_paid(): void
+    {
+        Storage::fake('local');
+        $this->fakeExternalApis();
+
+        $user = $this->createClient();
+        $order = $this->createBuyOrder($user);
+
+        $this->actingAs($user)->post("/ru/exchange/orders/{$order->id}/mark-paid");
+
+        $this->actingAs($user)
+            ->postJson("/ru/exchange/orders/{$order->id}/proof", [
+                'proof' => UploadedFile::fake()->image('receipt.jpg'),
+            ])
+            ->assertOk()
+            ->assertJson(['message' => 'Скрин оплаты загружен.']);
+
+        $order->refresh();
+        $this->assertSame(ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION, $order->status);
+        $this->assertNotNull($order->fiatPaymentRequest->proof_file_path);
+    }
+
+    public function test_client_can_download_own_payment_proof(): void
+    {
+        Storage::fake('local');
+        $this->fakeExternalApis();
+
+        $user = $this->createClient();
+        $order = $this->createBuyOrder($user);
+
+        $this->actingAs($user)->post("/ru/exchange/orders/{$order->id}/proof", [
+            'proof' => UploadedFile::fake()->image('receipt.jpg'),
+        ]);
+
+        $this->actingAs($user)
+            ->get("/ru/exchange/orders/{$order->id}/proof")
+            ->assertOk();
+
+        $this->actingAs($this->createClient())
+            ->get("/ru/exchange/orders/{$order->id}/proof")
+            ->assertForbidden();
+    }
+
     public function test_client_cancels_own_buy_order(): void
     {
         $this->fakeExternalApis();
@@ -248,7 +307,7 @@ final class ExchangeOrderBuyTest extends TestCase
 
     private function createBuyOrder(User $user): ExchangeOrder
     {
-        $this->actingAs($user)->post('/exchange/orders', [
+        $this->actingAs($user)->post('/ru/exchange/orders', [
             'direction' => 'buy',
             'kzt_amount' => 101000,
         ]);

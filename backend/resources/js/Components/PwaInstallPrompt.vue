@@ -22,7 +22,7 @@ const visible = computed(() => canInstall.value || showIosHint.value);
             class="fixed inset-x-0 bottom-0 z-50 border-t border-outline-variant/40 bg-surface/95 px-margin-page py-4 backdrop-blur-md"
         >
             <div class="mx-auto flex max-w-container-max items-start gap-3">
-                <AppLogo :size="44" />
+                <AppLogo />
 
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold text-on-surface">Установите приложение</p>

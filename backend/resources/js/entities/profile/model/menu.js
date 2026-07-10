@@ -2,17 +2,17 @@ import { localizedPath } from '@/utils/localizedPath';
 
 export function buildProfileMenuItems(languageLabel, canUseWallet = true) {
     return [
-        { href: localizedPath('/profile/personal'), icon: 'person', label: 'Личные данные' },
+        { href: localizedPath('/profile/personal'), icon: 'badge', labelKey: 'profile.menu.personal' },
         {
             href: canUseWallet ? localizedPath('/profile/bank') : localizedPath('/kyc'),
-            icon: 'account_balance',
-            label: 'Банковские реквизиты',
+            icon: 'account_balance_wallet',
+            labelKey: 'profile.menu.bank',
             locked: !canUseWallet,
         },
-        { href: localizedPath('/profile/security'), icon: 'shield', label: 'Безопасность' },
-        { href: localizedPath('/profile/language'), icon: 'language', label: 'Сменить язык', value: languageLabel },
-        { href: localizedPath('/profile/notifications'), icon: 'notifications', label: 'Уведомления' },
-        { href: localizedPath('/profile/support'), icon: 'headset_mic', label: 'Служба поддержки' },
+        { href: localizedPath('/profile/security'), icon: 'security', labelKey: 'profile.menu.security' },
+        { href: localizedPath('/profile/language'), icon: 'translate', labelKey: 'profile.menu.language', value: languageLabel },
+        { href: localizedPath('/profile/notifications'), icon: 'notifications', labelKey: 'profile.menu.notifications' },
+        { href: localizedPath('/profile/support'), icon: 'support_agent', labelKey: 'profile.menu.support' },
     ];
 }
 

@@ -14,6 +14,8 @@ final class KycProfile extends Model
         'user_id',
         'provider',
         'sumsub_applicant_id',
+        'provider_verification_id',
+        'provider_session_id',
         'first_name',
         'last_name',
         'company_name',

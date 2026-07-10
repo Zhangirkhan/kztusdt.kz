@@ -22,8 +22,6 @@ final class LegalEntityEdsController extends Controller
         try {
             $result = $this->edsRegistrationService->startRegistration(
                 $request->validated('phone'),
-                $request->validated('bin'),
-                $request->validated('company_name'),
             );
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);

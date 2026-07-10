@@ -1,13 +1,19 @@
 import { router } from '@inertiajs/vue3';
 import { localizedPath } from '@/utils/localizedPath';
 
-export function useHistoryFilters(initialState) {
+export function useHistoryFilters(getState) {
+    function currentState() {
+        return typeof getState === 'function' ? getState() : getState;
+    }
+
     function reload(params = {}) {
+        const state = currentState();
+
         router.get(localizedPath('/wallet/history'), {
-            section: initialState.section,
-            filter: initialState.filter,
-            status: initialState.status,
-            q: initialState.search,
+            section: state.section,
+            filter: state.filter,
+            status: state.status,
+            q: state.search,
             ...params,
         }, { preserveState: true, preserveScroll: true });
     }

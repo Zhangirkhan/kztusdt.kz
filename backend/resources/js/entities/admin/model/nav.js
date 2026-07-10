@@ -41,6 +41,20 @@ const NAV_GROUPS = [
         label: 'Операции',
         items: [
             {
+                section: 'support',
+                href: '/admin/support',
+                label: 'Чат',
+                icon: 'chat',
+                match: (url) => url.startsWith('/admin/support'),
+            },
+            {
+                section: 'listings',
+                href: '/admin/listings',
+                label: 'Объявления',
+                icon: 'campaign',
+                match: (url) => url.startsWith('/admin/listings'),
+            },
+            {
                 section: 'orders',
                 href: '/admin/orders',
                 label: 'Ордера',

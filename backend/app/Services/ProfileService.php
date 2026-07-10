@@ -124,9 +124,6 @@ final class ProfileService
             'kyc_first_name' => $user->kycProfile?->first_name,
             'kyc_last_name' => $user->kycProfile?->last_name,
             'locale' => $user->locale,
-            'bank_name' => $user->bank_name,
-            'bank_holder' => $user->bank_holder,
-            'bank_account' => $user->bank_account,
             'notification_preferences' => $user->notification_preferences ?? [
                 'push' => true,
                 'email' => true,

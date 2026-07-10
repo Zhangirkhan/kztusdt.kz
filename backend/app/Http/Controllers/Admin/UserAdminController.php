@@ -82,6 +82,7 @@ final class UserAdminController extends Controller
                 'phone' => $user->phone,
                 'status' => $user->status,
                 'kyc_status' => $user->kyc_status,
+                'manual_kyc_enabled' => (bool) $user->manual_kyc_enabled,
                 'phone_verified' => (bool) $user->phone_verified,
                 'has_subscription' => (bool) $user->has_subscription,
                 'created_at' => $user->created_at?->toIso8601String(),
@@ -128,6 +129,30 @@ final class UserAdminController extends Controller
         return redirect()
             ->route('admin.users.show', $user)
             ->with('success', 'Статус пользователя обновлён.');
+    }
+
+    public function updateManualKyc(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'manual_kyc_enabled' => ['required', 'boolean'],
+        ]);
+
+        $user->update(['manual_kyc_enabled' => $validated['manual_kyc_enabled']]);
+
+        $this->auditLogService->log(
+            action: 'admin.user.manual_kyc_updated',
+            userId: $request->user()?->id,
+            entityType: 'user',
+            entityId: $user->id,
+            payload: ['manual_kyc_enabled' => $validated['manual_kyc_enabled']],
+            request: $request,
+        );
+
+        return redirect()
+            ->route('admin.users.show', $user)
+            ->with('success', $validated['manual_kyc_enabled']
+                ? 'Ручная верификация включена для клиента.'
+                : 'Ручная верификация отключена для клиента.');
     }
 
     public function manualKycApprove(AdminManualKycRequest $request, User $user): RedirectResponse

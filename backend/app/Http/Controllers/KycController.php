@@ -75,7 +75,7 @@ final class KycController extends Controller
 
     public function store(SubmitKycRequest $request): RedirectResponse
     {
-        abort_unless(KycClientOptions::manualEnabled(), 403, 'Ручная подача KYC отключена.');
+        abort_unless(KycClientOptions::manualEnabledForUser($request->user()), 403, 'Ручная подача KYC отключена.');
 
         try {
             $this->kycService->submit(

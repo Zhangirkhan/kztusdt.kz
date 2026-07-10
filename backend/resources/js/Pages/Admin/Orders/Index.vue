@@ -21,6 +21,7 @@ const statusLabels = {
     awaiting_kzt_payment: 'Ждёт оплату KZT',
     payment_proof_uploaded: 'Скрин загружен',
     pending_admin_confirmation: 'Ждёт подтверждения',
+    kzt_sent: 'KZT отправлены',
     kzt_received: 'KZT получены',
     completed: 'Выполнена',
     cancelled: 'Отменена',

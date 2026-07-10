@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminBackLink from '@/shared/ui/admin/AdminBackLink.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import PaymentProofPreview from '@/shared/ui/payment-proof/PaymentProofPreview.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatKzt, formatPercent, formatRate, formatUsdt } from '@/utils/formatNumber';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -10,14 +11,18 @@ import { computed, ref } from 'vue';
 const props = defineProps({
     order: Object,
     paymentRequest: Object,
+    paymentProof: {
+        type: Object,
+        default: null,
+    },
 });
 
 const showConfirmModal = ref(false);
 const showPayoutModal = ref(false);
 const showRejectModal = ref(false);
 
-const confirmForm = useForm({ comment: '' });
-const payoutForm = useForm({ payment_reference: '', bank_name: '', comment: '' });
+const confirmForm = useForm({});
+const payoutForm = useForm({});
 const rejectForm = useForm({ reason: '' });
 
 const statusLabels = {
@@ -25,6 +30,7 @@ const statusLabels = {
     awaiting_kzt_payment: 'Ждёт оплату KZT',
     payment_proof_uploaded: 'Скрин загружен',
     pending_admin_confirmation: 'Ждёт подтверждения',
+    kzt_sent: 'KZT отправлены',
     kzt_received: 'KZT получены',
     completed: 'Выполнена',
     cancelled: 'Отменена',
@@ -144,7 +150,10 @@ function formatDate(value) {
                         size="small"
                     >
                         <a-descriptions v-if="paymentRequest" :column="1" size="small">
-                            <a-descriptions-item label="Банк">{{ paymentRequest.bank_name }}</a-descriptions-item>
+                            <a-descriptions-item v-if="order.payment_bank_name" label="Банк клиента">
+                                {{ order.payment_bank_name }}
+                            </a-descriptions-item>
+                            <a-descriptions-item label="Банк получателя">{{ paymentRequest.bank_name }}</a-descriptions-item>
                             <a-descriptions-item label="Получатель">{{ paymentRequest.recipient_name }}</a-descriptions-item>
                             <a-descriptions-item label="Счёт / карта">
                                 <a-typography-text code>{{ paymentRequest.recipient_account }}</a-typography-text>
@@ -156,13 +165,11 @@ function formatDate(value) {
                         </a-descriptions>
 
                         <template v-if="isBuy">
-                            <a
-                                v-if="paymentRequest?.proof_file_path"
-                                :href="`/admin/orders/${order.id}/proof`"
-                                target="_blank"
-                            >
-                                <a-button type="primary" ghost style="margin-top: 12px">📎 Открыть скрин оплаты</a-button>
-                            </a>
+                            <PaymentProofPreview
+                                v-if="paymentProof"
+                                :proof="paymentProof"
+                                class="admin-ant-block"
+                            />
                             <a-typography-text v-else type="secondary">Скрин оплаты ещё не загружен.</a-typography-text>
                         </template>
                     </a-card>
@@ -173,54 +180,32 @@ function formatDate(value) {
             <a-modal
                 v-model:open="showConfirmModal"
                 title="Подтвердить оплату"
-                ok-text="Подтвердить и зачислить USDT"
-                cancel-text="Отмена"
+                ok-text="Да"
+                cancel-text="Нет"
                 :confirm-loading="confirmForm.processing"
-                width="520px"
+                width="420px"
                 destroy-on-close
                 @ok="confirmBuy"
             >
-                <a-typography-paragraph>
+                <a-typography-paragraph class="!mb-0">
                     Подтвердить получение <strong>{{ formatKzt(order.fiat_amount) }} ₸</strong> и зачислить USDT клиенту?
                 </a-typography-paragraph>
-                <a-form layout="vertical">
-                    <a-form-item label="Комментарий (необязательно)">
-                        <a-textarea v-model:value="confirmForm.comment" :rows="2" />
-                    </a-form-item>
-                </a-form>
             </a-modal>
 
             <!-- Завершение продажи -->
             <a-modal
                 v-model:open="showPayoutModal"
                 title="Завершить выплату KZT"
-                ok-text="KZT отправлены — завершить"
-                cancel-text="Отмена"
+                ok-text="Да"
+                cancel-text="Нет"
                 :confirm-loading="payoutForm.processing"
-                width="520px"
+                width="420px"
                 destroy-on-close
                 @ok="payoutSell"
             >
-                <a-typography-paragraph>
+                <a-typography-paragraph class="!mb-0">
                     Подтвердить, что <strong>{{ formatKzt(order.fiat_amount) }} ₸</strong> отправлены клиенту?
-                    USDT будут списаны окончательно.
                 </a-typography-paragraph>
-                <a-form layout="vertical">
-                    <a-form-item
-                        label="Референс / номер перевода"
-                        required
-                        :validate-status="payoutForm.errors.payment_reference ? 'error' : ''"
-                        :help="payoutForm.errors.payment_reference"
-                    >
-                        <a-input v-model:value="payoutForm.payment_reference" />
-                    </a-form-item>
-                    <a-form-item label="Банк (если отличается)">
-                        <a-input v-model:value="payoutForm.bank_name" />
-                    </a-form-item>
-                    <a-form-item label="Комментарий (необязательно)">
-                        <a-input v-model:value="payoutForm.comment" />
-                    </a-form-item>
-                </a-form>
             </a-modal>
 
             <!-- Отклонение -->

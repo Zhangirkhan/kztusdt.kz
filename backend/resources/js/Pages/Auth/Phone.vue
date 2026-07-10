@@ -54,7 +54,6 @@ const biometricAvailable = ref(false);
 let biometricCheckTimer = null;
 const phoneError = computed(() => getKzPhoneError(form.phone, t));
 const isIinComplete = computed(() => /^\d{12}$/.test(form.iin));
-const isBinComplete = computed(() => /^\d{12}$/.test(form.bin));
 const iinError = computed(() => {
     if (isLegalEntity.value || form.iin.length === 0 || isIinComplete.value) {
         return '';
@@ -62,17 +61,12 @@ const iinError = computed(() => {
 
     return t('auth.iinError');
 });
-const binError = computed(() => {
-    if (! isLegalEntity.value || form.bin.length === 0 || isBinComplete.value) {
-        return '';
+const canSubmit = computed(() => {
+    if (isLegalEntity.value) {
+        return false;
     }
 
-    return t('auth.binError');
-});
-const canSubmit = computed(() => {
-    const idOk = isLegalEntity.value ? isBinComplete.value && form.company_name.trim().length >= 2 : isIinComplete.value;
-
-    return idOk && isKzPhoneComplete(form.phone) && !form.processing;
+    return isIinComplete.value && isKzPhoneComplete(form.phone) && !form.processing;
 });
 const canClear = computed(() => form.phone !== MIN_PHONE);
 const showBiometricLogin = computed(() => biometricSupported && biometricAvailable.value && isKzPhoneComplete(form.phone));
@@ -134,21 +128,15 @@ function onIinInput(event) {
     event.target.value = form.iin;
 }
 
-function onBinInput(event) {
-    form.bin = event.target.value.replace(/\D/g, '').slice(0, 12);
-    event.target.value = form.bin;
-}
-
 function setClientType(type) {
     form.client_type = type;
     edsStep.value = 'form';
     edsError.value = '';
     edsSession.value = null;
+    form.bin = '';
+    form.company_name = '';
 
-    if (type === 'individual') {
-        form.bin = '';
-        form.company_name = '';
-    } else {
+    if (type !== 'individual') {
         form.iin = '';
     }
 }
@@ -156,9 +144,7 @@ function setClientType(type) {
 async function submitForm() {
     edsError.value = '';
 
-    if (isLegalEntity.value && props.legalEntityEdsRequired) {
-        await startLegalEntityEds();
-
+    if (isLegalEntity.value) {
         return;
     }
 
@@ -178,8 +164,6 @@ async function startLegalEntityEds() {
             },
             body: JSON.stringify({
                 phone: form.phone,
-                bin: form.bin,
-                company_name: form.company_name,
             }),
         });
 
@@ -264,7 +248,7 @@ onUnmounted(() => {
     <div class="app-frame">
         <div class="app-shell page-enter flex min-h-dvh flex-col px-margin-page pb-36">
             <header class="flex items-center justify-between gap-3 pt-4" style="padding-top: calc(16px + var(--safe-top))">
-                <AppLogo :size="44" show-wordmark />
+                <AppLogo show-wordmark />
                 <LocaleSwitcher compact code-only />
             </header>
 
@@ -305,6 +289,10 @@ onUnmounted(() => {
                     </div>
                 </div>
 
+                <div v-if="isLegalEntity" class="warning-box text-center font-semibold">
+                    {{ t('auth.legalEntityComingSoon') }}
+                </div>
+
                 <div v-if="!isLegalEntity">
                     <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.iinLabel') }}</label>
                     <input
@@ -322,37 +310,7 @@ onUnmounted(() => {
                     <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.iinHint') }}</p>
                 </div>
 
-                <template v-else>
-                    <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.companyNameLabel') }}</label>
-                        <input
-                            v-model="form.company_name"
-                            type="text"
-                            class="input-field"
-                            autocomplete="organization"
-                        />
-                        <p v-if="form.errors.company_name" class="mt-2 text-sm text-error">{{ form.errors.company_name }}</p>
-                        <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.companyNameHint') }}</p>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.binLabel') }}</label>
-                        <input
-                            :value="form.bin"
-                            type="text"
-                            class="input-field"
-                            placeholder="000000000000"
-                            autocomplete="off"
-                            inputmode="numeric"
-                            maxlength="12"
-                            @input="onBinInput"
-                        />
-                        <p v-if="form.errors.bin" class="mt-2 text-sm text-error">{{ form.errors.bin }}</p>
-                        <p v-else-if="binError" class="mt-2 text-sm text-error">{{ binError }}</p>
-                        <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.binHint') }}</p>
-                    </div>
-                </template>
-
+                <template v-if="!isLegalEntity">
                 <div>
                     <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.phoneLabel') }}</label>
                     <div class="relative">
@@ -412,6 +370,7 @@ onUnmounted(() => {
                 </div>
 
                 <p v-if="biometricError" class="text-sm text-error">{{ biometricError }}</p>
+                </template>
             </form>
 
             <div v-else class="space-y-stack-element">
@@ -428,9 +387,8 @@ onUnmounted(() => {
                         >{{ t('auth.edsInstallLink') }}</a>.
                     </p>
                     <div class="mt-4 space-y-1 text-sm">
-                        <p><span class="text-text-dim">{{ t('auth.companyNameLabel') }}:</span> {{ form.company_name }}</p>
-                        <p><span class="text-text-dim">{{ t('auth.binLabel') }}:</span> {{ form.bin }}</p>
                         <p><span class="text-text-dim">{{ t('auth.phoneLabel') }}:</span> {{ form.phone }}</p>
+                        <p class="text-xs text-text-dim">{{ t('auth.edsCertDataHint') }}</p>
                     </div>
                 </div>
 

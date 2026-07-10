@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Rules\Bin;
 use Illuminate\Foundation\Http\FormRequest;
 
 final class StartLegalEntityEdsRequest extends FormRequest
@@ -21,8 +20,6 @@ final class StartLegalEntityEdsRequest extends FormRequest
     {
         return [
             'phone' => ['required', 'string', 'min:10', 'max:50'],
-            'bin' => ['required', 'string', new Bin],
-            'company_name' => ['required', 'string', 'min:2', 'max:255'],
         ];
     }
 }
