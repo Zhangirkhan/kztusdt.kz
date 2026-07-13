@@ -191,14 +191,80 @@ final class PhoneAuthTest extends TestCase
         $this->assertNotNull($user->eds_verified_at);
     }
 
+    public function test_start_reuses_pending_session_without_new_otp(): void
+    {
+        $this->fakeOtp();
+
+        $first = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
+            ->assertCreated()
+            ->json('login_code');
+
+        $second = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
+            ->assertCreated()
+            ->json('login_code');
+
+        $this->assertSame($first, $second);
+        $this->assertSame('pending', AuthSession::query()->where('login_code', $first)->value('status'));
+        Http::assertSentCount(1);
+    }
+
+    public function test_new_start_expires_previous_pending_when_details_change(): void
+    {
+        $this->fakeOtp();
+
+        $first = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
+
+        AuthSession::query()->where('login_code', $first)->update(['iin' => '000000000000']);
+
+        $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->assertCreated();
+
+        $this->assertSame('expired', AuthSession::query()->where('login_code', $first)->value('status'));
+    }
+
+    public function test_authenticated_user_resumes_kyc_from_auth_phone(): void
+    {
+        config([
+            'kyc.provider' => 'sumsub',
+            'kyc.sumsub.app_token' => 'test-token',
+            'kyc.sumsub.secret_key' => 'test-secret',
+        ]);
+
+        $this->fakeOtp();
+
+        $code = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
+        $this->postJson("/api/auth/phone/verify/{$code}", ['code' => $this->lastCode()])->assertOk();
+
+        $this->get('/ru/auth/phone')
+            ->assertRedirect(route('auth.whatsapp.wait', [
+                'locale' => 'ru',
+                'loginCode' => $code,
+            ]));
+    }
+
     public function test_start_is_rate_limited_per_phone(): void
     {
         $this->fakeOtp();
 
         for ($i = 0; $i < 5; $i++) {
+            AuthSession::query()
+                ->where('phone', '+77071234567')
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'expired',
+                    'expires_at' => now()->subMinute(),
+                ]);
+
             $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
                 ->assertCreated();
         }
+
+        AuthSession::query()
+            ->where('phone', '+77071234567')
+            ->where('status', 'pending')
+            ->update([
+                'status' => 'expired',
+                'expires_at' => now()->subMinute(),
+            ]);
 
         $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])
             ->assertStatus(422);
@@ -211,7 +277,7 @@ final class PhoneAuthTest extends TestCase
         $first = $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->json('login_code');
         $this->postJson('/api/auth/phone/start', ['iin' => self::VALID_IIN, 'phone' => '+77071234567'])->assertCreated();
 
-        $this->assertSame('expired', AuthSession::query()->where('login_code', $first)->value('status'));
+        $this->assertSame('pending', AuthSession::query()->where('login_code', $first)->value('status'));
     }
 
     public function test_resend_refreshes_otp_for_existing_session(): void
@@ -362,10 +428,14 @@ final class PhoneAuthTest extends TestCase
     {
         $this->fakeOtp();
 
-        $response = $this->post('/ru/auth/phone', [
-            'iin' => self::VALID_IIN,
-            'phone' => '+77071234567',
-        ]);
+        $this->get('/ru/auth/captcha')->assertOk();
+
+        $response = $this->withSession(['auth.captcha_code' => 'abc12'])
+            ->post('/ru/auth/phone', [
+                'iin' => self::VALID_IIN,
+                'phone' => '+77071234567',
+                'captcha' => 'ABC12',
+            ]);
 
         $session = AuthSession::query()->where('phone', '+77071234567')->latest('id')->first();
         $this->assertNotNull($session);
@@ -384,6 +454,23 @@ final class PhoneAuthTest extends TestCase
                 ->component('Auth/WhatsAppWait')
                 ->where('loginCode', $session->login_code)
                 ->where('initialStep', 'whatsapp'));
+    }
+
+    public function test_phone_page_store_requires_valid_captcha(): void
+    {
+        $this->fakeOtp();
+
+        $this->withSession(['auth.captcha_code' => 'abc12'])
+            ->post('/ru/auth/phone', [
+                'iin' => self::VALID_IIN,
+                'phone' => '+77071234567',
+                'captcha' => 'wrong',
+            ])
+            ->assertSessionHasErrors('captcha');
+
+        $this->assertDatabaseMissing('auth_sessions', [
+            'phone' => '+77071234567',
+        ]);
     }
 
     public function test_verified_authenticated_user_sees_inline_kyc_on_wait_page(): void

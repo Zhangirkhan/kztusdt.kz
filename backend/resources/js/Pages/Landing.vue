@@ -1,16 +1,20 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLogo from '@/Components/AppLogo.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
 import { useTheme } from '@/composables/useTheme';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
+const page = usePage();
 const { isDark } = useTheme();
 const wordmarkSrc = computed(() =>
     isDark.value ? '/logo-wordmark-dark.png?v=5' : '/logo-wordmark.png?v=5',
 );
+const continueHref = computed(() => (
+    page.props.auth?.user ? route('home') : route('auth.phone')
+));
 
 defineProps({
     company: {
@@ -44,7 +48,7 @@ defineProps({
                     class="mt-12 h-auto w-full max-w-[280px]"
                 />
 
-                <Link :href="route('auth.phone')" class="btn-primary mt-stack-section no-underline">
+                <Link :href="continueHref" class="btn-primary mt-stack-section no-underline">
                     {{ t('landing.signIn') }}
                 </Link>
             </section>

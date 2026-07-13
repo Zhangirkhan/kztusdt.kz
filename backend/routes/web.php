@@ -17,6 +17,7 @@ use App\Http\Controllers\ExchangeOrderController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\LegalController;
+use App\Http\Controllers\CaptchaController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PhoneAuthPageController;
 use App\Http\Controllers\ProfileController;
@@ -118,6 +119,9 @@ Route::prefix('{locale}')
 
         Route::middleware('guest')->group(function (): void {
             Route::get('/auth/phone', [PhoneAuthPageController::class, 'show'])->name('auth.phone');
+            Route::get('/auth/captcha', [CaptchaController::class, 'image'])
+                ->middleware('throttle:60,1')
+                ->name('auth.captcha');
             Route::post('/auth/phone', [PhoneAuthPageController::class, 'store'])
                 ->middleware('throttle:10,1')
                 ->name('auth.phone.store');

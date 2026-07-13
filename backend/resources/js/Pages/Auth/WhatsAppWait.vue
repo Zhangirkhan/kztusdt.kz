@@ -8,6 +8,10 @@ import { navigateAfterAuth } from '@/utils/authNavigation';
 import { isAppLockConfigured } from '@/utils/appLockStorage';
 import AppLockOverlay from '@/widgets/app-lock/ui/AppLockOverlay.vue';
 import { localizedPath } from '@/utils/localizedPath';
+import {
+    clearRegistrationProgress,
+    writeRegistrationProgress,
+} from '@/utils/registrationProgress';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
 
@@ -110,6 +114,7 @@ async function submitCode() {
 
         if (result.user_id && !isAppLockConfigured(result.user_id)) {
             pendingRedirect.value = result;
+            persistStep('app-lock');
             await router.reload({ preserveState: true });
             step.value = 'app-lock';
 
@@ -181,34 +186,49 @@ async function resendCode() {
     }
 }
 
+function persistStep(nextStep) {
+    writeRegistrationProgress({
+        loginCode: props.loginCode,
+        phone: props.phone,
+        step: nextStep,
+    });
+}
+
+function finishRegistration(url = '/wallet') {
+    clearRegistrationProgress();
+    navigateAfterAuth(url);
+}
+
 function continueAfterLogin(result) {
     if (result.kyc?.needs_verification) {
         if (result.kyc?.inline_sumsub) {
             step.value = 'kyc';
+            persistStep('kyc');
             kycStatus.value = result.kyc_status ?? kycStatus.value;
             showInlineSumsub.value = true;
 
             return;
         }
 
+        clearRegistrationProgress();
         navigateAfterAuth('/kyc');
 
         return;
     }
 
-    navigateAfterAuth(result.redirect ?? '/wallet');
+    finishRegistration(result.redirect ?? '/wallet');
 }
 
 function onAppLockSetupComplete() {
     if (pendingRedirect.value) {
         continueAfterLogin(pendingRedirect.value);
     } else {
-        navigateAfterAuth('/wallet');
+        finishRegistration('/wallet');
     }
 }
 
 function onKycApproved() {
-    navigateAfterAuth('/wallet');
+    finishRegistration('/wallet');
 }
 
 function onKycPending() {
@@ -217,6 +237,9 @@ function onKycPending() {
 }
 
 onMounted(() => {
+    const progressStep = step.value === 'whatsapp' ? 'otp' : step.value === 'app-lock' ? 'app-lock' : 'kyc';
+    persistStep(progressStep);
+
     if (step.value === 'whatsapp') {
         if (isExpired.value) {
             resendCooldown.value = 0;
@@ -298,7 +321,11 @@ onUnmounted(() => {
                     >
                         {{ resendCooldown > 0 ? t('auth.verify.resendIn', { seconds: resendCooldown }) : t('auth.verify.resend') }}
                     </button>
-                    <Link :href="route('auth.phone')" class="text-text-dim hover:underline">{{ t('auth.verify.wrongNumber') }}</Link>
+                    <Link
+                        :href="route('auth.phone')"
+                        class="text-text-dim hover:underline"
+                        @click="clearRegistrationProgress"
+                    >{{ t('auth.verify.wrongNumber') }}</Link>
                     <p v-if="expiresAtLabel" class="text-text-dim">
                         {{ t('auth.verify.expiresAt', { time: expiresAtLabel }) }}
                     </p>

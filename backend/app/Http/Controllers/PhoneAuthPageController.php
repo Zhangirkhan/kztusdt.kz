@@ -6,9 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StartPhoneAuthRequest;
 use App\Models\User;
+use App\Services\CaptchaService;
 use App\Services\PhoneAuthService;
-use App\Support\AdminNavPresenter;
 use App\Support\CompanyPresenter;
+use App\Support\RegistrationResume;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -19,6 +20,7 @@ final class PhoneAuthPageController extends Controller
 {
     public function __construct(
         private readonly PhoneAuthService $phoneAuthService,
+        private readonly CaptchaService $captchaService,
     ) {}
 
     public function show(): Response|RedirectResponse
@@ -43,6 +45,8 @@ final class PhoneAuthPageController extends Controller
                 $request->validated('bin') ?? null,
                 $request->validated('company_name') ?? null,
             );
+
+            $this->captchaService->invalidate();
 
             return redirect()->route('auth.whatsapp.wait', [
                 'locale' => $request->route('locale'),
@@ -135,12 +139,6 @@ final class PhoneAuthPageController extends Controller
 
     private function redirectAfterAuth(User $user): RedirectResponse
     {
-        $landing = AdminNavPresenter::landingPath($user);
-
-        if ($landing !== null) {
-            return redirect($landing);
-        }
-
-        return redirect()->route('home');
+        return redirect(RegistrationResume::path($user));
     }
 }

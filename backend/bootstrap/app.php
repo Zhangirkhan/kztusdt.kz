@@ -36,6 +36,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ]);
         });
 
+        $middleware->redirectUsersTo(function (Request $request): string {
+            return \App\Support\RegistrationResume::path($request->user(), $request);
+        });
+
         $middleware->trustProxies(at: '*');
         $middleware->web(prepend: [
             \App\Http\Middleware\ResetZiggyRouteGenerator::class,

@@ -51,6 +51,24 @@ final class PhoneAuthService
             throw new RuntimeException('Слишком много попыток. Попробуйте позже.');
         }
 
+        $resumable = $this->findResumablePendingSession(
+            $normalizedPhone,
+            $clientType,
+            $normalizedIin,
+            $normalizedBin,
+            $companyName !== '' ? $companyName : null,
+        );
+
+        if ($resumable !== null) {
+            $this->auditLogService->log(
+                action: 'auth.phone.resume',
+                payload: ['phone' => $normalizedPhone, 'login_code' => $resumable->login_code],
+                request: request(),
+            );
+
+            return $resumable;
+        }
+
         AuthSession::query()
             ->where('phone', $normalizedPhone)
             ->where('status', 'pending')
@@ -338,6 +356,39 @@ final class PhoneAuthService
     public function normalizeBin(string $bin): string
     {
         return preg_replace('/\D+/', '', $bin) ?? '';
+    }
+
+    private function findResumablePendingSession(
+        string $phone,
+        string $clientType,
+        ?string $iin,
+        ?string $bin,
+        ?string $companyName,
+    ): ?AuthSession {
+        $session = AuthSession::query()
+            ->where('phone', $phone)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->latest('id')
+            ->first();
+
+        if ($session === null) {
+            return null;
+        }
+
+        if ((string) $session->client_type !== $clientType) {
+            return null;
+        }
+
+        if ($session->iin !== $iin || $session->bin !== $bin || $session->company_name !== $companyName) {
+            return null;
+        }
+
+        if ($session->requiresEds() && ! $session->hasEdsVerified()) {
+            return null;
+        }
+
+        return $session;
     }
 
     private function findActiveSession(string $loginCode): AuthSession

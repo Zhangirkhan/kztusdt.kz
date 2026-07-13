@@ -15,6 +15,8 @@ import {
     isKzPhoneComplete,
     MIN_PHONE,
 } from '@/utils/phoneMask';
+import { readRegistrationProgress } from '@/utils/registrationProgress';
+import { localizedPath } from '@/utils/localizedPath';
 
 const props = defineProps({
     companyIntro: Object,
@@ -41,12 +43,14 @@ const form = useForm({
     bin: '',
     company_name: '',
     phone: MIN_PHONE,
+    captcha: '',
 });
 
 const edsStep = ref('form');
 const edsBusy = ref(false);
 const edsError = ref('');
 const edsSession = ref(null);
+const captchaSrc = ref('');
 
 const isLegalEntity = computed(() => form.client_type === 'legal_entity');
 const showEdsStep = computed(() => isLegalEntity.value && props.legalEntityEdsRequired && edsStep.value === 'sign');
@@ -61,15 +65,21 @@ const iinError = computed(() => {
 
     return t('auth.iinError');
 });
+const isCaptchaComplete = computed(() => form.captcha.trim().length >= 4);
 const canSubmit = computed(() => {
     if (isLegalEntity.value) {
         return false;
     }
 
-    return isIinComplete.value && isKzPhoneComplete(form.phone) && !form.processing;
+    return isIinComplete.value && isKzPhoneComplete(form.phone) && isCaptchaComplete.value && !form.processing;
 });
 const canClear = computed(() => form.phone !== MIN_PHONE);
 const showBiometricLogin = computed(() => biometricSupported && biometricAvailable.value && isKzPhoneComplete(form.phone));
+
+function refreshCaptcha() {
+    form.captcha = '';
+    captchaSrc.value = `${route('auth.captcha')}?t=${Date.now()}`;
+}
 
 function phoneFromStorage(e164) {
     const digits = String(e164).replace(/\D/g, '');
@@ -132,6 +142,11 @@ function onIinInput(event) {
     event.target.value = form.iin;
 }
 
+function onCaptchaInput(event) {
+    form.captcha = event.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
+    event.target.value = form.captcha;
+}
+
 function setClientType(type) {
     form.client_type = type;
     edsStep.value = 'form';
@@ -152,7 +167,11 @@ async function submitForm() {
         return;
     }
 
-    form.post(route('auth.phone.store'));
+    form.post(route('auth.phone.store'), {
+        onError: () => {
+            refreshCaptcha();
+        },
+    });
 }
 
 async function startLegalEntityEds() {
@@ -230,6 +249,16 @@ function backToForm() {
 }
 
 onMounted(() => {
+    const progress = readRegistrationProgress();
+
+    if (progress?.loginCode && ['otp', 'app-lock', 'kyc'].includes(progress.step)) {
+        router.visit(localizedPath(`/auth/whatsapp/${progress.loginCode}`), { replace: true });
+
+        return;
+    }
+
+    refreshCaptcha();
+
     const savedPhone = getSavedPhone();
 
     if (savedPhone) {
@@ -345,6 +374,41 @@ onUnmounted(() => {
                     <p v-else class="mt-2 text-xs text-text-dim">
                         {{ t('auth.formatHint') }}
                     </p>
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('auth.captchaLabel') }}</label>
+                    <div class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            class="shrink-0 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low"
+                            :aria-label="t('auth.captchaRefresh')"
+                            @click="refreshCaptcha"
+                        >
+                            <img
+                                v-if="captchaSrc"
+                                :src="captchaSrc"
+                                alt=""
+                                width="160"
+                                height="48"
+                                class="block h-12 w-40"
+                                draggable="false"
+                            />
+                        </button>
+                        <input
+                            :value="form.captcha"
+                            type="text"
+                            class="input-field"
+                            :placeholder="t('auth.captchaPlaceholder')"
+                            autocomplete="off"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            maxlength="8"
+                            @input="onCaptchaInput"
+                        />
+                    </div>
+                    <p v-if="form.errors.captcha" class="mt-2 text-sm text-error">{{ form.errors.captcha }}</p>
+                    <p v-else class="mt-2 text-xs text-text-dim">{{ t('auth.captchaHint') }}</p>
                 </div>
 
                 <button type="submit" class="btn-primary" :disabled="!canSubmit || edsBusy">
