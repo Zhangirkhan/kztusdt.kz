@@ -24,7 +24,13 @@
                 }
 
                 var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
-                var purgeKey = isAdmin ? 'kztusdt_legacy_cache_purged_admin_v5' : 'kztusdt_legacy_cache_purged_client_v5';
+                var purgeKey = isAdmin ? 'kztusdt_legacy_cache_purged_admin_v9' : 'kztusdt_legacy_cache_purged_client_v9';
+
+                try {
+                    // Drop flaky ETag probe keys that caused reload loops / white screen.
+                    localStorage.removeItem(isAdmin ? 'kztusdt_admin_build_etag' : 'kztusdt_client_build_etag');
+                    sessionStorage.removeItem(isAdmin ? 'kztusdt_admin_build_reload' : 'kztusdt_client_build_reload');
+                } catch (error) {}
 
                 if (localStorage.getItem(purgeKey) === '1') {
                     return;
@@ -34,12 +40,11 @@
                     registrations.forEach(function (registration) {
                         var url = (registration.active && registration.active.scriptURL) || '';
 
+                        // Drop only legacy Workbox / hashed build SWs. Keep /sw.js for PWA.
                         if (
-                            isAdmin
-                            || url.indexOf('/build/') !== -1
+                            url.indexOf('/build/') !== -1
                             || url.indexOf('workbox') !== -1
                             || url.endsWith('/build/sw.js')
-                            || url.endsWith('/sw.js')
                         ) {
                             registration.unregister();
                         }
@@ -59,53 +64,14 @@
         </script>
         <script>
             (function () {
-                var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
-                var key = (isAdmin ? 'kztusdt_admin' : 'kztusdt_client') + '_build_etag';
-                var reloadGuardKey = (isAdmin ? 'kztusdt_admin' : 'kztusdt_client') + '_build_reload';
-                var xhr = new XMLHttpRequest();
-
-                try {
-                    xhr.open('GET', '/build/manifest.json?_=' + Date.now(), false);
-                    xhr.setRequestHeader('Cache-Control', 'no-cache');
-                    xhr.send(null);
-
-                    if (xhr.status === 200) {
-                        var live = xhr.getResponseHeader('ETag')
-                            || xhr.getResponseHeader('Last-Modified')
-                            || String(xhr.responseText.length);
-                        var previous = localStorage.getItem(key);
-
-                        if (previous && live && previous !== live) {
-                            if (sessionStorage.getItem(reloadGuardKey) !== '1') {
-                                sessionStorage.setItem(reloadGuardKey, '1');
-                                localStorage.setItem(key, live);
-                                window.location.reload();
-                                return;
-                            }
-
-                            sessionStorage.removeItem(reloadGuardKey);
-                        } else {
-                            sessionStorage.removeItem(reloadGuardKey);
-                        }
-
-                        if (live) {
-                            localStorage.setItem(key, live);
-                        }
-                    }
-                } catch (error) {
-                    // Ignore manifest probe errors and continue booting.
-                }
-            })();
-        </script>
-        <script>
-            (function () {
                 var version = @json($assetVersion);
                 var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
                 var key = isAdmin ? 'kztusdt_admin_asset_v' : 'kztusdt_client_asset_v';
                 var reloadKey = isAdmin ? 'kztusdt_admin_force_reload' : 'kztusdt_client_force_reload';
                 var previous = localStorage.getItem(key);
 
-                if (previous && previous !== version) {
+                // One-shot reload after deploy; never loop on oscillating headers.
+                if (previous && previous !== version && sessionStorage.getItem(reloadKey) !== '1') {
                     localStorage.setItem(key, version);
                     sessionStorage.setItem(reloadKey, '1');
                     window.location.reload();
@@ -113,10 +79,7 @@
                 }
 
                 localStorage.setItem(key, version);
-
-                if (sessionStorage.getItem(reloadKey) === '1') {
-                    sessionStorage.removeItem(reloadKey);
-                }
+                sessionStorage.removeItem(reloadKey);
             })();
         </script>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -137,20 +100,36 @@
                     document.documentElement.classList.add('dark');
                 }
                 document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+                window.__kztusdtClientDark = dark;
             })();
         </script>
         <meta name="theme-color" content="{{ $isAdminSurface ? '#001529' : '#ffffff' }}">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="{{ $isAdminSurface ? 'black' : 'black-translucent' }}">
-        @if ($isAdminSurface)
-            <meta name="apple-mobile-web-app-title" content="KZTUSDT Admin">
-        @endif
+        <meta name="apple-mobile-web-app-title" content="{{ $isAdminSurface ? 'Admin kztusdt' : 'KZTUSDT' }}">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="manifest" href="/manifest.webmanifest">
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
-        <link rel="apple-touch-icon" href="/icons/icon-192.png">
+        @if ($isAdminSurface)
+            <link rel="icon" href="/icons/admin/favicon.ico" sizes="any">
+            <link rel="icon" type="image/png" sizes="32x32" href="/icons/admin/icon-32.png">
+            <link rel="apple-touch-icon" href="/icons/admin/icon-192.png">
+        @else
+            <link rel="icon" data-theme-favicon="ico" href="/favicon.ico" sizes="any">
+            <link rel="icon" data-theme-favicon="png" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+            <link rel="apple-touch-icon" href="/icons/icon-192.png">
+            <script>
+                (function () {
+                    if (!window.__kztusdtClientDark) {
+                        return;
+                    }
+                    var ico = document.querySelector('link[rel="icon"][data-theme-favicon="ico"]');
+                    var png = document.querySelector('link[rel="icon"][data-theme-favicon="png"]');
+                    if (ico) ico.setAttribute('href', '/favicon-dark.ico');
+                    if (png) png.setAttribute('href', '/icons/icon-32-dark.png');
+                })();
+            </script>
+        @endif
 
         @if (! empty($seo['description']))
             <meta name="description" content="{{ $seo['description'] }}">
@@ -185,7 +164,7 @@
     <body class="font-sans antialiased">
         <div id="app-boot-splash" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:{{ $isAdminSurface ? '#001529' : '#eef1f6' }};color:{{ $isAdminSurface ? '#ffffff' : '#0f172a' }};font-family:Manrope,ui-sans-serif,system-ui,sans-serif;">
             <div style="text-align:center;padding:24px;">
-                <p style="margin:0 0 8px;font-size:18px;font-weight:700;">{{ $isAdminSurface ? 'KZTUSDT Admin' : 'kztusdt.kz' }}</p>
+                <p style="margin:0 0 8px;font-size:18px;font-weight:700;">{{ $isAdminSurface ? 'Admin kztusdt' : 'KZTUSDT' }}</p>
                 <p style="margin:0;font-size:14px;color:{{ $isAdminSurface ? '#94a3b8' : '#64748b' }};">Загрузка…</p>
             </div>
         </div>
@@ -208,6 +187,12 @@
                         localStorage.removeItem('kztusdt_client_build_etag');
                         localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v5');
                         localStorage.removeItem('kztusdt_legacy_cache_purged_client_v5');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v6');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v6');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v7');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v7');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v8');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v8');
                     } catch (error) {}
 
                     if ('caches' in window) {
@@ -233,7 +218,7 @@
                     splash.dataset.failed = '1';
                     splash.innerHTML = ''
                         + '<div style="text-align:center;padding:24px;max-width:360px;">'
-                        + '<p style="margin:0 0 8px;font-size:18px;font-weight:700;">' + (isAdmin ? 'KZTUSDT Admin' : 'kztusdt.kz') + '</p>'
+                        + '<p style="margin:0 0 8px;font-size:18px;font-weight:700;">' + (isAdmin ? 'Admin kztusdt' : 'KZTUSDT') + '</p>'
                         + '<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:' + (isAdmin ? '#94a3b8' : '#64748b') + ';">'
                         + 'Не удалось загрузить приложение. Обычно помогает обновление страницы.'
                         + '</p>'

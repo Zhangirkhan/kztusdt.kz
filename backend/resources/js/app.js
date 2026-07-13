@@ -37,7 +37,12 @@ createInertiaApp({
             const adminSurface = isAdminSurface(props.initialPage);
 
             applyLocale(props.initialPage.props.locale?.current ?? 'ru');
-            applyThemePreference(adminSurface ? 'light' : getStoredTheme());
+            if (adminSurface) {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.dataset.theme = 'light';
+            } else {
+                applyThemePreference(getStoredTheme());
+            }
             applyZiggy(props.initialPage.props.ziggy);
 
             router.on('navigate', (event) => {
@@ -45,7 +50,8 @@ createInertiaApp({
                 applyZiggy(event.detail.page.props.ziggy);
 
                 if (isAdminSurface(event.detail.page)) {
-                    applyThemePreference('light');
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.dataset.theme = 'light';
                 }
             });
 
@@ -80,11 +86,7 @@ createInertiaApp({
 });
 
 if ('serviceWorker' in navigator) {
-    const isAdminHost = document.documentElement.dataset.adminSurface === 'true';
-
-    if (!isAdminHost) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js?v=4').catch(() => {});
-        });
-    }
+    window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js?v=9').catch(() => {});
+    });
 }

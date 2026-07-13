@@ -280,8 +280,7 @@ const showSellRefreshCta = computed(
 
 const canCancel = computed(() =>
     isBuy.value
-        ? ['awaiting_kzt_payment', 'payment_proof_uploaded', 'pending_admin_confirmation'].includes(props.order.status)
-        : props.order.status === 'pending_admin_confirmation',
+        && ['awaiting_kzt_payment', 'payment_proof_uploaded', 'pending_admin_confirmation'].includes(props.order.status),
 );
 
 const canAppeal = computed(

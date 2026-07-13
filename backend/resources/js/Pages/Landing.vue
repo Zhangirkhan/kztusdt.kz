@@ -1,10 +1,16 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLogo from '@/Components/AppLogo.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
+import { useTheme } from '@/composables/useTheme';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
+const { isDark } = useTheme();
+const wordmarkSrc = computed(() =>
+    isDark.value ? '/logo-wordmark-dark.png?v=5' : '/logo-wordmark.png?v=5',
+);
 
 defineProps({
     company: {
@@ -23,7 +29,7 @@ defineProps({
     <div class="app-frame">
         <main class="app-shell page-enter flex min-h-dvh flex-col px-margin-page">
             <header class="relative z-30 flex shrink-0 items-center justify-between gap-3 pt-4" style="padding-top: calc(16px + var(--safe-top))">
-                <AppLogo show-wordmark class="landing-header-logo min-w-0 flex-1 overflow-hidden" />
+                <AppLogo show-wordmark class="landing-header-logo min-w-0 flex-1 overflow-x-hidden" />
                 <LocaleSwitcher class="relative z-30 shrink-0" compact code-only />
             </header>
 
@@ -33,7 +39,7 @@ defineProps({
                 </p>
 
                 <img
-                    src="/logo-wordmark.png?v=2"
+                    :src="wordmarkSrc"
                     :alt="company.name"
                     class="mt-12 h-auto w-full max-w-[280px]"
                 />

@@ -1,5 +1,6 @@
 export const APP_LOCK_PIN_LENGTH = 4;
 export const APP_LOCK_IDLE_MS = 5 * 60 * 1000;
+export const APP_LOCK_BACKGROUND_LOCK_MS = 30_000;
 export const APP_LOCK_SESSION_UNLOCKED_KEY = 'kztusdt_app_lock_session_unlocked';
 export const APP_LOCK_RELOADING_KEY = 'kztusdt_app_lock_reloading';
 export const APP_LOCK_BACKGROUNDED_AT_KEY = 'kztusdt_app_lock_backgrounded_at';
@@ -106,7 +107,7 @@ export function markBackgrounded() {
     sessionStorage.setItem(APP_LOCK_BACKGROUNDED_AT_KEY, String(Date.now()));
 }
 
-export function consumeBackgrounded() {
+export function consumeBackgrounded(minMs = APP_LOCK_BACKGROUND_LOCK_MS) {
     if (typeof window === 'undefined') {
         return false;
     }
@@ -119,7 +120,7 @@ export function consumeBackgrounded() {
 
     sessionStorage.removeItem(APP_LOCK_BACKGROUNDED_AT_KEY);
 
-    return true;
+    return (Date.now() - Number(backgrounded)) >= minMs;
 }
 
 export function isPageReload() {

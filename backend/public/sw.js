@@ -1,8 +1,12 @@
 /**
- * Push-only service worker for PWA notifications (v3).
+ * Push-only service worker for PWA notifications.
  * Also purges legacy Workbox caches that caused stale admin assets.
+ *
+ * Fetch listener is intentionally a no-op (no respondWith): Chrome still treats
+ * it as installable, but intercepting every request with fetch() caused white
+ * screens in the installed client PWA (especially WebKit standalone).
  */
-const SW_VERSION = 'v4';
+const SW_VERSION = 'v9';
 
 self.addEventListener('install', () => {
     self.skipWaiting();
@@ -16,20 +20,29 @@ self.addEventListener('activate', (event) => {
     );
 });
 
+self.addEventListener('fetch', () => {
+    // no-op — do not intercept navigations/assets
+});
+
 self.addEventListener('push', (event) => {
     let payload = {};
 
     try {
         payload = event.data ? event.data.json() : {};
     } catch (e) {
-        payload = { title: 'kztusdt.kz', body: event.data ? event.data.text() : '' };
+        payload = { title: 'KZTUSDT', body: event.data ? event.data.text() : '' };
     }
 
-    const title = payload.title || 'kztusdt.kz';
+    // Light mark (transparent bg) stays visible in dark notification trays;
+    // charcoal PWA icons (/icons/icon-192.png) blend into the shade.
+    const iconUrl = new URL('/logo.png', self.location.origin).href;
+    const badgeUrl = new URL('/icons/icon-32.png', self.location.origin).href;
+
+    const title = payload.title || 'KZTUSDT';
     const options = {
         body: payload.body || '',
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
+        icon: iconUrl,
+        badge: badgeUrl,
         vibrate: [80, 40, 80],
         data: { url: payload.url || '/wallet' },
     };

@@ -4,12 +4,12 @@ import { hashPin, verifyPin } from '@/utils/appLockCrypto';
 import {
     APP_LOCK_IDLE_MS,
     APP_LOCK_PIN_LENGTH,
+    APP_LOCK_BACKGROUNDED_AT_KEY,
     clearSessionUnlocked,
     consumeBackgrounded,
     consumeReloading,
     isAppLockConfigured,
     isPageReload,
-    isReloading,
     isSessionUnlocked,
     markBackgrounded,
     markReloading,
@@ -20,9 +20,27 @@ import {
 
 const isLocked = ref(false);
 const needsSetup = ref(false);
+const configuredState = ref(false);
+const biometricEnabledState = ref(false);
 const lastActivityAt = ref(Date.now());
 const activeUserId = ref(null);
 let listenersAttached = false;
+let userIdWatchAttached = false;
+
+function refreshConfigFlags(id) {
+    const config = readAppLockConfig(id);
+
+    configuredState.value = Boolean(config?.pinHash && config?.pinSalt);
+    biometricEnabledState.value = config?.biometricEnabled === true;
+}
+
+function clearStaleBackgroundMark() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    sessionStorage.removeItem(APP_LOCK_BACKGROUNDED_AT_KEY);
+}
 
 function touchActivity() {
     lastActivityAt.value = Date.now();
@@ -56,28 +74,8 @@ function attachListeners() {
         window.addEventListener(eventName, onActivity, { passive: true });
     });
 
-    const onPageHide = () => {
+    window.addEventListener('beforeunload', () => {
         markReloading();
-    };
-
-    window.addEventListener('beforeunload', onPageHide);
-    window.addEventListener('pagehide', onPageHide);
-
-    window.addEventListener('pageshow', (event) => {
-        if (!event.persisted) {
-            return;
-        }
-
-        const userId = activeUserId.value;
-
-        if (!userId || needsSetup.value) {
-            return;
-        }
-
-        if (isSessionUnlocked()) {
-            isLocked.value = false;
-            touchActivity();
-        }
     });
 
     document.addEventListener('visibilitychange', () => {
@@ -88,19 +86,18 @@ function attachListeners() {
         }
 
         if (document.visibilityState === 'hidden') {
-            if (isReloading() || isPageReload()) {
-                return;
-            }
-
             markBackgrounded();
 
             return;
         }
 
-        if (consumeReloading() || isPageReload()) {
+        if (consumeReloading()) {
+            clearStaleBackgroundMark();
+
             return;
         }
 
+        // Ignore brief switches (control center, incoming call UI, etc.).
         if (consumeBackgrounded()) {
             lockApp();
         }
@@ -123,41 +120,51 @@ function attachListeners() {
     }, 15_000);
 }
 
+function syncState(id) {
+    activeUserId.value = id;
+
+    if (!id) {
+        needsSetup.value = false;
+        isLocked.value = false;
+        configuredState.value = false;
+        biometricEnabledState.value = false;
+
+        return;
+    }
+
+    if (consumeReloading() || isPageReload()) {
+        clearStaleBackgroundMark();
+    }
+
+    needsSetup.value = !isAppLockConfigured(id);
+    refreshConfigFlags(id);
+    attachListeners();
+
+    if (needsSetup.value) {
+        isLocked.value = true;
+
+        return;
+    }
+
+    // Stay unlocked for the whole tab/PWA session until background (≥30s) or idle (5 min).
+    if (isSessionUnlocked()) {
+        isLocked.value = false;
+        touchActivity();
+    } else {
+        isLocked.value = true;
+    }
+}
+
 export function useAppLock() {
     const page = usePage();
     const userId = computed(() => page.props.auth?.user?.id ?? null);
-    const configured = computed(() => (userId.value ? isAppLockConfigured(userId.value) : false));
-    const biometricEnabled = computed(() => readAppLockConfig(userId.value)?.biometricEnabled === true);
 
-    function syncState(id) {
-        activeUserId.value = id;
-
-        if (!id) {
-            needsSetup.value = false;
-            isLocked.value = false;
-
-            return;
-        }
-
-        needsSetup.value = !isAppLockConfigured(id);
-
-        if (needsSetup.value) {
-            isLocked.value = true;
-
-            return;
-        }
-
-        if (isSessionUnlocked()) {
-            isLocked.value = false;
-            touchActivity();
-        } else {
-            isLocked.value = true;
-        }
-
-        attachListeners();
+    if (!userIdWatchAttached) {
+        userIdWatchAttached = true;
+        watch(userId, (id) => syncState(id), { immediate: true });
+    } else {
+        refreshConfigFlags(userId.value);
     }
-
-    watch(userId, (id) => syncState(id), { immediate: true });
 
     async function setupPin(pin, enableBiometric = false) {
         if (!userId.value || pin.length !== APP_LOCK_PIN_LENGTH) {
@@ -174,6 +181,8 @@ export function useAppLock() {
         });
 
         needsSetup.value = false;
+        refreshConfigFlags(userId.value);
+        attachListeners();
         unlockApp();
 
         return true;
@@ -197,6 +206,7 @@ export function useAppLock() {
             pinHash: hash,
             pinSalt: salt,
         });
+        refreshConfigFlags(userId.value);
 
         return true;
     }
@@ -240,14 +250,15 @@ export function useAppLock() {
             ...config,
             biometricEnabled: enabled,
         });
+        refreshConfigFlags(userId.value);
     }
 
     return {
         pinLength: APP_LOCK_PIN_LENGTH,
         isLocked,
         needsSetup,
-        configured,
-        biometricEnabled,
+        configured: configuredState,
+        biometricEnabled: biometricEnabledState,
         setupPin,
         changePin,
         verifyAppPin,

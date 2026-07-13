@@ -19,11 +19,13 @@ final class AdminPwaTest extends TestCase
     public function test_admin_manifest_is_available_on_subdomain(): void
     {
         $this->withServerVariables($this->adminServerVariables())
-            ->get('/manifest.webmanifest')
+            ->get('https://'.$this->adminHost().'/manifest.webmanifest')
             ->assertOk()
-            ->assertJsonPath('short_name', 'Admin')
+            ->assertJsonPath('name', 'Admin kztusdt')
+            ->assertJsonPath('short_name', 'Admin kztusdt')
             ->assertJsonPath('scope', '/')
-            ->assertJsonPath('start_url', '/admin/login');
+            ->assertJsonPath('start_url', '/admin/login')
+            ->assertJsonPath('icons.0.src', '/icons/admin/icon-192.png');
     }
 
     public function test_admin_pages_link_admin_manifest(): void
@@ -48,8 +50,11 @@ final class AdminPwaTest extends TestCase
         $startUrl = (string) $response->json('start_url');
 
         $response
+            ->assertJsonPath('name', 'KZTUSDT')
+            ->assertJsonPath('short_name', 'KZTUSDT')
             ->assertJsonPath('scope', '/')
-            ->assertJsonPath('id', '/');
+            ->assertJsonPath('id', '/')
+            ->assertJsonPath('icons.0.src', '/icons/icon-192.png');
 
         $this->assertMatchesRegularExpression('#^/(ru|kk|en)/$#', $startUrl);
     }

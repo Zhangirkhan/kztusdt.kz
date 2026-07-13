@@ -204,7 +204,7 @@ final class ExchangeOrderSellTest extends TestCase
         $this->assertSame(ExchangeOrder::STATUS_KZT_SENT, $order->fresh()->status);
     }
 
-    public function test_client_cancel_releases_locked_usdt(): void
+    public function test_client_cannot_cancel_sell_order(): void
     {
         $this->fakeExternalApis();
 
@@ -213,14 +213,16 @@ final class ExchangeOrderSellTest extends TestCase
         $order = $this->createSellOrder($user, 100);
 
         $this->actingAs($user)
+            ->from(route('exchange.orders.show', ['locale' => 'ru', 'order' => $order]))
             ->post("/ru/exchange/orders/{$order->id}/cancel")
-            ->assertRedirect(route('exchange'));
+            ->assertRedirect(route('exchange.orders.show', ['locale' => 'ru', 'order' => $order]))
+            ->assertSessionHasErrors('form');
 
-        $this->assertSame(ExchangeOrder::STATUS_CANCELLED, $order->fresh()->status);
+        $this->assertSame(ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION, $order->fresh()->status);
 
         $ledger = app(LedgerService::class);
-        $this->assertSame(0, bccomp('500', $ledger->availableBalance($user->id, 'USDT'), 18));
-        $this->assertSame(0, bccomp('0', $ledger->lockedBalance($user->id, 'USDT'), 18));
+        $this->assertSame(0, bccomp('400', $ledger->availableBalance($user->id, 'USDT'), 18));
+        $this->assertSame(0, bccomp('100', $ledger->lockedBalance($user->id, 'USDT'), 18));
     }
 
     public function test_admin_reject_releases_locked_usdt(): void

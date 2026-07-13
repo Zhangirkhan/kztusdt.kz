@@ -112,6 +112,30 @@ export function useBiometricAuth() {
         }
     }
 
+    async function hasUnlockBiometric() {
+        if (! supported) {
+            return false;
+        }
+
+        try {
+            const response = await fetch('/api/app-lock/biometric/options', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: '{}',
+            });
+
+            return response.ok;
+        } catch {
+            return false;
+        }
+    }
+
     async function registerBiometric(name = 'Face ID / fingerprint') {
         if (! supported) {
             throw new Error(i18n.global.t('biometric.errors.unsupported'));
@@ -129,6 +153,11 @@ export function useBiometricAuth() {
                 name,
             });
         } catch (exception) {
+            // Key may already exist on this device from an earlier setup.
+            if (await hasUnlockBiometric()) {
+                return true;
+            }
+
             error.value = exception.message ?? i18n.global.t('biometric.errors.enableFailed');
             throw exception;
         } finally {
@@ -161,6 +190,7 @@ export function useBiometricAuth() {
         getSavedPhone,
         savePhone,
         checkAvailability,
+        hasUnlockBiometric,
         loginWithBiometric,
         registerBiometric,
         unlockWithBiometric,

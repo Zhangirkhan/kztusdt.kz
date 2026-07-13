@@ -81,7 +81,7 @@ function phoneFromStorage(e164) {
     return MIN_PHONE;
 }
 
-async function refreshBiometricAvailability() {
+async function refreshBiometricAvailability({ autoPrompt = false } = {}) {
     if (biometricCheckTimer) {
         clearTimeout(biometricCheckTimer);
     }
@@ -95,6 +95,10 @@ async function refreshBiometricAvailability() {
 
         try {
             biometricAvailable.value = await checkAvailability(form.phone);
+
+            if (autoPrompt && biometricAvailable.value) {
+                await onBiometricLogin();
+            }
         } catch {
             biometricAvailable.value = false;
         }
@@ -231,7 +235,7 @@ onMounted(() => {
     if (savedPhone) {
         form.phone = phoneFromStorage(savedPhone);
         syncInput();
-        refreshBiometricAvailability();
+        refreshBiometricAvailability({ autoPrompt: true });
     }
 });
 

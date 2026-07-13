@@ -4,7 +4,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import AdminPwaInstallBanner from '@/widgets/admin-shell/ui/AdminPwaInstallBanner.vue';
 import { localizedPath } from '@/utils/localizedPath';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -27,12 +27,17 @@ const form = useForm({
     remember: false,
 });
 
+const page = usePage();
 const showClientPwaHint = ref(false);
 const { t } = useI18n();
 
 onMounted(() => {
+    const onAdminSubdomain = Boolean(page.props.adminApp?.isSubdomain);
+
+    // Only warn when /admin was opened inside the *client* PWA, not the admin app.
     showClientPwaHint.value =
-        window.matchMedia('(display-mode: standalone)').matches
+        !onAdminSubdomain
+        && window.matchMedia('(display-mode: standalone)').matches
         && window.location.pathname.startsWith('/admin');
 });
 

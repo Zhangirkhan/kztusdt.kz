@@ -33,8 +33,8 @@ final class WebAppManifestController extends Controller
     {
         return response()->json([
             'id' => '/',
-            'name' => 'KZTUSDT Admin',
-            'short_name' => 'Admin',
+            'name' => 'Admin kztusdt',
+            'short_name' => 'Admin kztusdt',
             'description' => 'Панель администрирования kztusdt.kz',
             'theme_color' => '#001529',
             'background_color' => '#001529',
@@ -43,7 +43,7 @@ final class WebAppManifestController extends Controller
             'start_url' => '/admin/login',
             'scope' => '/',
             'lang' => 'ru',
-            'icons' => $this->icons(),
+            'icons' => $this->adminIcons(),
         ], 200, [
             'Content-Type' => 'application/manifest+json',
         ]);
@@ -56,8 +56,8 @@ final class WebAppManifestController extends Controller
 
         return response()->json([
             'id' => '/',
-            'name' => (string) config('company.name', config('app.name')),
-            'short_name' => (string) config('company.name', config('app.name')),
+            'name' => 'KZTUSDT',
+            'short_name' => 'KZTUSDT',
             'description' => 'PWA крипто-обменник USDT / KZT',
             'theme_color' => '#2563eb',
             'background_color' => '#eef1f6',
@@ -66,7 +66,7 @@ final class WebAppManifestController extends Controller
             'start_url' => $startUrl,
             'scope' => '/',
             'lang' => $locale,
-            'icons' => $this->icons(),
+            'icons' => $this->clientIcons(),
         ], 200, [
             'Content-Type' => 'application/manifest+json',
         ]);
@@ -75,7 +75,7 @@ final class WebAppManifestController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
-    private function icons(): array
+    private function clientIcons(): array
     {
         return [
             [
@@ -90,6 +90,31 @@ final class WebAppManifestController extends Controller
             ],
             [
                 'src' => '/icons/icon-512-maskable.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+                'purpose' => 'maskable',
+            ],
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function adminIcons(): array
+    {
+        return [
+            [
+                'src' => '/icons/admin/icon-192.png',
+                'sizes' => '192x192',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/icons/admin/icon-512.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/icons/admin/icon-512-maskable.png',
                 'sizes' => '512x512',
                 'type' => 'image/png',
                 'purpose' => 'maskable',

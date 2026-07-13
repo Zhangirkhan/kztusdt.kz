@@ -2,7 +2,7 @@
 import PinPad from '@/widgets/app-lock/ui/PinPad.vue';
 import { useAppLock } from '@/composables/useAppLock';
 import { useBiometricAuth } from '@/composables/useBiometricAuth';
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -25,13 +25,21 @@ const {
     setBiometricEnabled,
     unlock,
 } = useAppLock();
-const { supported: biometricSupported, busy: biometricBusy, unlockWithBiometric, registerBiometric } = useBiometricAuth();
+const {
+    supported: biometricSupported,
+    busy: biometricBusy,
+    unlockWithBiometric,
+    registerBiometric,
+    hasUnlockBiometric,
+} = useBiometricAuth();
 
 const pin = ref('');
 const confirmPin = ref('');
 const setupStep = ref('create');
 const error = ref('');
 const busy = ref(false);
+const showPinFallback = ref(false);
+const probingBiometric = ref(false);
 
 const isSetupMode = computed(() => props.mode === 'setup' || needsSetup.value);
 const showBiometricButton = computed(() =>
@@ -54,6 +62,10 @@ const title = computed(() => {
         return t('appLock.setup.createTitle');
     }
 
+    if (showBiometricButton.value && !showPinFallback.value) {
+        return t('appLock.unlock.useBiometric');
+    }
+
     return t('appLock.unlock.title');
 });
 
@@ -68,6 +80,10 @@ const subtitle = computed(() => {
         }
 
         return t('appLock.setup.createHint');
+    }
+
+    if (showBiometricButton.value && !showPinFallback.value) {
+        return t('appLock.setup.biometricHint');
     }
 
     return t('appLock.unlock.hint');
@@ -89,6 +105,7 @@ watch(() => props.mode, () => {
     confirmPin.value = '';
     setupStep.value = 'create';
     error.value = '';
+    showPinFallback.value = false;
 });
 
 async function handleComplete(value) {
@@ -161,7 +178,6 @@ async function enableBiometricUnlock() {
 
     try {
         await registerBiometric(t('appLock.biometricKeyName'));
-        setBiometricEnabled(true);
         await finalizeSetup(true);
     } catch (exception) {
         error.value = exception?.message ?? t('appLock.biometricFailed');
@@ -170,7 +186,7 @@ async function enableBiometricUnlock() {
     }
 }
 
-async function tryBiometricUnlock() {
+async function tryBiometricUnlock({ silent = false } = {}) {
     busy.value = true;
     error.value = '';
 
@@ -179,7 +195,12 @@ async function tryBiometricUnlock() {
         pin.value = '';
         unlock();
     } catch (exception) {
-        error.value = exception?.message ?? t('appLock.biometricFailed');
+        const message = exception?.message ?? t('appLock.biometricFailed');
+        const cancelled = /not allowed|abort|cancel|denied/i.test(String(message));
+
+        if (!silent || !cancelled) {
+            error.value = message;
+        }
     } finally {
         busy.value = false;
     }
@@ -189,10 +210,39 @@ function skipBiometricSetup() {
     finalizeSetup(false);
 }
 
-onMounted(() => {
-    if (!isSetupMode.value && showBiometricButton.value) {
-        tryBiometricUnlock();
+function usePinInstead() {
+    showPinFallback.value = true;
+    error.value = '';
+}
+
+async function promptBiometricIfNeeded() {
+    if (isSetupMode.value || !configured.value || !biometricSupported) {
+        return;
     }
+
+    probingBiometric.value = true;
+
+    try {
+        if (!biometricEnabled.value) {
+            const available = await hasUnlockBiometric();
+
+            if (available) {
+                setBiometricEnabled(true);
+            } else {
+                return;
+            }
+        }
+
+        showPinFallback.value = false;
+        await nextTick();
+        await tryBiometricUnlock({ silent: true });
+    } finally {
+        probingBiometric.value = false;
+    }
+}
+
+onMounted(() => {
+    promptBiometricIfNeeded();
 });
 </script>
 
@@ -201,35 +251,14 @@ onMounted(() => {
         <div class="app-lock-overlay__panel">
             <div class="app-lock-overlay__icon">
                 <span class="material-symbols-outlined">
-                    {{ setupStep === 'biometric' ? 'fingerprint' : 'lock' }}
+                    {{ setupStep === 'biometric' || ((showBiometricButton || probingBiometric) && !showPinFallback) ? 'fingerprint' : 'lock' }}
                 </span>
             </div>
 
             <h2 class="app-lock-overlay__title">{{ title }}</h2>
             <p class="app-lock-overlay__subtitle">{{ subtitle }}</p>
 
-            <template v-if="setupStep !== 'biometric'">
-                <PinPad
-                    v-model="activePin"
-                    :length="pinLength"
-                    :disabled="busy || biometricBusy"
-                    @complete="handleComplete"
-                />
-
-                <p v-if="error" class="app-lock-overlay__error">{{ error }}</p>
-
-                <button
-                    v-if="showBiometricButton"
-                    type="button"
-                    class="btn-secondary app-lock-overlay__biometric"
-                    :disabled="busy || biometricBusy"
-                    @click="tryBiometricUnlock"
-                >
-                    {{ t('appLock.unlock.useBiometric') }}
-                </button>
-            </template>
-
-            <template v-else>
+            <template v-if="setupStep === 'biometric'">
                 <button
                     type="button"
                     class="btn-primary app-lock-overlay__biometric"
@@ -247,6 +276,51 @@ onMounted(() => {
                     {{ t('appLock.setup.skipBiometric') }}
                 </button>
                 <p v-if="error" class="app-lock-overlay__error">{{ error }}</p>
+            </template>
+
+            <template v-else-if="probingBiometric">
+                <p class="app-lock-overlay__subtitle">{{ t('appLock.unlock.useBiometric') }}…</p>
+            </template>
+
+            <template v-else-if="showBiometricButton && !showPinFallback">
+                <button
+                    type="button"
+                    class="btn-primary app-lock-overlay__biometric"
+                    :disabled="busy || biometricBusy"
+                    @click="tryBiometricUnlock()"
+                >
+                    {{ t('appLock.unlock.useBiometric') }}
+                </button>
+                <button
+                    type="button"
+                    class="btn-secondary app-lock-overlay__biometric"
+                    :disabled="busy || biometricBusy"
+                    @click="usePinInstead"
+                >
+                    {{ t('appLock.unlock.title') }}
+                </button>
+                <p v-if="error" class="app-lock-overlay__error">{{ error }}</p>
+            </template>
+
+            <template v-else>
+                <PinPad
+                    v-model="activePin"
+                    :length="pinLength"
+                    :disabled="busy || biometricBusy"
+                    @complete="handleComplete"
+                />
+
+                <p v-if="error" class="app-lock-overlay__error">{{ error }}</p>
+
+                <button
+                    v-if="showBiometricButton"
+                    type="button"
+                    class="btn-secondary app-lock-overlay__biometric"
+                    :disabled="busy || biometricBusy"
+                    @click="tryBiometricUnlock()"
+                >
+                    {{ t('appLock.unlock.useBiometric') }}
+                </button>
             </template>
         </div>
     </div>

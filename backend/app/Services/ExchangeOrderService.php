@@ -513,10 +513,15 @@ final class ExchangeOrderService
     }
 
     /**
-     * Client cancels their own order while it is still cancellable.
+     * Client cancels their own buy order while it is still cancellable.
+     * Sell orders can only be cancelled by the exchanger (admin reject).
      */
     public function cancelByClient(ExchangeOrder $order, ?string $reason = null): void
     {
+        if ($order->isSell()) {
+            throw new RuntimeException('Отменить продажу может только обменник.');
+        }
+
         $reason = trim((string) $reason);
         $finalReason = $reason !== '' ? $reason : 'Отменена клиентом';
 
