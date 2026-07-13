@@ -3,6 +3,7 @@ import KycManualForm from '@/features/kyc-manual-form/ui/KycManualForm.vue';
 import { pendingReviewHint } from '@/entities/kyc/lib/pendingReviewHint';
 import { Link } from '@inertiajs/vue3';
 import { computed, defineAsyncComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
 
@@ -18,22 +19,15 @@ const props = defineProps({
     aituVerifyUrl: { type: String, default: null },
     aituKycScopeConfigured: { type: Boolean, default: true },
 });
-
-const kycStatusLabels = {
-    none: 'Не пройден',
-    pending_review: 'На проверке',
-    approved: 'Подтверждён',
-    rejected: 'Отклонён',
-};
-
-const kycStatusLabel = computed(() => kycStatusLabels[props.kycStatus] ?? props.kycStatus);
+const { t } = useI18n();
+const kycStatusLabel = computed(() => t(`kyc.flow.status.${props.kycStatus}`));
 </script>
 
 <template>
     <section class="card mb-stack-element">
         <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-                <p class="text-label-caps uppercase tracking-wide text-text-dim">Статус</p>
+                <p class="text-label-caps uppercase tracking-wide text-text-dim">{{ t('kyc.flow.statusLabel') }}</p>
                 <p class="mt-2 text-headline-md text-on-surface">{{ kycStatusLabel }}</p>
             </div>
             <span
@@ -56,20 +50,20 @@ const kycStatusLabel = computed(() => kycStatusLabels[props.kycStatus] ?? props.
         <div class="flex items-start gap-3">
             <span class="material-symbols-outlined mt-0.5 text-2xl text-accent">verified_user</span>
             <div class="min-w-0">
-                <p class="text-sm font-semibold text-on-surface">Быстрая верификация через Aitu</p>
+                <p class="text-sm font-semibold text-on-surface">{{ t('kyc.flow.aitu.title') }}</p>
                 <p class="mt-1 text-body-sm text-text-muted">
-                    Вы перейдёте в Aitu Passport, подтвердите личность и вернётесь обратно — статус обновится автоматически.
+                    {{ t('kyc.flow.aitu.subtitle') }}
                 </p>
             </div>
         </div>
         <p v-if="!aituKycScopeConfigured" class="text-sm text-accent">
-            Автоматическая проверка KYC через Aitu пока не подключена. Используйте ручную подачу документов ниже.
+            {{ t('kyc.flow.aitu.notConfigured') }}
         </p>
         <div v-if="aituVerifyUrl" class="space-y-2">
             <a :href="aituVerifyUrl" class="btn-primary block text-center">
-                <span class="block text-base font-semibold">Перейти в Aitu</span>
+                <span class="block text-base font-semibold">{{ t('kyc.flow.aitu.action') }}</span>
             </a>
-            <p class="text-center text-xs font-semibold text-text-muted">Верификация займёт ~1 минуту</p>
+            <p class="text-center text-xs font-semibold text-text-muted">{{ t('kyc.flow.aitu.hint') }}</p>
         </div>
     </section>
 
@@ -79,21 +73,21 @@ const kycStatusLabel = computed(() => kycStatusLabels[props.kycStatus] ?? props.
         <div class="flex items-start gap-3">
             <span class="material-symbols-outlined mt-0.5 text-2xl text-green-600">check_circle</span>
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold text-on-surface">KYC одобрен</p>
+                <p class="text-sm font-semibold text-on-surface">{{ t('kyc.flow.approved.title') }}</p>
                 <p class="mt-1 text-body-sm text-text-muted">
-                    Кошелёк будет доступен после создания адреса.
+                    {{ t('kyc.flow.approved.subtitle') }}
                 </p>
                 <Link
                     :href="route('wallet')"
                     class="btn-primary mt-4 block text-center no-underline"
                 >
-                    Перейти в кошелёк
+                    {{ t('kyc.flow.approved.action') }}
                 </Link>
             </div>
         </div>
     </section>
 
     <div v-else-if="kycStatus === 'pending_review' && !showManualForm" class="card text-body-sm text-text-muted">
-        Заявка отправлена. Дождитесь решения службы безопасности.
+        {{ t('kyc.flow.pendingNoManual') }}
     </div>
 </template>

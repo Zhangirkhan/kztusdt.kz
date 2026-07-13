@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\AdminUrl;
 use App\Support\LocaleManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ final class LocaleController extends Controller
         }
 
         return redirect()
-            ->to(LocaleManager::localizedUrl($locale))
+            ->to(LocaleManager::redirectAfterLocaleChange($request, $locale))
             ->withCookie(LocaleManager::remember($locale));
     }
 }

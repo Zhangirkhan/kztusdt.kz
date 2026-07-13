@@ -4,6 +4,7 @@ import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import BankLogo from '@/shared/ui/bank-logo/BankLogo.vue';
 import { formatKzt, formatRate, formatUsdt } from '@/utils/formatNumber';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { ref } from 'vue';
 
 const props = defineProps({
@@ -14,6 +15,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const deleteTarget = ref(null);
 const togglingId = ref(null);
 
@@ -46,25 +48,25 @@ function confirmDelete() {
 </script>
 
 <template>
-    <Head title="Объявления" />
+    <Head :title="t('admin.listings.index.title')" />
 
     <AdminLayout>
-        <template #title>Объявления</template>
+        <template #title>{{ t('admin.listings.index.title') }}</template>
 
         <AdminPage>
             <div class="admin-listings-toolbar">
                 <p class="admin-listings-toolbar__hint">
-                    Управляйте курсами, лимитами и сроками оплаты для клиентской страницы обмена.
+                    {{ t('admin.listings.index.hint') }}
                 </p>
                 <Link :href="route('admin.listings.create')" class="admin-listings-create">
                     <span class="material-symbols-outlined" aria-hidden="true">add</span>
-                    Создать объявление
+                    {{ t('admin.listings.index.create') }}
                 </Link>
             </div>
 
             <div v-if="listings.length === 0" class="admin-listings-empty">
-                <p>Пока нет объявлений.</p>
-                <Link :href="route('admin.listings.create')">Создать первое объявление</Link>
+                <p>{{ t('admin.listings.index.empty') }}</p>
+                <Link :href="route('admin.listings.create')">{{ t('admin.listings.index.createFirst') }}</Link>
             </div>
 
             <div v-else class="admin-listings-grid">
@@ -81,8 +83,8 @@ function confirmDelete() {
                                 @change="(checked) => toggleListing(listing, checked)"
                             />
                             <span class="admin-listing-card__toggle-label">
-                                В рынке
-                                <small>{{ listing.is_active ? 'активно' : 'неактивно' }}</small>
+                                {{ t('admin.listings.index.inMarket') }}
+                                <small>{{ listing.is_active ? t('admin.listings.index.active') : t('admin.listings.index.inactive') }}</small>
                             </span>
                         </div>
                     </header>
@@ -91,15 +93,15 @@ function confirmDelete() {
 
                     <div class="admin-listing-card__stats">
                         <div>
-                            <span class="admin-listing-card__stat-label">Всего</span>
+                            <span class="admin-listing-card__stat-label">{{ t('admin.listings.index.stats.total') }}</span>
                             <strong>{{ formatUsdt(listing.total_usdt, 2) }} USDT</strong>
                         </div>
                         <div>
-                            <span class="admin-listing-card__stat-label">Остаток</span>
+                            <span class="admin-listing-card__stat-label">{{ t('admin.listings.index.stats.remaining') }}</span>
                             <strong>{{ formatUsdt(listing.remaining_usdt, 2) }} USDT</strong>
                         </div>
                         <div class="admin-listing-card__limits">
-                            <span class="admin-listing-card__stat-label">Лимиты</span>
+                            <span class="admin-listing-card__stat-label">{{ t('admin.listings.index.stats.limits') }}</span>
                             <strong>
                                 {{ formatKzt(listing.min_limit_kzt) }} - {{ formatKzt(listing.max_limit_kzt) }} KZT
                             </strong>
@@ -107,7 +109,7 @@ function confirmDelete() {
                     </div>
 
                     <div class="admin-listing-card__banks">
-                        <span class="admin-listing-card__stat-label">Оплата</span>
+                        <span class="admin-listing-card__stat-label">{{ t('admin.listings.index.stats.payment') }}</span>
                         <div class="admin-listing-card__bank-chips">
                             <span
                                 v-for="bank in listing.payment_methods"
@@ -122,10 +124,10 @@ function confirmDelete() {
 
                     <footer class="admin-listing-card__actions">
                         <Link :href="route('admin.listings.edit', listing.id)" class="admin-listing-card__btn">
-                            Редактировать
+                            {{ t('admin.listings.index.edit') }}
                         </Link>
                         <button type="button" class="admin-listing-card__btn admin-listing-card__btn--danger" @click="deleteTarget = listing">
-                            Удалить
+                            {{ t('admin.listings.index.delete') }}
                         </button>
                     </footer>
                 </article>
@@ -134,15 +136,15 @@ function confirmDelete() {
 
         <a-modal
             :open="Boolean(deleteTarget)"
-            title="Удалить объявление?"
-            ok-text="Да, удалить"
-            cancel-text="Нет"
+            :title="t('admin.listings.index.deleteModal.title')"
+            :ok-text="t('admin.shared.actions.delete')"
+            :cancel-text="t('admin.shared.actions.cancel')"
             ok-type="danger"
             @ok="confirmDelete"
             @cancel="deleteTarget = null"
         >
             <p v-if="deleteTarget">
-                Объявление «{{ deleteTarget.title }}» будет удалено без возможности восстановления.
+                {{ t('admin.listings.index.deleteModal.body', { title: deleteTarget.title }) }}
             </p>
         </a-modal>
     </AdminLayout>

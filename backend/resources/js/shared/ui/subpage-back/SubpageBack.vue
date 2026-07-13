@@ -1,7 +1,8 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { localizedPath } from '@/utils/localizedPath';
+import { localizedPathFor } from '@/utils/localizedPath';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     href: {
@@ -10,16 +11,20 @@ const props = defineProps({
     },
     label: {
         type: String,
-        default: 'Профиль',
+        default: '',
     },
 });
 
-const backHref = computed(() => localizedPath(props.href));
+const page = usePage();
+const { t } = useI18n();
+
+const backHref = computed(() => localizedPathFor(page.props.locale?.current ?? 'ru', props.href));
+const backLabel = computed(() => props.label || t('subpageBack.defaultLabel'));
 </script>
 
 <template>
     <Link :href="backHref" class="subpage-back">
         <span class="material-symbols-outlined text-lg">arrow_back</span>
-        {{ label }}
+        {{ backLabel }}
     </Link>
 </template>

@@ -1,21 +1,34 @@
 <?php
 
+use App\Support\AdminUrl;
 use App\Support\LocaleManager;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/internal/health',
+        then: function (): void {
+            if (app()->environment('testing')) {
+                Route::middleware('web')->group(base_path('routes/admin.php'));
+
+                return;
+            }
+
+            Route::middleware('web')
+                ->domain(AdminUrl::domain())
+                ->group(base_path('routes/admin.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(function (Request $request): string {
-            if ($request->is('admin', 'admin/*')) {
-                return route('login');
+            if (AdminUrl::isAdminHost($request)) {
+                return '/admin/login';
             }
 
             return route('auth.phone', [
@@ -27,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [
             \App\Http\Middleware\ResetZiggyRouteGenerator::class,
             \App\Http\Middleware\AttachRequestLogContext::class,
+            \App\Http\Middleware\RedirectClientAdminToSubdomain::class,
             \App\Http\Middleware\SetLocale::class,
         ]);
         $middleware->web(append: [

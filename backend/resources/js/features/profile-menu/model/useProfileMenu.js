@@ -16,8 +16,10 @@ export function useProfileMenu() {
         return options.find((item) => item.code === current)?.label ?? t('locale.label');
     });
 
+    const locale = computed(() => page.props.locale?.current ?? 'ru');
+
     const menuItems = computed(() =>
-        buildProfileMenuItems(languageLabel.value, canUseWallet.value).map((item) => ({
+        buildProfileMenuItems(languageLabel.value, canUseWallet.value, locale.value).map((item) => ({
             ...item,
             label: item.labelKey ? t(item.labelKey) : item.label,
         })),

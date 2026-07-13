@@ -48,10 +48,10 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Личные данные" />
+    <Head :title="t('profile.personalTitle')" />
 
     <ExchangeLayout>
-        <template #title>Личные данные</template>
+        <template #title>{{ t('profile.personalTitle') }}</template>
 
         <ProfileSettingsShell>
             <FlashBanner v-if="page.props.flash?.success" :message="page.props.flash.success" tone="success" />

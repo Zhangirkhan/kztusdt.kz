@@ -7,6 +7,7 @@ import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatKzt, formatUsdt } from '@/utils/formatNumber';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -16,47 +17,49 @@ const props = defineProps({
     stats: Object,
 });
 
-const statusLabels = {
-    created: 'Создана',
-    awaiting_kzt_payment: 'Ждёт оплату KZT',
-    payment_proof_uploaded: 'Скрин загружен',
-    pending_admin_confirmation: 'Ждёт подтверждения',
-    kzt_sent: 'KZT отправлены',
-    kzt_received: 'KZT получены',
-    completed: 'Выполнена',
-    cancelled: 'Отменена',
-    failed: 'Ошибка',
-    dispute: 'Спор',
-    manual_review: 'Ручная проверка',
-};
+const { t } = useI18n();
+
+const statusLabels = computed(() => ({
+    created: t('admin.orders.status.created'),
+    awaiting_kzt_payment: t('admin.orders.status.awaiting_kzt_payment'),
+    payment_proof_uploaded: t('admin.orders.status.payment_proof_uploaded'),
+    pending_admin_confirmation: t('admin.orders.status.pending_admin_confirmation'),
+    kzt_sent: t('admin.orders.status.kzt_sent'),
+    kzt_received: t('admin.orders.status.kzt_received'),
+    completed: t('admin.orders.status.completed'),
+    cancelled: t('admin.orders.status.cancelled'),
+    failed: t('admin.orders.status.failed'),
+    dispute: t('admin.orders.status.dispute'),
+    manual_review: t('admin.orders.status.manual_review'),
+}));
 
 const statItems = computed(() => [
-    { label: 'Ожидают действия', value: props.stats.pending, color: '#faad14' },
-    { label: 'Выполнено', value: props.stats.completed, color: '#52c41a' },
-    { label: 'Отменено / ошибки', value: props.stats.cancelled, color: '#ff4d4f' },
+    { label: t('admin.orders.index.stats.pending'), value: props.stats.pending, color: '#faad14' },
+    { label: t('admin.orders.index.stats.completed'), value: props.stats.completed, color: '#52c41a' },
+    { label: t('admin.orders.index.stats.cancelled'), value: props.stats.cancelled, color: '#ff4d4f' },
 ]);
 
-const statusOptions = [
-    { label: 'Активные', value: 'active' },
-    { label: 'Ждут подтверждения', value: 'pending_admin_confirmation' },
-    { label: 'Выполненные', value: 'completed' },
-    { label: 'Отменённые', value: 'cancelled' },
-    { label: 'Все', value: 'all' },
-];
+const statusOptions = computed(() => [
+    { label: t('admin.orders.index.filters.active'), value: 'active' },
+    { label: t('admin.orders.index.filters.pendingConfirmation'), value: 'pending_admin_confirmation' },
+    { label: t('admin.orders.index.filters.completed'), value: 'completed' },
+    { label: t('admin.orders.index.filters.cancelled'), value: 'cancelled' },
+    { label: t('admin.orders.index.filters.all'), value: 'all' },
+]);
 
-const directionOptions = [
-    { label: 'Покупка + продажа', value: 'all' },
-    { label: 'Покупка', value: 'buy' },
-    { label: 'Продажа', value: 'sell' },
-];
+const directionOptions = computed(() => [
+    { label: t('admin.shared.direction.buyAndSell'), value: 'all' },
+    { label: t('admin.shared.direction.buy'), value: 'buy' },
+    { label: t('admin.shared.direction.sell'), value: 'sell' },
+]);
 
-const columns = [
-    { title: 'Заявка', key: 'order' },
-    { title: 'Сумма', key: 'amount', width: 160 },
-    { title: 'Статус', key: 'status', width: 180 },
-    { title: 'Время', key: 'time', width: 160 },
+const columns = computed(() => [
+    { title: t('admin.orders.index.columns.order'), key: 'order' },
+    { title: t('admin.orders.index.columns.amount'), key: 'amount', width: 160 },
+    { title: t('admin.orders.index.columns.status'), key: 'status', width: 180 },
+    { title: t('admin.orders.index.columns.time'), key: 'time', width: 160 },
     { title: '', key: 'actions', width: 90, align: 'right' },
-];
+]);
 
 function setFilter(status) {
     router.get('/admin/orders', { status, direction: props.filterDirection }, { preserveState: true });
@@ -72,10 +75,10 @@ function formatDate(value) {
 </script>
 
 <template>
-    <Head title="Заявки обмена" />
+    <Head :title="t('admin.orders.index.headTitle')" />
 
     <AdminLayout>
-        <template #title>Заявки обмена KZT/USDT</template>
+        <template #title>{{ t('admin.orders.index.title') }}</template>
 
         <AdminPage>
             <AdminStatsRow :items="statItems" />
@@ -95,10 +98,10 @@ function formatDate(value) {
                         <template v-if="column.key === 'order'">
                             <div>
                                 <a-typography-text strong>
-                                    №{{ record.id }} · {{ record.direction === 'buy' ? 'Покупка' : 'Продажа' }}
+                                    №{{ record.id }} · {{ record.direction === 'buy' ? t('admin.shared.direction.buy') : t('admin.shared.direction.sell') }}
                                 </a-typography-text>
                                 <div class="admin-ant-meta">
-                                    {{ record.user?.name ?? '—' }} · {{ record.user?.phone ?? '—' }}
+                                    {{ record.user?.name ?? t('admin.shared.empty') }} · {{ record.user?.phone ?? t('admin.shared.empty') }}
                                 </div>
                             </div>
                         </template>
@@ -112,7 +115,7 @@ function formatDate(value) {
                             <a-tag :color="statusTagColor(record.status)">
                                 {{ statusLabels[record.status] ?? record.status }}
                             </a-tag>
-                            <div v-if="record.fiat_payment_request?.proof_file_path" class="admin-ant-meta">📎 скрин</div>
+                            <div v-if="record.fiat_payment_request?.proof_file_path" class="admin-ant-meta">{{ t('admin.orders.index.screenshot') }}</div>
                         </template>
 
                         <template v-else-if="column.key === 'time'">
@@ -121,13 +124,13 @@ function formatDate(value) {
 
                         <template v-else-if="column.key === 'actions'">
                             <Link :href="`/admin/orders/${record.id}`">
-                                <a-button type="link" size="small">Открыть</a-button>
+                                <a-button type="link" size="small">{{ t('admin.shared.actions.open') }}</a-button>
                             </Link>
                         </template>
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Нет заявок" />
+                        <a-empty :description="t('admin.orders.index.empty')" />
                     </template>
                 </a-table>
 

@@ -4,6 +4,7 @@ import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { localizedPath } from '@/utils/localizedPath';
+import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -14,31 +15,33 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const statItems = computed(() => [
-    { label: 'Пользователи', value: props.stats.users_total, color: '#1677ff', hint: 'Всего в системе' },
-    { label: 'KYC на проверке', value: props.stats.kyc_pending, color: '#faad14', hint: 'Требуют решения' },
-    { label: 'KYC одобрено', value: props.stats.kyc_approved, color: '#52c41a', hint: 'Верифицированные клиенты' },
+    { label: t('admin.dashboard.stats.users'), value: props.stats.users_total, color: '#1677ff', hint: t('admin.dashboard.stats.usersHint') },
+    { label: t('admin.dashboard.stats.kycPending'), value: props.stats.kyc_pending, color: '#faad14', hint: t('admin.dashboard.stats.kycPendingHint') },
+    { label: t('admin.dashboard.stats.kycApproved'), value: props.stats.kyc_approved, color: '#52c41a', hint: t('admin.dashboard.stats.kycApprovedHint') },
 ]);
 </script>
 
 <template>
-    <Head title="Admin" />
+    <Head :title="t('admin.dashboard.title')" />
 
     <AdminLayout>
-        <template #title>Дашборд</template>
+        <template #title>{{ t('admin.dashboard.title') }}</template>
 
         <AdminPage>
             <AdminStatsRow :items="statItems" />
 
             <a-row :gutter="[16, 16]">
                 <a-col :xs="24" :lg="12">
-                    <a-card title="Обзор" size="small">
+                    <a-card :title="t('admin.dashboard.cards.overview')" size="small">
                         <a-descriptions :column="1" size="small">
-                            <a-descriptions-item label="Пользователей">{{ stats.users_total }}</a-descriptions-item>
-                            <a-descriptions-item label="KYC на проверке">
+                            <a-descriptions-item :label="t('admin.dashboard.labels.usersCount')">{{ stats.users_total }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.dashboard.labels.kycPending')">
                                 <a-typography-text strong type="warning">{{ stats.kyc_pending }}</a-typography-text>
                             </a-descriptions-item>
-                            <a-descriptions-item label="KYC одобрено">
+                            <a-descriptions-item :label="t('admin.dashboard.labels.kycApproved')">
                                 <a-typography-text strong type="success">{{ stats.kyc_approved }}</a-typography-text>
                             </a-descriptions-item>
                         </a-descriptions>
@@ -46,16 +49,16 @@ const statItems = computed(() => [
                 </a-col>
 
                 <a-col :xs="24" :lg="12">
-                    <a-card title="Сервисы" size="small">
+                    <a-card :title="t('admin.dashboard.cards.services')" size="small">
                         <a-descriptions :column="1" size="small">
-                            <a-descriptions-item label="NCANode (ЭЦП)">
+                            <a-descriptions-item :label="t('admin.dashboard.labels.ncanode')">
                                 <template v-if="services.ncanode?.enabled">
                                     <a-tag :color="services.ncanode.healthy ? 'success' : 'error'">
-                                        {{ services.ncanode.healthy ? 'Доступен' : 'Недоступен' }}
+                                        {{ services.ncanode.healthy ? t('admin.dashboard.labels.available') : t('admin.dashboard.labels.unavailable') }}
                                     </a-tag>
                                     <span v-if="services.ncanode.skip_verification" class="admin-ant-meta"> (skip verification)</span>
                                 </template>
-                                <a-tag v-else color="default">Отключён</a-tag>
+                                <a-tag v-else color="default">{{ t('admin.dashboard.labels.disabled') }}</a-tag>
                             </a-descriptions-item>
                             <a-descriptions-item v-if="services.ncanode?.enabled" label="URL">
                                 <span class="admin-ant-meta">{{ services.ncanode.url }}</span>
@@ -65,22 +68,22 @@ const statItems = computed(() => [
                 </a-col>
 
                 <a-col :xs="24" :lg="12">
-                    <a-card title="Быстрые действия" size="small">
+                    <a-card :title="t('admin.dashboard.cards.quickActions')" size="small">
                         <a-space direction="vertical" style="width: 100%">
                             <Link v-if="$page.props.adminNav?.sections?.kyc" href="/admin/kyc">
-                                <a-button block>Проверить KYC ({{ stats.kyc_pending }})</a-button>
+                                <a-button block>{{ t('admin.dashboard.actions.reviewKyc', { count: stats.kyc_pending }) }}</a-button>
                             </Link>
                             <Link v-if="$page.props.adminNav?.sections?.orders" href="/admin/orders">
-                                <a-button block>Заявки обмена</a-button>
+                                <a-button block>{{ t('admin.dashboard.actions.orders') }}</a-button>
                             </Link>
                             <Link v-if="$page.props.adminNav?.sections?.withdrawals" href="/admin/withdrawals">
-                                <a-button block>Выводы USDT</a-button>
+                                <a-button block>{{ t('admin.dashboard.actions.withdrawals') }}</a-button>
                             </Link>
                             <Link v-if="$page.props.adminNav?.sections?.wallets" href="/admin/wallets">
-                                <a-button block>Кошельки и депозиты</a-button>
+                                <a-button block>{{ t('admin.dashboard.actions.wallets') }}</a-button>
                             </Link>
                             <Link v-if="$page.props.auth.canAccessPwa" :href="localizedPath('/wallet')">
-                                <a-button block type="dashed">Открыть приложение</a-button>
+                                <a-button block type="dashed">{{ t('admin.dashboard.actions.openApp') }}</a-button>
                             </Link>
                         </a-space>
                     </a-card>

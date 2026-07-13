@@ -7,6 +7,7 @@ import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { networkTagColor, withdrawalStatusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatUsdt } from '@/utils/formatNumber';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -17,47 +18,49 @@ const props = defineProps({
     stats: Object,
 });
 
+const { t } = useI18n();
+
 const showRejectModal = ref(false);
 const showApproveModal = ref(false);
 const rejectForm = useForm({ reason: '' });
 const approvingId = ref(null);
 const rejectingId = ref(null);
 
-const statusLabels = {
-    created: 'Создана',
-    awaiting_telegram_confirmation: 'Ждёт подтверждения',
-    pending_review: 'Ждёт проверки СБ',
-    approved: 'Одобрена, в очереди',
-    sending: 'Отправляется',
-    sent: 'Отправлена, ждём сеть',
-    completed: 'Выполнена',
-    cancelled: 'Отменена',
-    failed: 'Ошибка',
-    rejected: 'Отклонена',
-    needs_reconcile: 'Сверка',
-};
+const statusLabels = computed(() => ({
+    created: t('admin.withdrawals.status.created'),
+    awaiting_telegram_confirmation: t('admin.withdrawals.status.awaiting_telegram_confirmation'),
+    pending_review: t('admin.withdrawals.status.pending_review'),
+    approved: t('admin.withdrawals.status.approved'),
+    sending: t('admin.withdrawals.status.sending'),
+    sent: t('admin.withdrawals.status.sent'),
+    completed: t('admin.withdrawals.status.completed'),
+    cancelled: t('admin.withdrawals.status.cancelled'),
+    failed: t('admin.withdrawals.status.failed'),
+    rejected: t('admin.withdrawals.status.rejected'),
+    needs_reconcile: t('admin.withdrawals.status.needs_reconcile'),
+}));
 
 const statItems = computed(() => [
-    { label: 'Ждут проверки СБ', value: props.stats.review, color: '#ff4d4f' },
-    { label: 'В очереди / сети', value: props.stats.queued, color: '#1677ff' },
-    { label: 'Выполнено', value: props.stats.completed, color: '#52c41a' },
-    { label: 'Ошибки', value: props.stats.failed, color: '#ff4d4f' },
+    { label: t('admin.withdrawals.stats.review'), value: props.stats.review, color: '#ff4d4f' },
+    { label: t('admin.withdrawals.stats.queued'), value: props.stats.queued, color: '#1677ff' },
+    { label: t('admin.withdrawals.stats.completed'), value: props.stats.completed, color: '#52c41a' },
+    { label: t('admin.withdrawals.stats.failed'), value: props.stats.failed, color: '#ff4d4f' },
 ]);
 
 const filterOptions = computed(() => [
-    { label: 'Проверка СБ', value: 'review', count: props.stats.review },
-    { label: 'Активные', value: 'active', count: props.stats.active },
-    { label: 'Выполненные', value: 'completed', count: props.stats.completed },
-    { label: 'Ошибки', value: 'failed', count: props.stats.failed },
-    { label: 'Все', value: 'all', count: props.stats.all },
+    { label: t('admin.withdrawals.filters.review'), value: 'review', count: props.stats.review },
+    { label: t('admin.withdrawals.filters.active'), value: 'active', count: props.stats.active },
+    { label: t('admin.withdrawals.filters.completed'), value: 'completed', count: props.stats.completed },
+    { label: t('admin.withdrawals.filters.failed'), value: 'failed', count: props.stats.failed },
+    { label: t('admin.withdrawals.filters.all'), value: 'all', count: props.stats.all },
 ]);
 
-const columns = [
-    { title: 'Вывод', key: 'withdrawal' },
-    { title: 'Сумма', key: 'amount', width: 140 },
-    { title: 'Статус', key: 'status', width: 180 },
-    { title: 'Действия', key: 'actions', width: 220 },
-];
+const columns = computed(() => [
+    { title: t('admin.withdrawals.columns.withdrawal'), key: 'withdrawal' },
+    { title: t('admin.withdrawals.columns.amount'), key: 'amount', width: 140 },
+    { title: t('admin.withdrawals.columns.status'), key: 'status', width: 180 },
+    { title: t('admin.withdrawals.columns.actions'), key: 'actions', width: 220 },
+]);
 
 function setFilter(status) {
     router.get('/admin/withdrawals', { status }, { preserveState: true });
@@ -107,7 +110,7 @@ function reject() {
 }
 
 function short(value) {
-    return value ? `${value.slice(0, 10)}…${value.slice(-8)}` : '—';
+    return value ? `${value.slice(0, 10)}…${value.slice(-8)}` : t('admin.shared.empty');
 }
 
 function formatDate(value) {
@@ -128,17 +131,17 @@ function explorerTxUrl(network, txHash) {
 </script>
 
 <template>
-    <Head title="Выводы" />
+    <Head :title="t('admin.withdrawals.title')" />
 
     <AdminLayout>
-        <template #title>Выводы USDT</template>
+        <template #title>{{ t('admin.withdrawals.title') }}</template>
 
         <AdminPage>
             <a-alert
                 v-if="!enabled"
                 type="warning"
                 show-icon
-                message="Отправка выключена (WITHDRAWALS_ENABLED=false). Одобренные заявки копятся в очереди."
+                :message="t('admin.withdrawals.disabledAlert')"
                 class="admin-ant-block"
             />
 
@@ -161,15 +164,15 @@ function explorerTxUrl(network, txHash) {
                                     <a-typography-text strong>№{{ record.id }}</a-typography-text>
                                     <a-tag :color="networkTagColor(record.network)">{{ record.network }}</a-tag>
                                     <a-tag>{{ record.asset }}</a-tag>
-                                    <a-tag v-if="record.requires_manual_approval" color="error">СБ</a-tag>
+                                    <a-tag v-if="record.requires_manual_approval" color="error">{{ t('admin.withdrawals.meta.compliance') }}</a-tag>
                                 </a-space>
                                 <div class="admin-ant-meta">
-                                    {{ record.user?.name ?? '—' }} · {{ record.user?.phone ?? '—' }}
+                                    {{ record.user?.name ?? t('admin.shared.empty') }} · {{ record.user?.phone ?? t('admin.shared.empty') }}
                                 </div>
                                 <div class="admin-ant-meta">
-                                    Создан: {{ formatDate(record.created_at) }}
+                                    {{ t('admin.withdrawals.meta.created', { date: formatDate(record.created_at) }) }}
                                     <template v-if="record.completed_at">
-                                        · Выполнен: {{ formatDate(record.completed_at) }}
+                                        {{ t('admin.withdrawals.meta.completed', { date: formatDate(record.completed_at) }) }}
                                     </template>
                                 </div>
                                 <a-typography-text code class="admin-ant-meta">{{ record.to_address }}</a-typography-text>
@@ -188,7 +191,7 @@ function explorerTxUrl(network, txHash) {
 
                         <template v-else-if="column.key === 'amount'">
                             <a-typography-text strong>{{ formatUsdt(record.amount, 2) }}</a-typography-text>
-                            <div class="admin-ant-meta">списание {{ formatUsdt(record.total_debit, 4) }}</div>
+                            <div class="admin-ant-meta">{{ t('admin.withdrawals.meta.debit', { amount: formatUsdt(record.total_debit, 4) }) }}</div>
                         </template>
 
                         <template v-else-if="column.key === 'status'">
@@ -199,22 +202,22 @@ function explorerTxUrl(network, txHash) {
 
                         <template v-else-if="column.key === 'actions'">
                             <a-space v-if="record.status === 'failed'" wrap>
-                                <a-popconfirm title="Повторить отправку?" ok-text="Да" cancel-text="Нет" @confirm="retry(record.id)">
-                                    <a-button type="primary" size="small">Повторить</a-button>
+                                <a-popconfirm :title="t('admin.withdrawals.retryConfirm')" :ok-text="t('admin.shared.actions.yes')" :cancel-text="t('admin.shared.actions.no')" @confirm="retry(record.id)">
+                                    <a-button type="primary" size="small">{{ t('admin.shared.actions.retry') }}</a-button>
                                 </a-popconfirm>
                             </a-space>
 
                             <a-space v-else-if="record.status === 'pending_review'" wrap>
                                 <a-button type="primary" size="small" @click="approve(record.id)">
-                                    Одобрить
+                                    {{ t('admin.shared.actions.approve') }}
                                 </a-button>
-                                <a-button danger size="small" @click="startReject(record.id)">Отклонить</a-button>
+                                <a-button danger size="small" @click="startReject(record.id)">{{ t('admin.shared.actions.reject') }}</a-button>
                             </a-space>
                         </template>
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Нет записей" />
+                        <a-empty :description="t('admin.withdrawals.empty')" />
                     </template>
                 </a-table>
 
@@ -223,22 +226,22 @@ function explorerTxUrl(network, txHash) {
 
             <a-modal
                 v-model:open="showApproveModal"
-                title="Одобрить вывод"
-                ok-text="Одобрить"
-                cancel-text="Отмена"
+                :title="t('admin.withdrawals.modals.approve.title')"
+                :ok-text="t('admin.shared.actions.approve')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 @ok="confirmApprove"
                 @cancel="approvingId = null"
             >
                 <a-typography-text>
-                    Одобрить вывод №{{ approvingId }}? Заявка попадёт в очередь на отправку.
+                    {{ t('admin.withdrawals.modals.approve.body', { id: approvingId }) }}
                 </a-typography-text>
             </a-modal>
 
             <a-modal
                 v-model:open="showRejectModal"
-                title="Отклонить вывод"
-                ok-text="Подтвердить"
-                cancel-text="Отмена"
+                :title="t('admin.withdrawals.modals.reject.title')"
+                :ok-text="t('admin.shared.actions.confirm')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 ok-type="danger"
                 :confirm-loading="rejectForm.processing"
                 destroy-on-close
@@ -246,8 +249,8 @@ function explorerTxUrl(network, txHash) {
                 @cancel="rejectingId = null"
             >
                 <a-form layout="vertical">
-                    <a-form-item label="Причина отклонения" required>
-                        <a-textarea v-model:value="rejectForm.reason" :rows="3" placeholder="Причина отклонения" />
+                    <a-form-item :label="t('admin.withdrawals.modals.reject.reasonLabel')" required>
+                        <a-textarea v-model:value="rejectForm.reason" :rows="3" :placeholder="t('admin.withdrawals.modals.reject.reasonPlaceholder')" />
                     </a-form-item>
                 </a-form>
             </a-modal>

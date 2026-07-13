@@ -3,10 +3,12 @@ import AppLogo from '@/Components/AppLogo.vue';
 import SeoHead from '@/Components/SeoHead.vue';
 import { localizedPath } from '@/utils/localizedPath';
 import { router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 defineProps({
     document: Object,
 });
+const { t } = useI18n();
 
 function goBack() {
     try {
@@ -41,7 +43,7 @@ function goBack() {
             <button
                 type="button"
                 class="p-2 -ml-2 text-text-dim transition hover:text-on-surface"
-                aria-label="Назад"
+                :aria-label="t('common.back')"
                 @click="goBack"
             >
                 <span class="material-symbols-outlined">arrow_back</span>
@@ -49,9 +51,9 @@ function goBack() {
             <AppLogo />
         </header>
 
-        <p class="text-label-caps uppercase text-text-dim">Документ</p>
+        <p class="text-label-caps uppercase text-text-dim">{{ t('legal.show.documentLabel') }}</p>
         <h1 class="mt-1 text-headline-xl">{{ document.title }}</h1>
-        <p class="mt-2 text-body-sm text-text-dim">Редакция от {{ document.updated_at }}</p>
+        <p class="mt-2 text-body-sm text-text-dim">{{ t('legal.show.updatedAt', { date: document.updated_at }) }}</p>
 
         <article class="mt-stack-section space-y-stack-section">
             <section

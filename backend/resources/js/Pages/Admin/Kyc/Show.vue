@@ -4,6 +4,7 @@ import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     profile: Object,
@@ -16,6 +17,7 @@ const resetForm = useForm({ comment: '' });
 const showRejectModal = ref(false);
 const showApproveModal = ref(false);
 const showResetModal = ref(false);
+const { t } = useI18n();
 
 const canReset = computed(() => ['approved', 'rejected', 'pending_review'].includes(props.profile.status));
 
@@ -27,7 +29,7 @@ const displayName = computed(() => {
 
     // Prefer the identity that the user submitted for KYC.
     // Account name/phone can be anything and should not be treated as KYC identity.
-    return [props.profile.first_name, props.profile.last_name].filter(Boolean).join(' ') || '—';
+    return [props.profile.first_name, props.profile.last_name].filter(Boolean).join(' ') || t('admin.shared.empty');
 });
 
 const documentLine = computed(() => {
@@ -36,7 +38,7 @@ const documentLine = computed(() => {
     const number = props.profile.document_number ?? sumsub?.document_number;
 
     if (!type && !number) {
-        return '—';
+        return t('admin.shared.empty');
     }
 
     return [type, number].filter(Boolean).join(' · ');
@@ -68,7 +70,7 @@ function resetVerification() {
 
 function formatDate(value) {
     if (!value) {
-        return '—';
+        return t('admin.shared.empty');
     }
 
     return new Date(value).toLocaleString('ru-RU');
@@ -76,10 +78,10 @@ function formatDate(value) {
 </script>
 
 <template>
-    <Head :title="`KYC #${profile.id}`" />
+    <Head :title="t('admin.kyc.show.title', { id: profile.id })" />
 
     <AdminLayout>
-        <template #title>KYC #{{ profile.id }}</template>
+        <template #title>{{ t('admin.kyc.show.title', { id: profile.id }) }}</template>
 
         <AdminPage>
             <a-space class="admin-ant-block">
@@ -89,18 +91,18 @@ function formatDate(value) {
 
             <a-row :gutter="[16, 16]">
                 <a-col :xs="24" :lg="12">
-                    <a-card title="Клиент" size="small">
+                    <a-card :title="t('admin.kyc.show.cards.client')" size="small">
                         <a-descriptions :column="1" size="small">
-                            <a-descriptions-item label="ФИО">{{ displayName }}</a-descriptions-item>
-                            <a-descriptions-item label="Телефон">{{ profile.user?.phone ?? '—' }}</a-descriptions-item>
-                            <a-descriptions-item label="ИИН">{{ profile.user?.iin ?? profile.document_number ?? '—' }}</a-descriptions-item>
-                            <a-descriptions-item label="User ID">{{ profile.user?.id ?? '—' }}</a-descriptions-item>
-                            <a-descriptions-item label="Документ">{{ documentLine }}</a-descriptions-item>
-                            <a-descriptions-item label="Отправлено">
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.fullName')">{{ displayName }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.phone')">{{ profile.user?.phone ?? t('admin.shared.empty') }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.iin')">{{ profile.user?.iin ?? profile.document_number ?? t('admin.shared.empty') }}</a-descriptions-item>
+                            <a-descriptions-item label="User ID">{{ profile.user?.id ?? t('admin.shared.empty') }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.document')">{{ documentLine }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.submitted')">
                                 <template v-if="profile.submitted_at">{{ formatDate(profile.submitted_at) }}</template>
-                                <template v-else>Не отправлено (черновик)</template>
+                                <template v-else>{{ t('admin.kyc.show.labels.notSubmitted') }}</template>
                             </a-descriptions-item>
-                            <a-descriptions-item label="Решение">{{ formatDate(profile.reviewed_at) }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.decision')">{{ formatDate(profile.reviewed_at) }}</a-descriptions-item>
                         </a-descriptions>
                         <a-alert
                             v-if="profile.rejection_reason"
@@ -117,15 +119,15 @@ function formatDate(value) {
                         <a-descriptions :column="1" size="small">
                             <a-descriptions-item label="sessionDocumentId">
                                 <a-typography-text code copyable>
-                                    {{ profile.provider_verification_id ?? '—' }}
+                                    {{ profile.provider_verification_id ?? t('admin.shared.empty') }}
                                 </a-typography-text>
                             </a-descriptions-item>
                             <a-descriptions-item label="sid">
                                 <a-typography-text code copyable>
-                                    {{ profile.provider_session_id ?? '—' }}
+                                    {{ profile.provider_session_id ?? t('admin.shared.empty') }}
                                 </a-typography-text>
                             </a-descriptions-item>
-                            <a-descriptions-item label="Дата верификации">
+                            <a-descriptions-item :label="t('admin.kyc.show.labels.verificationDate')">
                                 {{ formatDate(profile.reviewed_at) }}
                             </a-descriptions-item>
                         </a-descriptions>
@@ -140,24 +142,24 @@ function formatDate(value) {
                                 <a-descriptions-item label="Applicant">
                                     <a-typography-text code copyable>{{ profile.sumsub_applicant_id }}</a-typography-text>
                                 </a-descriptions-item>
-                                <a-descriptions-item v-if="profile.sumsub.created_at" label="Создан">
+                                <a-descriptions-item v-if="profile.sumsub.created_at" :label="t('admin.kyc.show.labels.created')">
                                     {{ profile.sumsub.created_at }}
                                 </a-descriptions-item>
-                                <a-descriptions-item v-if="profile.sumsub.platform" label="Платформа">
+                                <a-descriptions-item v-if="profile.sumsub.platform" :label="t('admin.kyc.show.labels.platform')">
                                     {{ profile.sumsub.platform }}
                                 </a-descriptions-item>
-                                <a-descriptions-item v-if="profile.sumsub.review_status" label="Статус">
+                                <a-descriptions-item v-if="profile.sumsub.review_status" :label="t('admin.kyc.show.labels.status')">
                                     {{ profile.sumsub.review_status }}
                                     <template v-if="profile.sumsub.review_answer"> · {{ profile.sumsub.review_answer }}</template>
                                 </a-descriptions-item>
                             </a-descriptions>
                             <p v-if="profile.sumsub.moderation_comment" class="admin-ant-meta admin-ant-block">
-                                Комментарий: {{ profile.sumsub.moderation_comment }}
+                                {{ t('admin.kyc.show.sumsub.comment', { text: profile.sumsub.moderation_comment }) }}
                             </p>
                             <a-alert
                                 v-if="profile.sumsub.reject_labels?.length"
                                 type="error"
-                                :message="`Метки отказа: ${profile.sumsub.reject_labels.join(', ')}`"
+                                :message="t('admin.kyc.show.sumsub.rejectLabels', { labels: profile.sumsub.reject_labels.join(', ') })"
                                 show-icon
                                 class="admin-ant-block"
                             />
@@ -167,17 +169,17 @@ function formatDate(value) {
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
-                                <a-button type="link" style="padding-left: 0">Открыть в Sumsub ↗</a-button>
+                                <a-button type="link" style="padding-left: 0">{{ t('admin.kyc.show.sumsub.openInSumsub') }}</a-button>
                             </a>
                             <a-typography-text type="secondary" class="admin-ant-meta">
-                                Документы и селфи хранятся в Sumsub, не на сервере обменника.
+                                {{ t('admin.kyc.show.sumsub.storageNote') }}
                             </a-typography-text>
                         </template>
                     </a-card>
                 </a-col>
 
                 <a-col v-else :xs="24" :lg="12">
-                    <a-card title="Загруженные документы" size="small">
+                    <a-card :title="t('admin.kyc.show.cards.uploadedDocuments')" size="small">
                         <a-space v-if="profile.documents.length" wrap>
                             <a
                                 v-for="doc in profile.documents"
@@ -188,14 +190,14 @@ function formatDate(value) {
                                 <a-button>{{ doc.label }}</a-button>
                             </a>
                         </a-space>
-                        <a-empty v-else description="Документы не загружены" />
+                        <a-empty v-else :description="t('admin.kyc.show.documentsEmpty')" />
                     </a-card>
                 </a-col>
             </a-row>
 
             <a-space v-if="profile.status === 'pending_review' && (!sumsubAdminEnabled || profile.provider !== 'sumsub')" class="admin-ant-actions admin-ant-block">
-                <a-button type="primary" @click="showApproveModal = true">Одобрить KYC</a-button>
-                <a-button danger @click="showRejectModal = true">Отклонить</a-button>
+                <a-button type="primary" @click="showApproveModal = true">{{ t('admin.kyc.show.actions.approve') }}</a-button>
+                <a-button danger @click="showRejectModal = true">{{ t('admin.kyc.show.actions.reject') }}</a-button>
             </a-space>
 
             <a-typography-text
@@ -203,24 +205,24 @@ function formatDate(value) {
                 type="secondary"
                 class="admin-ant-block"
             >
-                Заявка проверяется в Sumsub автоматически.
+                {{ t('admin.kyc.show.sumsub.autoReviewNote') }}
             </a-typography-text>
 
             <a-space v-if="canReset" class="admin-ant-actions admin-ant-block">
-                <a-button @click="showResetModal = true">Сбросить верификацию</a-button>
+                <a-button @click="showResetModal = true">{{ t('admin.kyc.show.actions.reset') }}</a-button>
             </a-space>
 
             <a-modal
                 v-model:open="showApproveModal"
-                title="Одобрить KYC"
-                ok-text="Одобрить"
-                cancel-text="Отмена"
+                :title="t('admin.kyc.show.modals.approve.title')"
+                :ok-text="t('admin.kyc.show.modals.approve.ok')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 :confirm-loading="approveForm.processing"
                 destroy-on-close
                 @ok="approve"
             >
                 <a-form layout="vertical">
-                    <a-form-item label="Комментарий (необязательно)">
+                    <a-form-item :label="t('admin.kyc.show.modals.approve.commentLabel')">
                         <a-textarea v-model:value="approveForm.comment" :rows="2" />
                     </a-form-item>
                 </a-form>
@@ -228,14 +230,14 @@ function formatDate(value) {
 
             <a-modal
                 v-model:open="showRejectModal"
-                title="Отклонить KYC"
-                ok-text="Подтвердить"
-                cancel-text="Отмена"
+                :title="t('admin.kyc.show.modals.reject.title')"
+                :ok-text="t('admin.shared.actions.confirm')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 :confirm-loading="rejectForm.processing"
                 @ok="reject"
             >
                 <a-form layout="vertical">
-                    <a-form-item label="Причина отклонения" required>
+                    <a-form-item :label="t('admin.kyc.show.modals.reject.reasonLabel')" required>
                         <a-textarea v-model:value="rejectForm.reason" :rows="3" />
                     </a-form-item>
                 </a-form>
@@ -243,18 +245,22 @@ function formatDate(value) {
 
             <a-modal
                 v-model:open="showResetModal"
-                title="Сбросить верификацию"
-                ok-text="Подтвердить"
-                cancel-text="Отмена"
+                :title="t('admin.kyc.show.modals.reset.title')"
+                :ok-text="t('admin.shared.actions.confirm')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 :confirm-loading="resetForm.processing"
                 @ok="resetVerification"
             >
                 <a-typography-paragraph type="secondary">
-                    Клиент сможет пройти KYC заново. Кошелёк и баланс не удаляются.
+                    {{ t('admin.kyc.show.modals.reset.description') }}
                 </a-typography-paragraph>
                 <a-form layout="vertical">
-                    <a-form-item label="Комментарий (необязательно)">
-                        <a-textarea v-model:value="resetForm.comment" placeholder="Причина сброса" :rows="2" />
+                    <a-form-item :label="t('admin.kyc.show.modals.reset.commentLabel')">
+                        <a-textarea
+                            v-model:value="resetForm.comment"
+                            :placeholder="t('admin.kyc.show.modals.reset.commentPlaceholder')"
+                            :rows="2"
+                        />
                     </a-form-item>
                 </a-form>
             </a-modal>

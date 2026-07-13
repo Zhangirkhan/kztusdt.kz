@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Support\AdminNavPresenter;
+use App\Support\AdminUrl;
+use App\Support\LocaleManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,11 +19,20 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): Response
+    public function create(Request $request): Response|RedirectResponse
     {
+        $user = $request->user();
+
+        if ($user !== null && AdminNavPresenter::canAccessAdmin($user)) {
+            $landing = AdminNavPresenter::landingPath($user) ?? '/admin';
+
+            return redirect()->to($landing);
+        }
+
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'signedInAsClient' => $user !== null && ! AdminNavPresenter::canAccessAdmin($user),
         ]);
     }
 
@@ -40,8 +51,16 @@ class AuthenticatedSessionController extends Controller
             $landing = AdminNavPresenter::landingPath($user);
 
             if ($landing !== null) {
-                return redirect()->intended($landing);
+                if (AdminUrl::isAdminHost($request)) {
+                    return redirect()->intended($landing);
+                }
+
+                return redirect()->away(AdminNavPresenter::landingUrl($user));
             }
+        }
+
+        if (AdminUrl::isAdminHost($request)) {
+            return redirect()->intended('/admin');
         }
 
         return redirect()->intended(route('home', absolute: false));
@@ -58,6 +77,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        if (AdminUrl::isAdminHost($request)) {
+            return redirect('/admin/login');
+        }
+
+        return redirect(route('auth.phone', [
+            'locale' => LocaleManager::resolve($request),
+        ]));
     }
 }

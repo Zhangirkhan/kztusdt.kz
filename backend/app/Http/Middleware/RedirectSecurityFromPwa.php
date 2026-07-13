@@ -16,7 +16,11 @@ final class RedirectSecurityFromPwa
         $user = $request->user();
 
         if ($user !== null && AdminNavPresenter::isSecurityOnly($user)) {
-            return redirect()->route('admin.kyc.index');
+            $landing = AdminNavPresenter::landingUrl($user);
+
+            if ($landing !== null) {
+                return redirect()->away($landing);
+            }
         }
 
         return $next($request);

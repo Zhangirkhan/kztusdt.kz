@@ -22,6 +22,7 @@ import {
 import { Link, usePage } from '@inertiajs/vue3';
 import { Menu, Typography } from 'ant-design-vue';
 import { computed, h } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     collapsed: {
@@ -40,6 +41,7 @@ const props = defineProps({
 
 const { Text } = Typography;
 const page = usePage();
+const { t } = useI18n();
 
 const current = computed(() => page.url);
 const sections = computed(() => page.props.adminNav?.sections ?? {});
@@ -62,7 +64,7 @@ const iconMap = {
     campaign: AuditOutlined,
 };
 
-const navGroups = computed(() => buildAdminNavGroups(sections.value));
+const navGroups = computed(() => buildAdminNavGroups(sections.value, t));
 
 const selectedKeys = computed(() => {
     const active = navGroups.value
@@ -91,14 +93,14 @@ const footerItems = computed(() => {
         items.push({
             key: 'pwa',
             icon: () => h(DashboardOutlined),
-            label: h(Link, { href: localizedPath('/wallet') }, () => 'В приложение'),
+            label: h(Link, { href: localizedPath('/wallet') }, () => t('admin.nav.footer.toApp')),
         });
     }
 
     items.push({
         key: 'account',
         icon: () => h(UserOutlined),
-        label: h(Link, { href: '/admin/account' }, () => 'Аккаунт'),
+        label: h(Link, { href: '/admin/account' }, () => t('admin.nav.footer.account')),
     });
 
     return items;
@@ -144,7 +146,7 @@ const footerSelectedKeys = computed(() =>
                 :class="{ 'admin-ant-logout--collapsed': inlineCollapsed }"
             >
                 <LogoutOutlined />
-                <span v-if="!inlineCollapsed">Выйти</span>
+                <span v-if="!inlineCollapsed">{{ t('admin.nav.footer.logout') }}</span>
             </Link>
         </div>
     </div>

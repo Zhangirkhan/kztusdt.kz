@@ -1,5 +1,6 @@
 <script setup>
 import { formatPercent, formatUsdt } from '@/utils/formatNumber';
+import { useWithdrawalStatusLabels } from '@/shared/lib/i18n/useOrderStatusLabels';
 import { clampDecimalAmount, formatAmountForInput, maxWithdrawableAmount } from '@/utils/amountInput';
 import {
     clearWalletAddressMask,
@@ -13,6 +14,7 @@ import {
 } from '@/utils/walletAddressMask';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     balance: {
@@ -30,6 +32,8 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t, locale } = useI18n();
+const withdrawalStatusLabels = useWithdrawalStatusLabels();
 const addressTouched = ref(false);
 
 const form = useForm({
@@ -67,19 +71,6 @@ const localAddressError = computed(() => {
 });
 
 const addressFieldError = computed(() => form.errors.to_address || localAddressError.value);
-
-const statusLabels = {
-    created: 'Создана',
-    awaiting_telegram_confirmation: 'Ждёт подтверждения',
-    pending_review: 'На проверке СБ',
-    approved: 'Одобрена, в очереди',
-    sending: 'Отправляется',
-    sent: 'Отправлена, ждём сеть',
-    completed: 'Выполнена',
-    cancelled: 'Отменена',
-    failed: 'Ошибка',
-    rejected: 'Отклонена',
-};
 
 const preview = computed(() => {
     const amount = parseFloat(form.amount) || 0;
@@ -142,7 +133,7 @@ function submit() {
 }
 
 function cancelWithdrawal(id) {
-    if (confirm('Отменить заявку на вывод?')) {
+    if (confirm(t('withdraw.cancelConfirm'))) {
         router.post(route('withdraw.cancel', id), {}, { preserveScroll: true });
     }
 }
@@ -152,7 +143,18 @@ function short(value) {
 }
 
 function formatDate(value) {
-    return new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const localeMap = {
+        ru: 'ru-RU',
+        en: 'en-US',
+        kk: 'kk-KZ',
+    };
+
+    return new Date(value).toLocaleString(localeMap[locale.value] ?? locale.value, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 </script>
 
@@ -165,12 +167,12 @@ function formatDate(value) {
         <div v-if="!withdraw.withdrawalsEnabled" class="wallet-warning mb-4">
             <span class="material-symbols-outlined wallet-warning__icon" aria-hidden="true">warning</span>
             <p class="wallet-warning__text">
-                Автоматическая отправка временно отключена: заявки принимаются и будут отправлены после включения.
+                {{ t('withdraw.withdrawalsDisabled') }}
             </p>
         </div>
 
         <div class="wallet-section-head">
-            <p class="wallet-section-head__label">Выберите сеть</p>
+            <p class="wallet-section-head__label">{{ t('wallet.selectNetwork') }}</p>
         </div>
 
         <div v-if="networks.length > 1" class="wallet-network-grid">
@@ -188,7 +190,7 @@ function formatDate(value) {
         <p v-if="form.errors.network" class="mt-2 text-sm text-error">{{ form.errors.network }}</p>
 
         <label class="wallet-address-label">
-            Адрес получателя · {{ currentNetwork.label || currentNetwork.code }}
+            {{ t('withdraw.recipientAddressShort', { label: currentNetwork.label || currentNetwork.code }) }}
         </label>
         <p class="mb-2 text-xs text-text-dim">{{ addressHint }}</p>
         <input
@@ -212,7 +214,7 @@ function formatDate(value) {
         <p v-if="addressFieldError" class="mt-2 text-sm text-error">{{ addressFieldError }}</p>
 
         <label class="wallet-address-label mt-4">
-            Сумма USDT
+            {{ t('withdraw.amountUsdt') }}
         </label>
         <div class="wallet-amount-row">
             <input
@@ -231,35 +233,37 @@ function formatDate(value) {
                 :disabled="maxAmount <= 0"
                 @click="setMaxAmount"
             >
-                MAX
+                {{ t('withdraw.max') }}
             </button>
         </div>
         <p class="mt-2 text-center text-xs text-text-dim">
-            Доступно {{ formatUsdt(balance.available, 2) }} USDT
+            {{ t('withdraw.availableBalance', { available: formatUsdt(balance.available, 2) }) }}
             <span v-if="parseFloat(balance.locked) > 0">
-                · Заблокировано {{ formatUsdt(balance.locked, 2) }} USDT
+                · {{ t('withdraw.lockedInOrders', { amount: formatUsdt(balance.locked, 2) }) }}
             </span>
             <br>
-            Можно вывести до {{ formatUsdt(maxAmount, 2) }} USDT (с учётом комиссий).
-            Минимум {{ formatUsdt(withdraw.minAmount, 2) }} USDT. Все выводы проходят ручную проверку СБ.
+            {{ t('withdraw.withdrawableHint', {
+                max: formatUsdt(maxAmount, 2),
+                min: formatUsdt(withdraw.minAmount, 2),
+            }) }}
         </p>
         <p v-if="form.errors.amount" class="mt-2 text-sm text-error">{{ form.errors.amount }}</p>
 
         <div class="wallet-withdraw-preview">
             <div class="wallet-withdraw-preview__row wallet-withdraw-preview__row--strong">
-                <span>Получатель получит</span>
+                <span>{{ t('withdraw.recipientGets') }}</span>
                 <span>{{ formatUsdt(parseFloat(form.amount) || 0, 4) }} USDT</span>
             </div>
             <div class="wallet-withdraw-preview__row">
-                <span>Комиссия сервиса ({{ formatPercent(withdraw.feePercent) }}%)</span>
+                <span>{{ t('withdraw.serviceFee', { percent: formatPercent(withdraw.feePercent) }) }}</span>
                 <span>{{ preview.fee }} USDT</span>
             </div>
             <div class="wallet-withdraw-preview__row">
-                <span>Комиссия сети</span>
+                <span>{{ t('withdraw.networkFee') }}</span>
                 <span>{{ preview.network }} USDT</span>
             </div>
             <div class="wallet-withdraw-preview__row wallet-withdraw-preview__row--total">
-                <span>Итого к списанию</span>
+                <span>{{ t('withdraw.totalDebit') }}</span>
                 <span>{{ preview.total }} USDT</span>
             </div>
         </div>
@@ -267,15 +271,15 @@ function formatDate(value) {
         <p v-if="form.errors.form" class="text-sm text-error">{{ form.errors.form }}</p>
 
         <button type="button" class="btn-primary wallet-copy-cta" :disabled="form.processing" @click="submit">
-            Создать заявку
+            {{ t('withdraw.createRequest') }}
         </button>
         <p class="mt-3 text-center text-xs text-text-dim">
-            После создания заявка будет проверена службой безопасности.
+            {{ t('withdraw.securityCheckHint') }}
         </p>
     </section>
 
     <section v-if="withdraw.withdrawals.length" class="wallet-section wallet-section--card">
-        <p class="wallet-section-head__label mb-3">Мои выводы</p>
+        <p class="wallet-section-head__label mb-3">{{ t('withdraw.myWithdrawals') }}</p>
         <div class="wallet-deposits">
             <div
                 v-for="withdrawal in withdraw.withdrawals"
@@ -306,7 +310,7 @@ function formatDate(value) {
                             'wallet-deposit-item__badge--error': ['cancelled', 'rejected', 'failed'].includes(withdrawal.status),
                         }"
                     >
-                        {{ statusLabels[withdrawal.status] ?? withdrawal.status }}
+                        {{ withdrawalStatusLabels[withdrawal.status] ?? withdrawal.status }}
                     </span>
                     <p class="wallet-deposit-item__confirm">{{ formatDate(withdrawal.created_at) }}</p>
                     <button
@@ -315,7 +319,7 @@ function formatDate(value) {
                         class="wallet-withdraw-cancel"
                         @click="cancelWithdrawal(withdrawal.id)"
                     >
-                        Отменить
+                        {{ t('withdraw.cancel') }}
                     </button>
                 </div>
             </div>

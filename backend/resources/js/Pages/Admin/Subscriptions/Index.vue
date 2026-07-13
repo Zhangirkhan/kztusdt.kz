@@ -4,6 +4,7 @@ import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
 import { formatPercent } from '@/utils/formatNumber';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const searchInput = ref(props.search ?? '');
 const showEditModal = ref(false);
 const showCreateModal = ref(false);
@@ -57,13 +59,13 @@ const subscriptionPlanOptions = computed(() => props.subscriptionPlans ?? []);
 
 const selectedGrantUser = computed(() => props.foundUsers?.find((u) => u.id === grantForm.user_id));
 
-const subscriptionColumns = [
-    { title: 'Клиент', key: 'user', dataIndex: 'user' },
-    { title: 'Тариф', key: 'plan', dataIndex: 'plan' },
-    { title: 'Период', key: 'period' },
-    { title: 'Статус', key: 'status', width: 110 },
+const subscriptionColumns = computed(() => [
+    { title: t('admin.subscriptions.userSubscriptions.columns.client'), key: 'user', dataIndex: 'user' },
+    { title: t('admin.subscriptions.userSubscriptions.columns.plan'), key: 'plan', dataIndex: 'plan' },
+    { title: t('admin.subscriptions.userSubscriptions.columns.period'), key: 'period' },
+    { title: t('admin.subscriptions.userSubscriptions.columns.status'), key: 'status', width: 110 },
     { title: '', key: 'actions', width: 120, align: 'right' },
-];
+]);
 
 function openEdit(plan) {
     editingPlan.value = plan;
@@ -160,19 +162,19 @@ function openCancelSubscription(id) {
 }
 
 function formatDate(value) {
-    return value ? new Date(value).toLocaleDateString('ru-RU') : '—';
+    return value ? new Date(value).toLocaleDateString('ru-RU') : t('admin.shared.empty');
 }
 
 function planTypeLabel(plan) {
     if (plan.is_default) {
-        return 'Базовый';
+        return t('admin.subscriptions.plans.types.base');
     }
 
     if (plan.is_subscription) {
-        return 'Подписка';
+        return t('admin.subscriptions.plans.types.subscription');
     }
 
-    return 'Тариф';
+    return t('admin.subscriptions.plans.types.tariff');
 }
 
 function planTypeColor(plan) {
@@ -197,10 +199,10 @@ function statusColor(status) {
 </script>
 
 <template>
-    <Head title="Подписки" />
+    <Head :title="t('admin.subscriptions.title')" />
 
     <AdminLayout>
-        <template #title>Тарифы, комиссии и подписки</template>
+        <template #title>{{ t('admin.subscriptions.title') }}</template>
 
         <AdminPage>
             <a-alert
@@ -211,14 +213,13 @@ function statusColor(status) {
                 class="admin-ant-block"
             />
 
-            <a-card title="Тарифы и комиссии" class="admin-ant-card">
+            <a-card :title="t('admin.subscriptions.plans.cardTitle')" class="admin-ant-card">
                 <template #extra>
                     <a-space>
                         <a-typography-text type="secondary">
-                            Базовый: {{ defaultPlan?.name ?? '—' }}
-                            ({{ defaultPlan ? formatPercent(defaultPlan.fee_percent) : '—' }}%)
+                            {{ t('admin.subscriptions.plans.defaultPlan', { name: defaultPlan?.name ?? t('admin.shared.empty'), fee: defaultPlan ? formatPercent(defaultPlan.fee_percent) : t('admin.shared.empty') }) }}
                         </a-typography-text>
-                        <a-button type="primary" @click="openCreate">Новый тариф</a-button>
+                        <a-button type="primary" @click="openCreate">{{ t('admin.subscriptions.plans.newPlan') }}</a-button>
                     </a-space>
                 </template>
 
@@ -230,10 +231,10 @@ function statusColor(status) {
                                     <a-typography-text strong>{{ plan.name }}</a-typography-text>
                                     <a-tag :color="planTypeColor(plan)">{{ planTypeLabel(plan) }}</a-tag>
                                     <a-tag color="processing">{{ formatPercent(plan.fee_percent) }}%</a-tag>
-                                    <a-tag v-if="!plan.is_active" color="error">отключён</a-tag>
+                                    <a-tag v-if="!plan.is_active" color="error">{{ t('admin.subscriptions.plans.disabled') }}</a-tag>
                                 </a-space>
                                 <div class="admin-ant-meta">
-                                    код: {{ plan.code }} · порядок: {{ plan.sort_order }}
+                                    {{ t('admin.subscriptions.plans.meta', { code: plan.code, sortOrder: plan.sort_order }) }}
                                 </div>
                                 <div v-if="plan.timing" class="admin-ant-desc">{{ plan.timing }}</div>
                                 <div v-if="plan.description" class="admin-ant-desc admin-ant-desc--muted">
@@ -241,16 +242,16 @@ function statusColor(status) {
                                 </div>
                             </div>
                             <a-button type="primary" ghost size="small" @click="openEdit(plan)">
-                                Изменить
+                                {{ t('admin.subscriptions.plans.edit') }}
                             </a-button>
                         </div>
                     </a-card>
                 </a-space>
             </a-card>
 
-            <a-card title="Подписки пользователей" class="admin-ant-card">
+            <a-card :title="t('admin.subscriptions.userSubscriptions.cardTitle')" class="admin-ant-card">
                 <template #extra>
-                    <a-button type="primary" @click="openGrant">Выдать / продлить</a-button>
+                    <a-button type="primary" @click="openGrant">{{ t('admin.subscriptions.userSubscriptions.grant') }}</a-button>
                 </template>
 
                 <a-table
@@ -264,19 +265,19 @@ function statusColor(status) {
                         <template v-if="column.key === 'user'">
                             <div>
                                 <a-typography-text strong>
-                                    {{ record.user?.name ?? '—' }}
+                                    {{ record.user?.name ?? t('admin.shared.empty') }}
                                 </a-typography-text>
                                 <div class="admin-ant-meta">
-                                    {{ record.user?.phone ?? record.user?.email ?? '—' }}
+                                    {{ record.user?.phone ?? record.user?.email ?? t('admin.shared.empty') }}
                                 </div>
                             </div>
                         </template>
 
                         <template v-else-if="column.key === 'plan'">
                             <div>
-                                {{ record.plan?.name ?? '—' }}
+                                {{ record.plan?.name ?? t('admin.shared.empty') }}
                                 <a-tag color="processing" style="margin-left: 4px">
-                                    {{ record.plan ? formatPercent(record.plan.fee_percent) : '—' }}%
+                                    {{ record.plan ? formatPercent(record.plan.fee_percent) : t('admin.shared.empty') }}%
                                 </a-tag>
                             </div>
                             <div v-if="record.comment" class="admin-ant-meta">{{ record.comment }}</div>
@@ -284,7 +285,7 @@ function statusColor(status) {
 
                         <template v-else-if="column.key === 'period'">
                             <div>{{ formatDate(record.starts_at) }} — {{ formatDate(record.expires_at) }}</div>
-                            <div class="admin-ant-meta">выдал: {{ record.granted_by?.name ?? '—' }}</div>
+                            <div class="admin-ant-meta">{{ t('admin.subscriptions.userSubscriptions.grantedBy', { name: record.granted_by?.name ?? t('admin.shared.empty') }) }}</div>
                         </template>
 
                         <template v-else-if="column.key === 'status'">
@@ -298,25 +299,25 @@ function statusColor(status) {
                                 size="small"
                                 @click="openCancelSubscription(record.id)"
                             >
-                                Отменить
+                                {{ t('admin.subscriptions.userSubscriptions.cancel') }}
                             </a-button>
                         </template>
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Подписок пока нет" />
+                        <a-empty :description="t('admin.subscriptions.userSubscriptions.empty')" />
                     </template>
                 </a-table>
 
                 <AdminPagination :pagination="subscriptions" />
             </a-card>
 
-            <!-- Редактирование тарифа -->
+            <!-- Edit plan -->
             <a-modal
                 v-model:open="showEditModal"
-                :title="editingPlan ? `Редактировать: ${editingPlan.name}` : 'Редактировать тариф'"
-                ok-text="Сохранить"
-                cancel-text="Отмена"
+                :title="editingPlan ? t('admin.subscriptions.modals.edit.title', { name: editingPlan.name }) : t('admin.subscriptions.modals.edit.titleFallback')"
+                :ok-text="t('admin.shared.actions.save')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 :confirm-loading="editForm.processing"
                 width="640px"
                 destroy-on-close
@@ -325,12 +326,12 @@ function statusColor(status) {
                 <a-form layout="vertical">
                     <a-row :gutter="16">
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Название" required>
+                            <a-form-item :label="t('admin.subscriptions.modals.edit.name')" required>
                                 <a-input v-model:value="editForm.name" />
                             </a-form-item>
                         </a-col>
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Комиссия, %" required>
+                            <a-form-item :label="t('admin.subscriptions.modals.edit.fee')" required>
                                 <a-input-number
                                     v-model:value="editForm.fee_percent"
                                     :min="0"
@@ -341,30 +342,30 @@ function statusColor(status) {
                             </a-form-item>
                         </a-col>
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Срок обработки">
+                            <a-form-item :label="t('admin.subscriptions.modals.edit.timing')">
                                 <a-input v-model:value="editForm.timing" />
                             </a-form-item>
                         </a-col>
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Порядок">
+                            <a-form-item :label="t('admin.subscriptions.modals.edit.sortOrder')">
                                 <a-input-number v-model:value="editForm.sort_order" :min="0" style="width: 100%" />
                             </a-form-item>
                         </a-col>
                         <a-col :span="24">
-                            <a-form-item label="Описание">
+                            <a-form-item :label="t('admin.subscriptions.modals.edit.description')">
                                 <a-textarea v-model:value="editForm.description" :rows="2" />
                             </a-form-item>
                         </a-col>
                         <a-col :span="24">
                             <a-space wrap>
                                 <a-checkbox v-if="editingPlan && !editingPlan.is_default" v-model:checked="editForm.is_default">
-                                    Базовый тариф
+                                    {{ t('admin.subscriptions.modals.edit.isDefault') }}
                                 </a-checkbox>
                                 <a-checkbox v-if="editingPlan && !editingPlan.is_default" v-model:checked="editForm.is_subscription">
-                                    Тариф подписки
+                                    {{ t('admin.subscriptions.modals.edit.isSubscription') }}
                                 </a-checkbox>
                                 <a-checkbox v-model:checked="editForm.is_active" :disabled="editingPlan?.is_default">
-                                    Активен
+                                    {{ t('admin.subscriptions.modals.edit.isActive') }}
                                 </a-checkbox>
                             </a-space>
                         </a-col>
@@ -372,12 +373,12 @@ function statusColor(status) {
                 </a-form>
             </a-modal>
 
-            <!-- Новый тариф -->
+            <!-- New plan -->
             <a-modal
                 v-model:open="showCreateModal"
-                title="Новый тариф"
-                ok-text="Создать"
-                cancel-text="Отмена"
+                :title="t('admin.subscriptions.modals.create.title')"
+                :ok-text="t('admin.shared.actions.create')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 :confirm-loading="newPlanForm.processing"
                 width="640px"
                 destroy-on-close
@@ -386,17 +387,17 @@ function statusColor(status) {
                 <a-form layout="vertical">
                     <a-row :gutter="16">
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Код" required :validate-status="newPlanForm.errors.code ? 'error' : ''" :help="newPlanForm.errors.code">
+                            <a-form-item :label="t('admin.subscriptions.modals.create.code')" required :validate-status="newPlanForm.errors.code ? 'error' : ''" :help="newPlanForm.errors.code">
                                 <a-input v-model:value="newPlanForm.code" placeholder="premium" />
                             </a-form-item>
                         </a-col>
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Название" required>
-                                <a-input v-model:value="newPlanForm.name" placeholder="Премиум" />
+                            <a-form-item :label="t('admin.subscriptions.modals.create.name')" required>
+                                <a-input v-model:value="newPlanForm.name" :placeholder="t('admin.subscriptions.modals.create.namePlaceholder')" />
                             </a-form-item>
                         </a-col>
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Комиссия, %" required>
+                            <a-form-item :label="t('admin.subscriptions.modals.create.fee')" required>
                                 <a-input-number
                                     v-model:value="newPlanForm.fee_percent"
                                     :min="0"
@@ -407,36 +408,36 @@ function statusColor(status) {
                             </a-form-item>
                         </a-col>
                         <a-col :xs="24" :md="12">
-                            <a-form-item label="Порядок">
+                            <a-form-item :label="t('admin.subscriptions.modals.create.sortOrder')">
                                 <a-input-number v-model:value="newPlanForm.sort_order" :min="0" style="width: 100%" />
                             </a-form-item>
                         </a-col>
                         <a-col :span="24">
-                            <a-form-item label="Срок обработки">
-                                <a-input v-model:value="newPlanForm.timing" placeholder="До 12 часов" />
+                            <a-form-item :label="t('admin.subscriptions.modals.create.timing')">
+                                <a-input v-model:value="newPlanForm.timing" :placeholder="t('admin.subscriptions.modals.create.timingPlaceholder')" />
                             </a-form-item>
                         </a-col>
                         <a-col :span="24">
-                            <a-form-item label="Описание">
+                            <a-form-item :label="t('admin.subscriptions.modals.create.description')">
                                 <a-textarea v-model:value="newPlanForm.description" :rows="2" />
                             </a-form-item>
                         </a-col>
                         <a-col :span="24">
                             <a-space>
-                                <a-checkbox v-model:checked="newPlanForm.is_subscription">Тариф подписки</a-checkbox>
-                                <a-checkbox v-model:checked="newPlanForm.is_active">Активен</a-checkbox>
+                                <a-checkbox v-model:checked="newPlanForm.is_subscription">{{ t('admin.subscriptions.modals.create.isSubscription') }}</a-checkbox>
+                                <a-checkbox v-model:checked="newPlanForm.is_active">{{ t('admin.subscriptions.modals.create.isActive') }}</a-checkbox>
                             </a-space>
                         </a-col>
                     </a-row>
                 </a-form>
             </a-modal>
 
-            <!-- Выдать подписку -->
+            <!-- Grant subscription -->
             <a-modal
                 v-model:open="showGrantModal"
-                title="Выдать / продлить подписку"
-                ok-text="Выдать"
-                cancel-text="Отмена"
+                :title="t('admin.subscriptions.modals.grant.title')"
+                :ok-text="t('admin.shared.actions.confirm')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 :confirm-loading="grantForm.processing"
                 :ok-button-props="{ disabled: !grantForm.user_id }"
                 width="640px"
@@ -446,8 +447,8 @@ function statusColor(status) {
                 <a-space direction="vertical" :size="16" style="width: 100%">
                     <a-input-search
                         v-model:value="searchInput"
-                        placeholder="Поиск клиента: телефон, имя или email"
-                        enter-button="Найти"
+                        :placeholder="t('admin.subscriptions.modals.grant.searchPlaceholder')"
+                        :enter-button="t('admin.shared.actions.find')"
                         @search="doSearch"
                     />
 
@@ -464,12 +465,12 @@ function statusColor(status) {
                         </a-button>
                     </a-space>
 
-                    <a-alert v-else type="info" message="Найдите клиента по телефону, имени или email" show-icon />
+                    <a-alert v-else type="info" :message="t('admin.subscriptions.modals.grant.searchHint')" show-icon />
 
                     <template v-if="grantForm.user_id">
                         <a-alert
                             type="success"
-                            :message="`Выбран: ${selectedGrantUser?.name ?? '—'} (${selectedGrantUser?.phone ?? selectedGrantUser?.email ?? '—'})`"
+                            :message="t('admin.subscriptions.modals.grant.selected', { name: selectedGrantUser?.name ?? t('admin.shared.empty'), contact: selectedGrantUser?.phone ?? selectedGrantUser?.email ?? t('admin.shared.empty') })"
                             show-icon
                         />
 
@@ -477,7 +478,7 @@ function statusColor(status) {
                             <a-row :gutter="16">
                                 <a-col :xs="24" :md="12">
                                     <a-form-item
-                                        label="Тариф подписки"
+                                        :label="t('admin.subscriptions.modals.grant.subscriptionPlan')"
                                         :validate-status="grantForm.errors.subscription_plan_id ? 'error' : ''"
                                         :help="grantForm.errors.subscription_plan_id"
                                     >
@@ -494,7 +495,7 @@ function statusColor(status) {
                                 </a-col>
                                 <a-col :xs="24" :md="12">
                                     <a-form-item
-                                        label="Месяцев"
+                                        :label="t('admin.subscriptions.modals.grant.months')"
                                         :validate-status="grantForm.errors.months ? 'error' : ''"
                                         :help="grantForm.errors.months"
                                     >
@@ -502,8 +503,8 @@ function statusColor(status) {
                                     </a-form-item>
                                 </a-col>
                                 <a-col :span="24">
-                                    <a-form-item label="Комментарий">
-                                        <a-input v-model:value="grantForm.comment" placeholder="Например: оплачено вручную" />
+                                    <a-form-item :label="t('admin.subscriptions.modals.grant.comment')">
+                                        <a-input v-model:value="grantForm.comment" :placeholder="t('admin.subscriptions.modals.grant.commentPlaceholder')" />
                                     </a-form-item>
                                 </a-col>
                             </a-row>
@@ -515,17 +516,17 @@ function statusColor(status) {
                 </a-space>
             </a-modal>
 
-            <!-- Отмена подписки -->
+            <!-- Cancel subscription -->
             <a-modal
                 v-model:open="showCancelModal"
-                title="Отменить подписку"
-                ok-text="Отменить подписку"
-                cancel-text="Назад"
+                :title="t('admin.subscriptions.modals.cancel.title')"
+                :ok-text="t('admin.shared.actions.confirm')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 ok-type="danger"
                 @ok="confirmCancelSubscription"
                 @cancel="cancelSubId = null"
             >
-                <a-typography-text>Вы уверены, что хотите отменить эту подписку?</a-typography-text>
+                <a-typography-text>{{ t('admin.subscriptions.modals.cancel.confirm') }}</a-typography-text>
             </a-modal>
         </AdminPage>
     </AdminLayout>

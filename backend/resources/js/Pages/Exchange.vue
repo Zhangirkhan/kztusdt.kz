@@ -3,9 +3,11 @@ import ExchangeLayout from '@/Layouts/ExchangeLayout.vue';
 import AppIcon from '@/shared/ui/icon/AppIcon.vue';
 import BankLogo from '@/shared/ui/bank-logo/BankLogo.vue';
 import FlashBanner from '@/shared/ui/flash-banner/FlashBanner.vue';
+import { useOrderStatusLabels } from '@/shared/lib/i18n/useOrderStatusLabels';
 import { formatKzt, formatPercent, formatRate, formatUsdt } from '@/utils/formatNumber';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     rates: Object,
@@ -27,6 +29,8 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t, locale } = useI18n();
+const orderStatusLabels = useOrderStatusLabels();
 const mode = ref(props.initialDirection === 'sell' ? 'sell' : 'buy');
 const pickedListingId = ref(props.selectedListing?.id ?? null);
 const buyInput = ref('kzt');
@@ -87,22 +91,6 @@ const selectedCard = computed(() => {
 });
 
 const availablePayoutTypes = computed(() => selectedCard.value?.available_payout_types ?? []);
-
-const statusLabels = {
-    created: 'Создана',
-    awaiting_kzt_payment: 'Ожидает оплату KZT',
-    payment_proof_uploaded: 'Скрин загружен',
-    pending_admin_confirmation: 'На подтверждении',
-    kzt_sent: 'KZT отправлены',
-    kzt_received: 'KZT получены',
-    crypto_sending: 'Отправка крипты',
-    crypto_sent: 'Крипта отправлена',
-    completed: 'Выполнена',
-    cancelled: 'Отменена',
-    failed: 'Ошибка',
-    dispute: 'Спор',
-    manual_review: 'Ручная проверка',
-};
 
 function orderStatusBadgeClass(status) {
     if (status === 'completed') {
@@ -173,7 +161,7 @@ const buyUsdtBounds = computed(() => {
     };
 });
 
-const submitLabel = computed(() => (mode.value === 'buy' ? 'Купить USDT →' : 'Продать USDT →'));
+const submitLabel = computed(() => (mode.value === 'buy' ? t('exchange.submitBuy') : t('exchange.submitSell')));
 
 const selectedPaymentBank = computed(
     () => listingPaymentBanks.value.find((bank) => bank.code === form.payment_bank_code) ?? null,
@@ -185,8 +173,8 @@ const historyLink = computed(() => route('wallet.history', { section: 'exchange'
 
 const companyRequisiteRows = computed(() =>
     [
-        { key: 'bank', label: 'Название банка', value: props.companyRequisites.bank_name },
-        { key: 'account', label: 'Номер счёта', value: props.companyRequisites.recipient_account },
+        { key: 'bank', label: t('exchange.companyBankName'), value: props.companyRequisites.bank_name },
+        { key: 'account', label: t('exchange.companyAccountNumber'), value: props.companyRequisites.recipient_account },
     ].filter((row) => row.value),
 );
 
@@ -264,11 +252,11 @@ const selectedPayoutLabel = computed(() => {
 
 const selectedPayoutKindLabel = computed(() => {
     if (form.payout_type === 'phone') {
-        return 'Телефон';
+        return t('exchange.payoutPhone');
     }
 
     if (form.payout_type === 'iban') {
-        return 'IBAN';
+        return t('exchange.payoutIban');
     }
 
     return null;
@@ -547,7 +535,18 @@ function submit() {
 }
 
 function formatDate(value) {
-    return new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const localeMap = {
+        ru: 'ru-RU',
+        en: 'en-US',
+        kk: 'kk-KZ',
+    };
+
+    return new Date(value).toLocaleString(localeMap[locale.value] ?? locale.value, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 async function copyText(text, field) {
@@ -570,16 +569,16 @@ async function copyText(text, field) {
 </script>
 
 <template>
-    <Head title="Обмен" />
+    <Head :title="t('exchange.title')" />
 
     <ExchangeLayout>
-        <template #title>Обмен</template>
+        <template #title>{{ t('exchange.title') }}</template>
 
         <template #header-actions>
             <Link
                 :href="historyLink"
                 class="btn-icon wallet-header-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-accent"
-                aria-label="История"
+                :aria-label="t('exchange.historyAria')"
             >
                 <AppIcon name="history" :size="20" :stroke-width="2" />
             </Link>
@@ -599,19 +598,19 @@ async function copyText(text, field) {
                         :class="mode === 'buy' ? 'btn-segment--active' : 'btn-segment--inactive'"
                         @click="setMode('buy')"
                     >
-                        Купить
+                        {{ t('exchange.buy') }}
                     </button>
                     <button
                         class="btn-segment"
                         :class="mode === 'sell' ? 'btn-segment--active' : 'btn-segment--inactive'"
                         @click="setMode('sell')"
                     >
-                        Продать
+                        {{ t('exchange.sell') }}
                     </button>
                 </div>
 
                 <div v-if="catalogListings.length === 0" class="exchange-listing-empty">
-                    Сейчас нет доступных объявлений для {{ mode === 'buy' ? 'покупки' : 'продажи' }} USDT.
+                    {{ t('exchange.noListings', { direction: mode === 'buy' ? t('exchange.noListingsBuy') : t('exchange.noListingsSell') }) }}
                 </div>
 
                 <div v-else class="exchange-listings">
@@ -633,7 +632,7 @@ async function copyText(text, field) {
                         </div>
 
                         <p class="exchange-listing-card__limits">
-                            Лимит: {{ formatKzt(listing.min_limit_kzt) }} - {{ formatKzt(listing.max_limit_kzt) }} KZT
+                            {{ t('exchange.limit', { min: formatKzt(listing.min_limit_kzt), max: formatKzt(listing.max_limit_kzt) }) }}
                         </p>
 
                         <div class="exchange-listing-card__banks">
@@ -648,7 +647,7 @@ async function copyText(text, field) {
                         </div>
 
                         <button type="button" class="btn-primary exchange-listing-card__action" @click="openListing(listing)">
-                            {{ mode === 'buy' ? 'Купить' : 'Продать' }}
+                            {{ mode === 'buy' ? t('exchange.buy') : t('exchange.sell') }}
                         </button>
                     </article>
                 </div>
@@ -657,12 +656,12 @@ async function copyText(text, field) {
             <template v-else>
                 <button type="button" class="exchange-listing-back" @click="backToCatalog">
                     <span class="material-symbols-outlined text-base" aria-hidden="true">chevron_left</span>
-                    Все объявления
+                    {{ t('exchange.allListings') }}
                 </button>
 
                 <section class="card--highlight-exchange mb-stack-element">
                     <p class="text-label-caps uppercase text-white/70">
-                        {{ mode === 'buy' ? 'Покупка USDT' : 'Продажа USDT' }}
+                        {{ mode === 'buy' ? t('exchange.buyUsdt') : t('exchange.sellUsdt') }}
                     </p>
                     <p class="mt-1 text-headline-md font-bold">
                         {{ formatRate(activeRate) }} ₸
@@ -677,13 +676,13 @@ async function copyText(text, field) {
                         </span>
                     </p>
                     <p class="mt-2 text-body-sm text-white/80">
-                        Срок оплаты: {{ activeListing.payment_term_label }}
+                        {{ t('exchange.paymentTerm', { term: activeListing.payment_term_label }) }}
                     </p>
                 </section>
 
                 <div v-if="!canTrade" class="warning-box">
-                    Для обмена нужно подтвердить телефон и пройти KYC.
-                    <Link :href="route('kyc')" class="exchange-accent mt-2 block font-semibold">Пройти KYC →</Link>
+                    {{ t('exchange.kycGate') }}
+                    <Link :href="route('kyc')" class="exchange-accent mt-2 block font-semibold">{{ t('exchange.goToKyc') }}</Link>
                 </div>
 
                 <template v-else>
@@ -691,9 +690,9 @@ async function copyText(text, field) {
                         <template v-if="mode === 'buy'">
                             <div v-if="listingPaymentBanks.length > 0" class="exchange-bank-section">
                                 <div>
-                                    <p class="exchange-bank-section__title">Банк для оплаты</p>
+                                    <p class="exchange-bank-section__title">{{ t('exchange.bankForPayment') }}</p>
                                     <p class="exchange-bank-section__hint">
-                                        Выберите банк, с которого вы совершите перевод.
+                                        {{ t('exchange.bankForPaymentHint') }}
                                     </p>
                                 </div>
 
@@ -703,7 +702,7 @@ async function copyText(text, field) {
                                 >
                                     <BankLogo :code="selectedPaymentBank.code" size="sm" />
                                     <div class="min-w-0 flex-1">
-                                        <p class="exchange-bank-selected__label">Банк оплаты</p>
+                                        <p class="exchange-bank-selected__label">{{ t('exchange.bankPaymentLabel') }}</p>
                                         <p class="exchange-bank-selected__name">{{ selectedPaymentBank.name }}</p>
                                     </div>
                                     <button
@@ -711,11 +710,11 @@ async function copyText(text, field) {
                                         class="exchange-bank-selected__change"
                                         @click="bankPickerExpanded = true"
                                     >
-                                        Изменить
+                                        {{ t('exchange.change') }}
                                     </button>
                                 </div>
 
-                                <div v-else class="card-picker" role="radiogroup" aria-label="Банк для оплаты KZT">
+                                <div v-else class="card-picker" role="radiogroup" :aria-label="t('exchange.bankForPaymentAria')">
                                     <button
                                         v-for="bank in listingPaymentBanks"
                                         :key="bank.code"
@@ -729,7 +728,7 @@ async function copyText(text, field) {
                                         <BankLogo :code="bank.code" size="sm" />
                                         <span class="card-picker__body">
                                             <span class="card-picker__title">{{ bank.name }}</span>
-                                            <span class="card-picker__subtitle">Перевод с этого банка</span>
+                                            <span class="card-picker__subtitle">{{ t('exchange.transferFromBank') }}</span>
                                         </span>
                                     </button>
                                 </div>
@@ -740,16 +739,16 @@ async function copyText(text, field) {
 
                             <div class="order-flow__info">
                                 <span class="material-symbols-outlined text-base" aria-hidden="true">info</span>
-                                <p>Переводите только со своего банковского счёта. Убедитесь, что сумма совпадает с указанной.</p>
+                                <p>{{ t('exchange.transferOwnAccount') }}</p>
                             </div>
 
                             <div v-if="activeListing.conditions_text" class="order-flow__conditions">
-                                <p class="order-flow__conditions-title">Условия сделки</p>
+                                <p class="order-flow__conditions-title">{{ t('exchange.dealConditions') }}</p>
                                 <p>{{ activeListing.conditions_text }}</p>
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-label-caps uppercase text-text-dim">Способ ввода</label>
+                                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('exchange.inputMethod') }}</label>
                                 <div class="recipient-type-tabs">
                                     <button
                                         type="button"
@@ -757,7 +756,7 @@ async function copyText(text, field) {
                                         :class="buyInput === 'kzt' ? 'btn-segment--active' : 'btn-segment--inactive'"
                                         @click="buyInput = 'kzt'"
                                     >
-                                        Сумма KZT
+                                        {{ t('exchange.amountKzt') }}
                                     </button>
                                     <button
                                         type="button"
@@ -765,13 +764,13 @@ async function copyText(text, field) {
                                         :class="buyInput === 'usdt' ? 'btn-segment--active' : 'btn-segment--inactive'"
                                         @click="buyInput = 'usdt'"
                                     >
-                                        Получить USDT
+                                        {{ t('exchange.receiveUsdt') }}
                                     </button>
                                 </div>
                             </div>
 
                             <div v-if="buyInput === 'kzt'">
-                                <label class="mb-2 block text-label-caps uppercase text-text-dim">Сумма KZT</label>
+                                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('exchange.amountKzt') }}</label>
                                 <input v-model="form.kzt_amount" type="number" class="input-field" min="0" step="0.01" />
                                 <div class="amount-quick-actions">
                                     <button
@@ -779,19 +778,19 @@ async function copyText(text, field) {
                                         class="btn-chip btn-chip--inactive"
                                         @click="form.kzt_amount = formatKztInput(activeLimits.min_buy_kzt)"
                                     >
-                                        Мин {{ formatKzt(activeLimits.min_buy_kzt) }} ₸
+                                        {{ t('exchange.minChip', { amount: `${formatKzt(activeLimits.min_buy_kzt)} ₸` }) }}
                                     </button>
                                     <button
                                         type="button"
                                         class="btn-chip btn-chip--inactive"
                                         @click="form.kzt_amount = formatKztInput(activeLimits.max_buy_kzt)"
                                     >
-                                        Макс {{ formatKzt(activeLimits.max_buy_kzt) }} ₸
+                                        {{ t('exchange.maxChip', { amount: `${formatKzt(activeLimits.max_buy_kzt)} ₸` }) }}
                                     </button>
                                 </div>
                             </div>
                             <div v-else>
-                                <label class="mb-2 block text-label-caps uppercase text-text-dim">Сумма USDT к получению</label>
+                                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('exchange.amountUsdtToReceive') }}</label>
                                 <input v-model="form.usdt_amount" type="number" class="input-field" min="0" step="0.01" />
                                 <div class="amount-quick-actions">
                                     <button
@@ -799,14 +798,14 @@ async function copyText(text, field) {
                                         class="btn-chip btn-chip--inactive"
                                         @click="form.usdt_amount = formatUsdtInput(buyUsdtBounds.min)"
                                     >
-                                        Мин {{ formatUsdt(buyUsdtBounds.min, 2) }} USDT
+                                        {{ t('exchange.minChip', { amount: `${formatUsdt(buyUsdtBounds.min, 2)} USDT` }) }}
                                     </button>
                                     <button
                                         type="button"
                                         class="btn-chip btn-chip--inactive"
                                         @click="form.usdt_amount = formatUsdtInput(buyUsdtBounds.max)"
                                     >
-                                        Макс {{ formatUsdt(buyUsdtBounds.max, 2) }} USDT
+                                        {{ t('exchange.maxChip', { amount: `${formatUsdt(buyUsdtBounds.max, 2)} USDT` }) }}
                                     </button>
                                 </div>
                             </div>
@@ -814,12 +813,12 @@ async function copyText(text, field) {
 
                         <template v-else>
                             <div v-if="activeListing.conditions_text" class="order-flow__conditions">
-                                <p class="order-flow__conditions-title">Условия сделки</p>
+                                <p class="order-flow__conditions-title">{{ t('exchange.dealConditions') }}</p>
                                 <p>{{ activeListing.conditions_text }}</p>
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-label-caps uppercase text-text-dim">Сумма USDT</label>
+                                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('exchange.amountUsdt') }}</label>
                                 <input
                                     :value="form.usdt_amount"
                                     type="number"
@@ -834,8 +833,7 @@ async function copyText(text, field) {
                                     v-if="sellUsdtMax < sellUsdtMin"
                                     class="mt-2 text-sm text-red-400"
                                 >
-                                    Недостаточно USDT по объявлению или на балансе для минимальной суммы
-                                    {{ formatUsdt(sellUsdtMin, 2) }} USDT.
+                                    {{ t('exchange.insufficientUsdt', { min: formatUsdt(sellUsdtMin, 2) }) }}
                                 </p>
                                 <div class="amount-quick-actions">
                                     <button
@@ -844,7 +842,7 @@ async function copyText(text, field) {
                                         :disabled="!canSubmitSell"
                                         @click="clampSellUsdtAmount(formatUsdtInput(sellUsdtMin))"
                                     >
-                                        Мин {{ formatUsdt(sellUsdtMin, 2) }} USDT
+                                        {{ t('exchange.minChip', { amount: `${formatUsdt(sellUsdtMin, 2)} USDT` }) }}
                                     </button>
                                     <button
                                         type="button"
@@ -852,28 +850,28 @@ async function copyText(text, field) {
                                         :disabled="!canSubmitSell"
                                         @click="clampSellUsdtAmount(formatUsdtInput(sellUsdtMax))"
                                     >
-                                        Макс {{ formatUsdt(sellUsdtMax, 2) }} USDT
+                                        {{ t('exchange.maxChip', { amount: `${formatUsdt(sellUsdtMax, 2)} USDT` }) }}
                                     </button>
                                 </div>
                                 <p class="mt-1 text-body-sm text-text-dim">
-                                    Доступно: {{ formatUsdt(balance.available, 2) }} USDT
+                                    {{ t('exchange.available', { amount: formatUsdt(balance.available, 2) }) }}
                                 </p>
                             </div>
 
                             <div v-if="cards.length === 0" class="warning-box space-y-2">
-                                <p class="font-semibold">Нет сохранённых карт</p>
+                                <p class="font-semibold">{{ t('exchange.noCardsTitle') }}</p>
                                 <p class="text-body-sm">
-                                    Добавьте карту в профиле, затем вернитесь и выберите её для получения KZT.
+                                    {{ t('exchange.noCardsHint') }}
                                 </p>
                                 <Link :href="route('profile.bank')" class="exchange-accent block font-semibold">
-                                    Добавить карту в профиле →
+                                    {{ t('exchange.addCardInProfile') }}
                                 </Link>
                             </div>
 
                             <template v-else>
                                 <div>
-                                    <label class="mb-2 block text-label-caps uppercase text-text-dim">Карта для получения KZT</label>
-                                    <div class="card-picker" role="radiogroup" aria-label="Карта для получения KZT">
+                                    <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('exchange.cardForPayout') }}</label>
+                                    <div class="card-picker" role="radiogroup" :aria-label="t('exchange.cardForPayoutAria')">
                                         <button
                                             v-for="card in cards"
                                             :key="card.id"
@@ -911,19 +909,19 @@ async function copyText(text, field) {
 
                         <div class="exchange-preview rounded-xl p-4 text-body-sm">
                             <div class="flex justify-between py-1">
-                                <span class="text-label-caps uppercase text-text-dim">Курс</span>
+                                <span class="text-label-caps uppercase text-text-dim">{{ t('exchange.previewRate') }}</span>
                                 <span class="font-medium">{{ formatRate(activeRate) }} ₸ / USDT</span>
                             </div>
                             <div class="flex justify-between py-1">
-                                <span class="text-label-caps uppercase text-text-dim">Комиссия ({{ formatPercent(feePercent) }}%)</span>
+                                <span class="text-label-caps uppercase text-text-dim">{{ t('exchange.previewFee', { percent: formatPercent(feePercent) }) }}</span>
                                 <span class="font-medium">{{ preview.fee }}</span>
                             </div>
                             <div class="flex justify-between py-1">
-                                <span class="text-label-caps uppercase text-text-dim">Вы отдаёте</span>
+                                <span class="text-label-caps uppercase text-text-dim">{{ t('exchange.previewGive') }}</span>
                                 <span class="font-medium">{{ preview.give }}</span>
                             </div>
                             <div class="flex justify-between border-t border-outline-variant/40 py-2 font-semibold">
-                                <span class="text-label-caps uppercase">К получению</span>
+                                <span class="text-label-caps uppercase">{{ t('exchange.previewReceive') }}</span>
                                 <span class="exchange-accent">{{ preview.receive }}</span>
                             </div>
                         </div>
@@ -937,15 +935,15 @@ async function copyText(text, field) {
                         >
                             {{ submitLabel }}
                         </button>
-                        <p class="text-center text-body-sm text-text-dim">KZT операции подтверждаются вручную</p>
+                        <p class="text-center text-body-sm text-text-dim">{{ t('exchange.manualKztNote') }}</p>
                     </section>
                 </template>
             </template>
 
             <section v-if="recentOrders.length && !activeListing" class="mt-stack-element">
                 <div class="mb-3 flex items-center justify-between gap-3">
-                    <h2 class="text-label-caps uppercase text-text-dim">Последние сделки</h2>
-                    <Link :href="historyLink" class="text-sm font-semibold text-accent">Посмотреть все</Link>
+                    <h2 class="text-label-caps uppercase text-text-dim">{{ t('exchange.recentOrders') }}</h2>
+                    <Link :href="historyLink" class="text-sm font-semibold text-accent">{{ t('exchange.viewAll') }}</Link>
                 </div>
                 <div class="space-y-3">
                     <Link
@@ -957,7 +955,7 @@ async function copyText(text, field) {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="font-semibold">
-                                    №{{ order.id }} · {{ order.direction === 'buy' ? 'Покупка' : 'Продажа' }}
+                                    №{{ order.id }} · {{ order.direction === 'buy' ? t('exchange.orderBuy') : t('exchange.orderSell') }}
                                 </p>
                                 <p class="mt-1 text-body-sm text-text-muted">
                                     {{ formatKzt(order.fiat_amount) }} ₸ ·
@@ -966,7 +964,7 @@ async function copyText(text, field) {
                             </div>
                             <div class="text-right">
                                 <span class="status-badge" :class="orderStatusBadgeClass(order.status)">
-                                    {{ statusLabels[order.status] ?? order.status }}
+                                    {{ orderStatusLabels[order.status] ?? order.status }}
                                 </span>
                                 <p class="mt-1 text-body-sm text-text-dim">{{ formatDate(order.created_at) }}</p>
                             </div>

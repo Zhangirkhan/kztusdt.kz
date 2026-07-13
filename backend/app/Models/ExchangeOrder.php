@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\BankCatalog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -116,9 +117,7 @@ final class ExchangeOrder extends Model
             return null;
         }
 
-        $catalog = (array) config('banks.catalog', []);
-
-        return $catalog[$this->payment_bank_code] ?? $this->payment_bank_code;
+        return BankCatalog::nameForCode($this->payment_bank_code);
     }
 
     public function getPaymentBankNameAttribute(): ?string

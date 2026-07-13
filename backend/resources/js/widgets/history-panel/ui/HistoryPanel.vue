@@ -1,5 +1,5 @@
 <script setup>
-import { HISTORY_STATUS_FILTERS, historySubTabs } from '@/entities/history/model/constants';
+import { historyStatusFilters, historySubTabs } from '@/entities/history/model/constants';
 import { groupHistoryItems, countHistoryByStatus } from '@/entities/history/lib/groupHistoryItems';
 import {
     historyIconName,
@@ -11,6 +11,7 @@ import { formatTime } from '@/shared/lib/format/date';
 import { useHistoryFilters } from '@/features/history-filters/model/useHistoryFilters';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     section: { type: String, default: 'wallet' },
@@ -19,8 +20,10 @@ const props = defineProps({
     search: { type: String, default: '' },
     items: { type: Array, default: () => [] },
 });
+const { t } = useI18n();
 
 const subTabs = computed(() => historySubTabs(props.section));
+const statusFilters = computed(() => historyStatusFilters());
 const groupedItems = computed(() => groupHistoryItems(props.items));
 const completedCount = computed(() => countHistoryByStatus(props.items, 'COMPLETED'));
 const pendingCount = computed(() => countHistoryByStatus(props.items, 'PENDING'));
@@ -37,26 +40,26 @@ const { setSection, setFilter, setStatus, setSearch } = useHistoryFilters(() => 
     <div class="history-stats">
         <div class="history-stat">
             <span class="history-stat__value">{{ items.length }}</span>
-            <span class="history-stat__label">Операций</span>
+            <span class="history-stat__label">{{ t('history.panel.operations') }}</span>
         </div>
         <div class="history-stat history-stat--success">
             <span class="history-stat__value">{{ completedCount }}</span>
-            <span class="history-stat__label">Завершено</span>
+            <span class="history-stat__label">{{ t('history.panel.completed') }}</span>
         </div>
         <div class="history-stat history-stat--pending">
             <span class="history-stat__value">{{ pendingCount }}</span>
-            <span class="history-stat__label">В обработке</span>
+            <span class="history-stat__label">{{ t('history.panel.pending') }}</span>
         </div>
     </div>
 
     <div class="segment-tabs segment-tabs--history mb-3">
         <button type="button" class="segment-tab" :class="{ 'segment-tab--active': section === 'wallet' }" @click="setSection('wallet')">
             <span class="material-symbols-outlined text-base">account_balance_wallet</span>
-            Кошелёк
+            {{ t('history.panel.section.wallet') }}
         </button>
         <button type="button" class="segment-tab" :class="{ 'segment-tab--active': section === 'exchange' }" @click="setSection('exchange')">
             <span class="material-symbols-outlined text-base">currency_exchange</span>
-            Обмен
+            {{ t('history.panel.section.exchange') }}
         </button>
     </div>
 
@@ -80,11 +83,11 @@ const { setSection, setFilter, setStatus, setSearch } = useHistoryFilters(() => 
     <div class="history-toolbar">
         <div class="history-search">
             <span class="material-symbols-outlined history-search__icon">search</span>
-            <input type="search" class="history-search__input" placeholder="Поиск по сумме, статусу…" :value="search" @input="setSearch" />
+            <input type="search" class="history-search__input" :placeholder="t('history.panel.searchPlaceholder')" :value="search" @input="setSearch" />
         </div>
         <div class="history-filter-chips">
             <button
-                v-for="chip in HISTORY_STATUS_FILTERS"
+                v-for="chip in statusFilters"
                 :key="chip.id"
                 type="button"
                 class="history-filter-chip"
@@ -98,8 +101,8 @@ const { setSection, setFilter, setStatus, setSearch } = useHistoryFilters(() => 
 
     <div v-if="groupedItems.length === 0" class="history-empty">
         <span class="material-symbols-outlined text-4xl text-text-dim">history</span>
-        <p class="history-empty__title">Ничего не найдено</p>
-        <p class="history-empty__text">Операции появятся после пополнения, вывода или обмена</p>
+        <p class="history-empty__title">{{ t('history.panel.emptyTitle') }}</p>
+        <p class="history-empty__text">{{ t('history.panel.emptyText') }}</p>
     </div>
 
     <section v-for="[group, groupItems] in groupedItems" :key="group" class="mb-4">

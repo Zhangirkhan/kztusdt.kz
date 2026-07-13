@@ -18,7 +18,7 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    /** segment — компактные вкладки; list — список с выбором */
+    /** segment - compact tabs; list - selectable list */
     variant: {
         type: String,
         default: 'segment',
@@ -35,8 +35,8 @@ const currentLocale = computed(() => pendingLocale.value || page.props.locale?.c
 const options = computed(() => page.props.locale?.options ?? []);
 
 const nativeNames = {
-    ru: 'Русский',
-    kk: 'Қазақша',
+    ru: 'Russian',
+    kk: 'Kazakh',
     en: 'English',
 };
 

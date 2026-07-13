@@ -44,7 +44,7 @@ const kycBannerMessage = computed(() => kycGateMessage(props.profile?.kyc_status
             :href="item.href"
             class="settings-item"
             :class="{ 'settings-item--locked': item.locked }"
-            :aria-label="item.locked ? `${item.label} — пройдите KYC` : item.label"
+            :aria-label="item.locked ? `${item.label} — ${t('nav.kycLockHint')}` : item.label"
         >
             <span class="settings-item__icon">
                 <span class="material-symbols-outlined text-lg">{{ item.icon }}</span>

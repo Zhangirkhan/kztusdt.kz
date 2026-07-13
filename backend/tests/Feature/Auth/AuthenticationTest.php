@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Support\AdminUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ExchangeTestHelpers;
 use Tests\TestCase;
@@ -13,9 +14,8 @@ class AuthenticationTest extends TestCase
 
     public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get('/login');
-
-        $response->assertStatus(200);
+        $this->getAsAdmin('/admin/login')->assertOk();
+        $this->getAsAdmin('/login')->assertRedirect('/admin/login');
     }
 
     public function test_staff_can_authenticate_using_the_login_screen(): void
@@ -25,7 +25,7 @@ class AuthenticationTest extends TestCase
             'password' => bcrypt('password'),
         ]);
 
-        $response = $this->post('/login', [
+        $response = $this->postAsAdmin('/admin/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
@@ -41,7 +41,7 @@ class AuthenticationTest extends TestCase
             'password' => bcrypt('password'),
         ]);
 
-        $this->post('/login', [
+        $this->postAsAdmin('/admin/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
@@ -56,7 +56,7 @@ class AuthenticationTest extends TestCase
             'password' => bcrypt('password'),
         ]);
 
-        $this->post('/login', [
+        $this->postAsAdmin('/admin/login', [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
@@ -68,9 +68,9 @@ class AuthenticationTest extends TestCase
     {
         $user = $this->createStaff('super_admin');
 
-        $response = $this->actingAs($user)->post('/logout');
+        $response = $this->actingAsAdmin($user)->post('/logout');
 
         $this->assertGuest();
-        $response->assertRedirect('/');
+        $response->assertRedirect('/admin/login');
     }
 }

@@ -1,16 +1,19 @@
 /**
- * Push-only service worker for PWA notifications.
- *
- * Intentionally minimal: it does NOT cache or intercept fetches (an earlier
- * Workbox precache caused stale-asset issues), so it only handles Web Push
- * delivery and notification clicks.
+ * Push-only service worker for PWA notifications (v3).
+ * Also purges legacy Workbox caches that caused stale admin assets.
  */
+const SW_VERSION = 'v4';
+
 self.addEventListener('install', () => {
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
+    event.waitUntil(
+        caches.keys()
+            .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+            .then(() => self.clients.claim()),
+    );
 });
 
 self.addEventListener('push', (event) => {

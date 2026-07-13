@@ -1,16 +1,18 @@
+import { i18n } from '@/i18n';
+
 export function pendingReviewHint({ profileProvider, manualEnabled, provider }) {
     if (profileProvider === 'manual' || manualEnabled) {
-        return 'Документы на проверке службой безопасности. Обычно решение принимается в течение рабочего дня.';
+        return i18n.global.t('kyc.pendingHint.manual');
     }
 
     if (provider === 'sumsub') {
-        return 'Документы на проверке. Обычно Sumsub отвечает за 1–2 минуты.';
+        return i18n.global.t('kyc.pendingHint.sumsub');
     }
 
-    return 'Верификация в обработке.';
+    return i18n.global.t('kyc.pendingHint.default');
 }
 
 export const KYC_DOCUMENT_TYPES = [
-    { value: 'id_card', label: 'Удостоверение' },
-    { value: 'passport', label: 'Паспорт' },
+    { value: 'id_card', label: i18n.global.t('kyc.documentTypes.idCard') },
+    { value: 'passport', label: i18n.global.t('kyc.documentTypes.passport') },
 ];

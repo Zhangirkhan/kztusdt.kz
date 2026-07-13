@@ -22,7 +22,7 @@ final class WalletAdminTest extends TestCase
     {
         $officer = $this->createStaff('security_officer');
 
-        $this->actingAs($officer)->get('/admin/wallets')->assertForbidden();
+        $this->actingAsAdmin($officer)->get('/admin/wallets')->assertForbidden();
     }
 
     public function test_super_admin_sees_wallets_page(): void
@@ -72,7 +72,7 @@ final class WalletAdminTest extends TestCase
             'credited_at' => now(),
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->get('/admin/wallets')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
@@ -114,7 +114,7 @@ final class WalletAdminTest extends TestCase
             ]);
         }
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->get('/admin/wallets?q=998877')
             ->assertOk()
             ->assertInertia(fn ($page) => $page

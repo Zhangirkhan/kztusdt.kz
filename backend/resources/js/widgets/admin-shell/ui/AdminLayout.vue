@@ -1,5 +1,7 @@
 <script setup>
 import SeoHead from '@/shared/ui/seo-head/SeoHead.vue';
+import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
+import AdminPwaInstallBanner from '@/widgets/admin-shell/ui/AdminPwaInstallBanner.vue';
 import AdminSidebarPanel from '@/widgets/admin-shell/ui/AdminSidebarPanel.vue';
 import { antLocale, registerAntDesign } from '@/plugins/antd';
 import 'ant-design-vue/dist/reset.css';
@@ -7,6 +9,7 @@ import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons-vue';
 import { usePage } from '@inertiajs/vue3';
 import { Button, ConfigProvider, Drawer, Layout, Space, Tag, Typography } from 'ant-design-vue';
 import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const app = getCurrentInstance().appContext.app;
 if (!app.config.globalProperties.__antdRegistered) {
@@ -21,6 +24,7 @@ const COLLAPSED_STORAGE_KEY = 'admin_sider_collapsed';
 const MOBILE_BREAKPOINT = 992;
 
 const page = usePage();
+const { t } = useI18n();
 const userName = computed(() => page.props.auth?.user?.name ?? page.props.auth?.user?.email ?? 'Admin');
 
 const collapsed = ref(false);
@@ -126,7 +130,7 @@ watch(() => page.url, () => {
                         <Button
                             type="text"
                             class="admin-ant-menu-trigger"
-                            :aria-label="isMobile ? 'Открыть меню' : (collapsed ? 'Развернуть меню' : 'Свернуть меню')"
+                            :aria-label="isMobile ? t('admin.shell.layout.menuAria.open') : (collapsed ? t('admin.shell.layout.menuAria.expand') : t('admin.shell.layout.menuAria.collapse'))"
                             @click="isMobile ? (mobileMenuOpen = true) : toggleCollapsed()"
                         >
                             <MenuUnfoldOutlined v-if="isMobile || collapsed" />
@@ -134,21 +138,24 @@ watch(() => page.url, () => {
                         </Button>
 
                         <div class="admin-ant-header__title">
-                            <slot name="title">Панель</slot>
+                            <slot name="title">{{ t('admin.shell.layout.defaultTitle') }}</slot>
                         </div>
                     </div>
 
                     <Space :size="12" class="admin-ant-header__meta">
+                        <LocaleSwitcher compact code-only class="admin-ant-locale-switcher" />
                         <Tag color="success" class="admin-ant-live-tag">Live</Tag>
                         <Text type="secondary" class="admin-ant-user-name">{{ userName }}</Text>
                     </Space>
                 </Header>
 
-                <Content class="admin-ant-content">
+                <Content class="admin-ant-content" :class="{ 'admin-ant-content--mobile': isMobile }">
                     <slot />
                 </Content>
             </Layout>
         </Layout>
+
+        <AdminPwaInstallBanner />
     </ConfigProvider>
 </template>
 
@@ -279,10 +286,23 @@ watch(() => page.url, () => {
         display: none;
     }
 
+    .admin-ant-locale-switcher :deep(.inline-flex) {
+        max-width: 132px;
+    }
+
     .admin-ant-user-name {
         max-width: 110px;
         font-size: 12px;
     }
+
+    .admin-ant-content {
+        margin: 8px;
+        min-height: calc(100dvh - 64px - 16px);
+    }
+}
+
+.admin-ant-content--mobile {
+    padding-bottom: calc(16px + var(--admin-pwa-banner-offset, 0px));
 }
 </style>
 
@@ -298,5 +318,47 @@ watch(() => page.url, () => {
 
 .admin-ant-drawer-root .admin-sidebar-panel {
     min-height: 100dvh;
+}
+
+@media (max-width: 991px) {
+    .admin-ant-content .ant-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-ant-content .ant-table {
+        min-width: 560px;
+    }
+
+    .admin-ant-content .ant-card-head {
+        min-height: auto;
+        padding: 12px 16px;
+    }
+
+    .admin-ant-content .ant-card-body {
+        padding: 12px;
+    }
+
+    .admin-ant-content .ant-descriptions-item-label,
+    .admin-ant-content .ant-descriptions-item-content {
+        padding: 8px 12px !important;
+    }
+
+    .admin-ant-content .ant-space {
+        flex-wrap: wrap;
+    }
+
+    .admin-ant-content .ant-btn {
+        min-height: 36px;
+    }
+
+    .admin-filters-select {
+        width: 100%;
+    }
+
+    .admin-ant-content .ant-modal {
+        max-width: calc(100vw - 32px) !important;
+        margin: 16px auto;
+    }
 }
 </style>

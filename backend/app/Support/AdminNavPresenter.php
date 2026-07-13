@@ -21,7 +21,8 @@ final class AdminNavPresenter
         }
 
         return [
-            'landing' => self::landingPath($user),
+            'landing' => self::landingUrl($user),
+            'landingPath' => self::landingPath($user),
             'sections' => [
                 'dashboard' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'users' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
@@ -83,6 +84,17 @@ final class AdminNavPresenter
         }
 
         return null;
+    }
+
+    public static function landingUrl(?User $user): ?string
+    {
+        $path = $user !== null ? self::landingPath($user) : null;
+
+        if ($path === null) {
+            return null;
+        }
+
+        return AdminUrl::base().$path;
     }
 
     public static function canAccessAdmin(?User $user): bool

@@ -2,8 +2,10 @@
 import { computed } from 'vue';
 import AppLogo from '@/Components/AppLogo.vue';
 import { usePwaInstall } from '@/composables/usePwaInstall';
+import { useI18n } from 'vue-i18n';
 
 const { canInstall, showIosHint, dismiss, install } = usePwaInstall();
+const { t } = useI18n();
 
 const visible = computed(() => canInstall.value || showIosHint.value);
 </script>
@@ -25,12 +27,12 @@ const visible = computed(() => canInstall.value || showIosHint.value);
                 <AppLogo />
 
                 <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-on-surface">Установите приложение</p>
+                    <p class="text-sm font-semibold text-on-surface">{{ t('pwa.prompt.title') }}</p>
                     <p v-if="canInstall" class="mt-1 text-body-sm text-text-muted">
-                        Быстрый вход, работа офлайн и уведомления — прямо с главного экрана.
+                        {{ t('pwa.prompt.installableHint') }}
                     </p>
                     <p v-else class="mt-1 text-body-sm text-text-muted">
-                        Нажмите «Поделиться» → «На экран Домой», чтобы добавить приложение.
+                        {{ t('pwa.prompt.iosHint') }}
                     </p>
 
                     <div class="mt-3 flex flex-wrap gap-2">
@@ -40,14 +42,14 @@ const visible = computed(() => canInstall.value || showIosHint.value);
                             class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition active:scale-[0.98]"
                             @click="install"
                         >
-                            Установить
+                            {{ t('pwa.prompt.install') }}
                         </button>
                         <button
                             type="button"
                             class="rounded-lg px-4 py-2 text-sm font-semibold text-text-dim transition hover:text-on-surface"
                             @click="dismiss"
                         >
-                            Не сейчас
+                            {{ t('pwa.prompt.dismiss') }}
                         </button>
                     </div>
                 </div>
@@ -55,7 +57,7 @@ const visible = computed(() => canInstall.value || showIosHint.value);
                 <button
                     type="button"
                     class="shrink-0 p-1 text-text-dim transition hover:text-on-surface"
-                    aria-label="Закрыть"
+                    :aria-label="t('pwa.prompt.closeAria')"
                     @click="dismiss"
                 >
                     <span class="material-symbols-outlined text-xl">close</span>

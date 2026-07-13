@@ -1,4 +1,5 @@
 import { onUnmounted, ref } from 'vue';
+import { i18n } from '@/i18n';
 
 function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
@@ -62,7 +63,7 @@ export function useSupportChat(orderId) {
             unreadCount.value = 0;
         } catch {
             if (!silent) {
-                error.value = 'Не удалось загрузить чат. Попробуйте ещё раз.';
+                error.value = i18n.global.t('support.chat.errors.loadThread');
             }
         } finally {
             if (!silent) {
@@ -98,7 +99,7 @@ export function useSupportChat(orderId) {
             draft.value = '';
         } catch (exception) {
             error.value = exception.message === 'request_failed'
-                ? 'Не удалось отправить сообщение.'
+                ? i18n.global.t('support.chat.errors.sendMessage')
                 : exception.message;
         } finally {
             sending.value = false;

@@ -1,12 +1,14 @@
 <script setup>
 import ExchangeLayout from '@/Layouts/ExchangeLayout.vue';
 import AppIcon from '@/shared/ui/icon/AppIcon.vue';
+import { useDepositStatusLabels } from '@/shared/lib/i18n/useOrderStatusLabels';
 import WalletWithdrawPanel from '@/widgets/wallet-withdraw-panel/ui/WalletWithdrawPanel.vue';
 import { localizedPath } from '@/utils/localizedPath';
 import { formatUsdt } from '@/utils/formatNumber';
 import { usePullToRefresh } from '@/composables/usePullToRefresh';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     balance: Object,
@@ -32,6 +34,8 @@ const props = defineProps({
 });
 
 const WALLET_PROPS = ['balance', 'asset', 'networks', 'selectedNetwork', 'deposits', 'withdraw', 'initialTab'];
+const { t, locale } = useI18n();
+const depositStatusLabels = useDepositStatusLabels();
 
 const activeTab = ref(props.initialTab === 'withdraw' ? 'withdraw' : 'deposit');
 const activeNetwork = ref(props.selectedNetwork || props.networks[0]?.code);
@@ -84,15 +88,14 @@ async function copyAddress() {
 }
 
 function formatUpdatedAt(date) {
-    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
+    const localeMap = {
+        ru: 'ru-RU',
+        en: 'en-US',
+        kk: 'kk-KZ',
+    };
 
-const statusLabel = {
-    detected: 'Обнаружен',
-    confirmed: 'Подтверждается',
-    credited: 'Зачислен',
-    failed: 'Ошибка',
-};
+    return date.toLocaleTimeString(localeMap[locale.value] ?? locale.value, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
 
 function short(hash) {
     return hash ? `${hash.slice(0, 8)}…${hash.slice(-6)}` : '';
@@ -116,16 +119,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <Head title="Кошелёк" />
+    <Head :title="t('wallet.title')" />
 
     <ExchangeLayout :show-brand="false">
-        <template #title>Кошелёк</template>
+        <template #title>{{ t('wallet.title') }}</template>
 
         <template #header-actions>
             <Link
                 :href="localizedPath('/wallet/history')"
                 class="btn-icon wallet-header-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-accent"
-                aria-label="История"
+                :aria-label="t('exchange.historyAria')"
             >
                 <AppIcon name="history" :size="20" :stroke-width="2" />
             </Link>
@@ -147,23 +150,23 @@ onUnmounted(() => {
                     {{ isRefreshing ? 'progress_activity' : 'arrow_downward' }}
                 </span>
                 <span class="text-xs text-text-dim">
-                    {{ isRefreshing ? 'Обновление…' : pullDistance >= 72 ? 'Отпустите' : 'Потяните вниз' }}
+                    {{ isRefreshing ? t('wallet.pullUpdating') : pullDistance >= 72 ? t('wallet.pullRelease') : t('wallet.pullRefresh') }}
                 </span>
             </div>
 
             <section class="wallet-balance-card">
-                <p class="wallet-balance-card__label">Общий баланс</p>
+                <p class="wallet-balance-card__label">{{ t('wallet.totalBalance') }}</p>
                 <div class="wallet-balance-card__row">
                     <span class="wallet-balance-card__amount">{{ balance.usdt }}</span>
                     <span class="wallet-balance-card__asset">{{ asset }}</span>
                 </div>
-                <p class="wallet-balance-card__hint">Единый баланс для всех сетей</p>
+                <p class="wallet-balance-card__hint">{{ t('wallet.unifiedBalanceHint') }}</p>
                 <p class="wallet-balance-card__updated">
-                    Обновлено {{ formatUpdatedAt(lastUpdated) }}
+                    {{ t('wallet.updatedAt', { time: formatUpdatedAt(lastUpdated) }) }}
                 </p>
             </section>
 
-            <div class="wallet-action-bar" role="tablist" aria-label="Действия кошелька">
+            <div class="wallet-action-bar" role="tablist" :aria-label="t('wallet.actionBarAria')">
                 <button
                     type="button"
                     role="tab"
@@ -172,7 +175,7 @@ onUnmounted(() => {
                     :aria-selected="activeTab === 'deposit'"
                     @click="setTab('deposit')"
                 >
-                    Пополнить
+                    {{ t('wallet.depositTab') }}
                 </button>
                 <button
                     type="button"
@@ -182,14 +185,14 @@ onUnmounted(() => {
                     :aria-selected="activeTab === 'withdraw'"
                     @click="setTab('withdraw')"
                 >
-                    Вывести
+                    {{ t('wallet.withdrawTab') }}
                 </button>
             </div>
 
             <template v-if="activeTab === 'deposit'">
                 <section class="wallet-section">
                     <div class="wallet-section-head">
-                        <p class="wallet-section-head__label">Выберите сеть</p>
+                        <p class="wallet-section-head__label">{{ t('wallet.selectNetwork') }}</p>
                         <span class="material-symbols-outlined wallet-section-head__icon" aria-hidden="true">info</span>
                     </div>
 
@@ -208,19 +211,19 @@ onUnmounted(() => {
 
                     <div v-if="current.pending" class="wallet-pending">
                         <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
-                        Кошелёк создаётся, потяните вниз для обновления
+                        {{ t('wallet.walletCreating') }}
                     </div>
 
                     <template v-else>
                         <label class="wallet-address-label">
-                            Ваш адрес {{ current.asset }} · {{ current.label }}
+                            {{ t('wallet.yourAddress', { asset: current.asset, label: current.label }) }}
                         </label>
                         <div class="wallet-address-field">
                             <p class="wallet-address-field__text">{{ current.address }}</p>
                             <button
                                 type="button"
                                 class="wallet-address-field__copy"
-                                :aria-label="copied ? 'Скопировано' : 'Копировать адрес'"
+                                :aria-label="copied ? t('wallet.copied') : t('wallet.copyAddressAria')"
                                 @click="copyAddress"
                             >
                                 <AppIcon :name="copied ? 'check' : 'copy'" :size="20" :stroke-width="2" />
@@ -232,20 +235,19 @@ onUnmounted(() => {
                             @click="copyAddress"
                         >
                             <AppIcon :name="copied ? 'check' : 'copy'" :size="20" :stroke-width="2" />
-                            {{ copied ? 'Адрес скопирован' : 'Скопировать адрес' }}
+                            {{ copied ? t('wallet.addressCopied') : t('wallet.copyAddress') }}
                         </button>
                         <div class="wallet-warning">
                             <span class="material-symbols-outlined wallet-warning__icon" aria-hidden="true">warning</span>
                             <p class="wallet-warning__text">
-                                Отправляйте только <strong>{{ current.asset }}</strong> через сеть
-                                <strong>{{ current.code }}</strong> на этот адрес. Другие активы могут быть потеряны безвозвратно.
+                                {{ t('wallet.depositWarning', { asset: current.asset, code: current.code }) }}
                             </p>
                         </div>
                     </template>
                 </section>
 
                 <section v-if="currentDeposits.length" class="wallet-section wallet-section--card">
-                    <p class="wallet-section-head__label mb-3">История депозитов · {{ current.code }}</p>
+                    <p class="wallet-section-head__label mb-3">{{ t('wallet.depositHistory', { code: current.code }) }}</p>
                     <div class="wallet-deposits">
                         <div
                             v-for="d in currentDeposits"
@@ -273,7 +275,7 @@ onUnmounted(() => {
                                     class="wallet-deposit-item__badge"
                                     :class="d.status === 'credited' ? 'wallet-deposit-item__badge--success' : ''"
                                 >
-                                    {{ statusLabel[d.status] ?? d.status }}
+                                    {{ depositStatusLabels[d.status] ?? d.status }}
                                 </span>
                                 <p v-if="d.status !== 'credited'" class="wallet-deposit-item__confirm">
                                     {{ d.confirmations }}/{{ current.confirmationsRequired }}
@@ -292,7 +294,7 @@ onUnmounted(() => {
             />
 
             <p class="wallet-footnote">
-                Баланс обновляется каждую минуту · потяните экран вниз для ручного обновления
+                {{ t('wallet.footerHint') }}
             </p>
         </div>
     </ExchangeLayout>

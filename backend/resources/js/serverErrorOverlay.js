@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n';
+
 const OVERLAY_ID = 'inertia-server-error-overlay';
 
 function hideServerErrorOverlay() {
@@ -32,7 +34,7 @@ function replaceActionsWithDismiss(panel) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn-primary';
-    button.textContent = 'Понятно';
+    button.textContent = i18n.global.t('serverError.dismiss');
     button.addEventListener('click', dismissServerErrorOverlay);
 
     actions.appendChild(button);
@@ -60,7 +62,7 @@ export function showServerErrorOverlay(html) {
         const text = String(badge.textContent ?? '').trim();
         const code = text.match(/\b(\d{3})\b/)?.[1];
         if (code) {
-            badge.textContent = `Ошибка: ${code}`;
+            badge.textContent = i18n.global.t('serverError.badge', { code });
         }
     }
 

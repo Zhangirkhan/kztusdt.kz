@@ -139,7 +139,7 @@ final class ExchangeOrderBuyTest extends TestCase
 
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post("/admin/orders/{$order->id}/confirm-payment", ['comment' => 'KZT получены'])
             ->assertRedirect(route('admin.orders.show', $order));
 
@@ -167,8 +167,8 @@ final class ExchangeOrderBuyTest extends TestCase
         $order = $this->createBuyOrder($user);
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)->post("/admin/orders/{$order->id}/confirm-payment");
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)->post("/admin/orders/{$order->id}/confirm-payment");
+        $this->actingAsAdmin($admin)
             ->post("/admin/orders/{$order->id}/confirm-payment")
             ->assertSessionHasErrors(['form']);
 
@@ -187,7 +187,7 @@ final class ExchangeOrderBuyTest extends TestCase
         $order = $this->createBuyOrder($user);
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post("/admin/orders/{$order->id}/reject", ['reason' => 'Оплата не поступила'])
             ->assertRedirect(route('admin.orders.show', $order));
 

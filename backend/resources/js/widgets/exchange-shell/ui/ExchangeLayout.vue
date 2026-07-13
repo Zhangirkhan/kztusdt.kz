@@ -3,6 +3,8 @@ import AppLogo from '@/shared/ui/app-logo/AppLogo.vue';
 import AppIcon from '@/shared/ui/icon/AppIcon.vue';
 import SeoHead from '@/shared/ui/seo-head/SeoHead.vue';
 import NotificationOptIn from '@/Components/NotificationOptIn.vue';
+import AppLockOverlay from '@/widgets/app-lock/ui/AppLockOverlay.vue';
+import { useAppLock } from '@/composables/useAppLock';
 import { buildExchangeNavItems } from '@/shared/config/exchange-nav';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -28,8 +30,11 @@ const { t } = useI18n();
 const current = computed(() => page.url);
 const companyName = computed(() => page.props.company?.name ?? 'kztusdt.kz');
 const canUseWallet = computed(() => page.props.auth?.user?.can_use_wallet ?? false);
+const locale = computed(() => page.props.locale?.current ?? 'ru');
+const isAuthenticated = computed(() => Boolean(page.props.auth?.user));
+const { isLocked } = useAppLock();
 
-const navItems = computed(() => buildExchangeNavItems(canUseWallet.value));
+const navItems = computed(() => buildExchangeNavItems(canUseWallet.value, locale.value));
 
 const keyboardInsetPx = ref(0);
 let viewportResizeHandler = null;
@@ -119,5 +124,7 @@ onUnmounted(() => {
                 </div>
             </nav>
         </div>
+
+        <AppLockOverlay v-if="isAuthenticated && isLocked" />
     </div>
 </template>

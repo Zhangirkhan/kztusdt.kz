@@ -82,6 +82,7 @@ final class PhoneAuthController extends Controller
 
         return response()->json([
             'verified' => true,
+            'user_id' => $user->id,
             'redirect' => $kyc['needs_verification']
                 ? null
                 : route('home', ['locale' => LocaleManager::resolve($request)]),

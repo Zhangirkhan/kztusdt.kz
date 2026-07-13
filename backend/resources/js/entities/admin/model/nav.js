@@ -1,122 +1,122 @@
 const NAV_GROUPS = [
     {
-        label: 'Обзор',
+        labelKey: 'admin.nav.groups.overview',
         items: [
             {
                 section: 'dashboard',
                 href: '/admin',
-                label: 'Дашборд',
+                labelKey: 'admin.nav.items.dashboard',
                 icon: 'dashboard',
                 match: (url) => url === '/admin',
             },
         ],
     },
     {
-        label: 'Клиенты',
+        labelKey: 'admin.nav.groups.clients',
         items: [
             {
                 section: 'users',
                 href: '/admin/users',
-                label: 'Пользователи',
+                labelKey: 'admin.nav.items.users',
                 icon: 'group',
                 match: (url) => url.startsWith('/admin/users'),
             },
             {
                 section: 'kyc',
                 href: '/admin/kyc',
-                label: 'KYC',
+                labelKey: 'admin.nav.items.kyc',
                 icon: 'verified_user',
                 match: (url) => url.startsWith('/admin/kyc'),
             },
             {
                 section: 'subscriptions',
                 href: '/admin/subscriptions',
-                label: 'Подписки',
+                labelKey: 'admin.nav.items.subscriptions',
                 icon: 'card_membership',
                 match: (url) => url.startsWith('/admin/subscriptions'),
             },
         ],
     },
     {
-        label: 'Операции',
+        labelKey: 'admin.nav.groups.operations',
         items: [
             {
                 section: 'support',
                 href: '/admin/support',
-                label: 'Чат',
+                labelKey: 'admin.nav.items.support',
                 icon: 'chat',
                 match: (url) => url.startsWith('/admin/support'),
             },
             {
                 section: 'listings',
                 href: '/admin/listings',
-                label: 'Объявления',
+                labelKey: 'admin.nav.items.listings',
                 icon: 'campaign',
                 match: (url) => url.startsWith('/admin/listings'),
             },
             {
                 section: 'orders',
                 href: '/admin/orders',
-                label: 'Ордера',
+                labelKey: 'admin.nav.items.orders',
                 icon: 'receipt_long',
                 match: (url) => url.startsWith('/admin/orders'),
             },
             {
                 section: 'withdrawals',
                 href: '/admin/withdrawals',
-                label: 'Выводы',
+                labelKey: 'admin.nav.items.withdrawals',
                 icon: 'call_made',
                 match: (url) => url.startsWith('/admin/withdrawals'),
             },
             {
                 section: 'disputes',
                 href: '/admin/disputes',
-                label: 'Споры',
+                labelKey: 'admin.nav.items.disputes',
                 icon: 'gavel',
                 match: (url) => url.startsWith('/admin/disputes'),
             },
         ],
     },
     {
-        label: 'Казначейство',
+        labelKey: 'admin.nav.groups.treasury',
         items: [
             {
                 section: 'finance',
                 href: '/admin/finance',
-                label: 'Финансы',
+                labelKey: 'admin.nav.items.finance',
                 icon: 'account_balance',
                 match: (url) => url.startsWith('/admin/finance'),
             },
             {
                 section: 'wallets',
                 href: '/admin/wallets',
-                label: 'Кошельки',
+                labelKey: 'admin.nav.items.wallets',
                 icon: 'account_balance_wallet',
                 match: (url) => url.startsWith('/admin/wallets'),
             },
             {
                 section: 'sweeps',
                 href: '/admin/sweeps',
-                label: 'Sweeps',
+                labelKey: 'admin.nav.items.sweeps',
                 icon: 'sync',
                 match: (url) => url.startsWith('/admin/sweeps'),
             },
         ],
     },
     {
-        label: 'Система',
+        labelKey: 'admin.nav.groups.system',
         items: [
             {
                 section: 'settings',
                 href: '/admin/settings',
-                label: 'Настройки',
+                labelKey: 'admin.nav.items.settings',
                 icon: 'settings',
                 match: (url) => url.startsWith('/admin/settings'),
             },
             {
                 section: 'audit',
                 href: '/admin/audit',
-                label: 'Журнал',
+                labelKey: 'admin.nav.items.audit',
                 icon: 'history',
                 match: (url) => url.startsWith('/admin/audit'),
             },
@@ -128,21 +128,23 @@ function isEnabled(sections, section) {
     return Boolean(sections?.[section]);
 }
 
-/**
- * @returns {Array<{ label: string, items: Array<{ href: string, label: string, icon: string, match: (url: string) => boolean }> }>}
- */
-export function buildAdminNavGroups(sections) {
+export function buildAdminNavGroups(sections, t) {
     return NAV_GROUPS.map((group) => ({
-        label: group.label,
-        items: group.items.filter((item) => isEnabled(sections, item.section)),
+        label: t(group.labelKey),
+        items: group.items
+            .filter((item) => isEnabled(sections, item.section))
+            .map((item) => ({
+                ...item,
+                label: t(item.labelKey),
+            })),
     })).filter((group) => group.items.length > 0);
 }
 
 /** @deprecated Use buildAdminNavGroups — flat list for backwards compatibility */
-export function buildAdminNavItems(sections) {
-    return buildAdminNavGroups(sections).flatMap((group) => group.items);
+export function buildAdminNavItems(sections, t) {
+    return buildAdminNavGroups(sections, t).flatMap((group) => group.items);
 }
 
-export function findActiveAdminNavItem(sections, url) {
-    return buildAdminNavItems(sections).find((item) => item.match(url)) ?? null;
+export function findActiveAdminNavItem(sections, url, t) {
+    return buildAdminNavItems(sections, t).find((item) => item.match(url)) ?? null;
 }

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AppLogo from '@/Components/AppLogo.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     variant: {
@@ -16,6 +17,7 @@ const props = defineProps({
 
 const data = computed(() => props.company ?? usePage().props.companyIntro ?? usePage().props.company ?? {});
 const isCompact = computed(() => props.variant === 'compact');
+const { t } = useI18n();
 </script>
 
 <template>
@@ -27,7 +29,7 @@ const isCompact = computed(() => props.variant === 'compact');
             <AppLogo />
 
             <div class="min-w-0 flex-1">
-                <p class="text-label-caps uppercase text-text-dim">О сервисе</p>
+                <p class="text-label-caps uppercase text-text-dim">{{ t('company.aboutService') }}</p>
                 <h2 class="mt-1 text-headline-md text-on-surface">{{ data.name }}</h2>
                 <p class="mt-1 text-body-sm font-semibold text-accent">{{ data.tagline }}</p>
             </div>
@@ -53,10 +55,10 @@ const isCompact = computed(() => props.variant === 'compact');
             class="mt-4 border-t border-outline-variant/30 pt-4 text-body-sm text-text-dim"
         >
             <p v-if="data.legal_name">{{ data.legal_name }}</p>
-            <p v-if="data.bin" class="mt-1">БИН {{ data.bin }}</p>
-            <p v-if="data.director" class="mt-1">Директор: {{ data.director }}</p>
+            <p v-if="data.bin" class="mt-1">{{ t('company.bin', { value: data.bin }) }}</p>
+            <p v-if="data.director" class="mt-1">{{ t('company.director', { name: data.director }) }}</p>
             <p v-if="data.support_email" class="mt-1">
-                Поддержка:
+                {{ t('company.support') }}
                 <a :href="`mailto:${data.support_email}`" class="text-accent hover:underline">
                     {{ data.support_email }}
                 </a>

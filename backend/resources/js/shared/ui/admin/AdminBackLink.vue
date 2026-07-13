@@ -1,23 +1,26 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { ArrowLeftOutlined } from '@ant-design/icons-vue';
+import { useI18n } from 'vue-i18n';
 
-defineProps({
+const props = defineProps({
     href: {
         type: String,
         required: true,
     },
     label: {
         type: String,
-        default: 'Назад',
+        default: '',
     },
 });
+
+const { t } = useI18n();
 </script>
 
 <template>
     <Link :href="href" class="admin-ant-back">
         <ArrowLeftOutlined />
-        <span>{{ label }}</span>
+        <span>{{ label || t('admin.shared.back') }}</span>
     </Link>
 </template>
 

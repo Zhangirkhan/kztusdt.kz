@@ -2,8 +2,10 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminBackLink from '@/shared/ui/admin/AdminBackLink.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import BankLogo from '@/shared/ui/bank-logo/BankLogo.vue';
 import { formatKzt, formatRate } from '@/utils/formatNumber';
 import { Head, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -18,6 +20,7 @@ const props = defineProps({
 });
 
 const isEdit = computed(() => Boolean(props.listing?.id));
+const { t } = useI18n();
 const step = ref(1);
 
 const form = useForm({
@@ -105,36 +108,36 @@ watch(
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Редактировать объявление' : 'Создать объявление'" />
+    <Head :title="isEdit ? t('admin.listings.form.editTitle') : t('admin.listings.form.createTitle')" />
 
     <AdminLayout>
-        <template #title>{{ isEdit ? 'Редактировать объявление' : 'Создание объявления' }}</template>
+        <template #title>{{ isEdit ? t('admin.listings.form.editTitle') : t('admin.listings.form.createPageTitle') }}</template>
 
         <AdminPage>
             <AdminBackLink :href="route('admin.listings.index')" />
 
             <div class="listing-form-card">
                 <h1 class="listing-form-card__title">
-                    {{ isEdit ? 'Редактировать объявление' : 'Создать объявление' }}
+                    {{ isEdit ? t('admin.listings.form.editTitle') : t('admin.listings.form.createTitle') }}
                 </h1>
 
                 <div class="listing-form-steps">
                     <div class="listing-form-step" :class="{ 'listing-form-step--active': step === 1, 'listing-form-step--done': step > 1 }">
                         <span>1</span>
-                        Цена
+                        {{ t('admin.listings.form.steps.price') }}
                     </div>
                     <div class="listing-form-step" :class="{ 'listing-form-step--active': step === 2, 'listing-form-step--done': step > 2 }">
                         <span>2</span>
-                        Сумма
+                        {{ t('admin.listings.form.steps.amount') }}
                     </div>
                     <div class="listing-form-step" :class="{ 'listing-form-step--active': step === 3 }">
                         <span>3</span>
-                        Условия
+                        {{ t('admin.listings.form.steps.conditions') }}
                     </div>
                 </div>
 
                 <section v-show="step === 1" class="listing-form-section">
-                    <label class="listing-form-label">ТИП ОБЪЯВЛЕНИЯ</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.labels.listingType') }}</label>
                     <div class="listing-form-direction-tabs">
                         <button
                             type="button"
@@ -144,7 +147,7 @@ watch(
                                 : 'listing-form-direction-tabs__btn--inactive'"
                             @click="form.direction = 'sell_usdt'"
                         >
-                            Купить USDT
+                            {{ t('admin.listings.form.direction.buyUsdt') }}
                         </button>
                         <button
                             type="button"
@@ -154,66 +157,66 @@ watch(
                                 : 'listing-form-direction-tabs__btn--inactive'"
                             @click="form.direction = 'buy_usdt'"
                         >
-                            Продать USDT
+                            {{ t('admin.listings.form.direction.sellUsdt') }}
                         </button>
                     </div>
 
-                    <label class="listing-form-label">ТИП ЦЕНЫ</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.labels.priceType') }}</label>
                     <div class="listing-form-toggle">
                         <button
                             type="button"
                             :class="{ 'is-active': form.price_type === 'fixed' }"
                             @click="form.price_type = 'fixed'"
                         >
-                            Фиксированная
+                            {{ t('admin.listings.form.priceType.fixed') }}
                         </button>
                         <button
                             type="button"
                             :class="{ 'is-active': form.price_type === 'floating' }"
                             @click="form.price_type = 'floating'"
                         >
-                            Плавающая
+                            {{ t('admin.listings.form.priceType.floating') }}
                         </button>
                     </div>
 
                     <div v-if="form.price_type === 'floating'" class="listing-form-floating">
                         <div class="listing-form-floating__item">
-                            <span>Курс KASE</span>
-                            <strong>{{ formatRate(marketRate) }} KZT за 1 USDT</strong>
+                            <span>{{ t('admin.listings.form.floating.kaseRate') }}</span>
+                            <strong>{{ t('admin.listings.form.floating.kaseRateValue', { rate: formatRate(marketRate) }) }}</strong>
                         </div>
                         <div class="listing-form-floating__item">
-                            <span>Маржа, %</span>
+                            <span>{{ t('admin.listings.form.floating.margin') }}</span>
                             <input v-model="form.margin_percent" type="number" step="0.01" class="listing-form-input" />
                         </div>
                         <div class="listing-form-floating__equals">=</div>
                         <div class="listing-form-floating__item">
-                            <span>Итоговая цена</span>
+                            <span>{{ t('admin.listings.form.floating.finalPrice') }}</span>
                             <strong>{{ formatRate(finalRate) }} KZT</strong>
-                            <small>{{ formatRate(marketRate) }} × (1 + {{ Number(form.margin_percent || 0).toFixed(2) }}%)</small>
+                            <small>{{ t('admin.listings.form.floating.formula', { rate: formatRate(marketRate), margin: Number(form.margin_percent || 0).toFixed(2) }) }}</small>
                         </div>
                     </div>
 
                     <div v-else class="listing-form-fixed">
-                        <label class="listing-form-label">Цена, KZT за 1 USDT</label>
+                        <label class="listing-form-label">{{ t('admin.listings.form.fixed.priceLabel') }}</label>
                         <input v-model="form.fixed_rate" type="number" step="0.01" class="listing-form-input listing-form-input--large" />
                         <p class="listing-form-hint">
-                            Допустимый диапазон: {{ formatRate(rateRange.min) }} - {{ formatRate(rateRange.max) }} KZT
+                            {{ t('admin.listings.form.fixed.rangeHint', { min: formatRate(rateRange.min), max: formatRate(rateRange.max) }) }}
                         </p>
                     </div>
                 </section>
 
                 <section v-show="step === 2" class="listing-form-section">
-                    <label class="listing-form-label">Общая сумма USDT</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.amount.totalUsdt') }}</label>
                     <input v-model="form.total_usdt" type="number" step="0.01" class="listing-form-input" />
 
-                    <label class="listing-form-label">Минимальный лимит ордера в KZT</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.amount.minLimit') }}</label>
                     <input v-model="form.min_limit_kzt" type="number" step="1" class="listing-form-input" />
 
-                    <label class="listing-form-label">Максимальный лимит ордера в KZT</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.amount.maxLimit') }}</label>
                     <input v-model="form.max_limit_kzt" type="number" step="1" class="listing-form-input" />
-                    <p class="listing-form-hint">Не больше объёма объявления: {{ formatKzt(maxAdvertKzt) }} KZT</p>
+                    <p class="listing-form-hint">{{ t('admin.listings.form.amount.maxHint', { amount: formatKzt(maxAdvertKzt) }) }}</p>
 
-                    <label class="listing-form-label">СПОСОБ ОПЛАТЫ</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.labels.paymentMethod') }}</label>
                     <div class="listing-form-chips">
                         <button
                             v-for="bank in banks"
@@ -223,13 +226,14 @@ watch(
                             :class="{ 'listing-form-chip--active': form.payment_methods.includes(bank.code) }"
                             @click="togglePaymentMethod(bank.code)"
                         >
+                            <BankLogo :code="bank.code" size="sm" />
                             {{ bank.name }}
                         </button>
                     </div>
-                    <p class="listing-form-hint">Можно добавить до 5 методов оплаты</p>
+                    <p class="listing-form-hint">{{ t('admin.listings.form.amount.paymentMethodsHint') }}</p>
                     <p v-if="form.errors.payment_methods" class="listing-form-error">{{ form.errors.payment_methods }}</p>
 
-                    <label class="listing-form-label">СРОК ОПЛАТЫ</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.labels.paymentTerm') }}</label>
                     <div class="listing-form-chips">
                         <button
                             v-for="term in paymentTerms"
@@ -245,18 +249,18 @@ watch(
                 </section>
 
                 <section v-show="step === 3" class="listing-form-section">
-                    <h2 class="listing-form-section__title">Условия сделки</h2>
-                    <p class="listing-form-hint">Пользователь прочитает этот текст перед оплатой</p>
+                    <h2 class="listing-form-section__title">{{ t('admin.listings.form.conditions.title') }}</h2>
+                    <p class="listing-form-hint">{{ t('admin.listings.form.conditions.hint') }}</p>
                     <textarea
                         v-model="form.conditions_text"
                         rows="5"
                         maxlength="500"
                         class="listing-form-textarea"
-                        placeholder="Оплата принимается только с личного счёта..."
+                        :placeholder="t('admin.listings.form.conditions.placeholder')"
                     />
-                    <p class="listing-form-counter">{{ (form.conditions_text || '').length }}/500</p>
+                    <p class="listing-form-counter">{{ t('admin.listings.form.conditions.counter', { current: (form.conditions_text || '').length }) }}</p>
 
-                    <label class="listing-form-label">БЫСТРЫЕ ФРАЗЫ</label>
+                    <label class="listing-form-label">{{ t('admin.listings.form.labels.quickPhrases') }}</label>
                     <div class="listing-form-chips">
                         <button
                             v-for="phrase in quickPhrases"
@@ -277,7 +281,7 @@ watch(
 
                 <footer class="listing-form-footer">
                     <button v-if="step > 1" type="button" class="listing-form-footer__secondary" @click="prevStep">
-                        Назад
+                        {{ t('admin.listings.form.back') }}
                     </button>
                     <div class="listing-form-footer__spacer" />
                     <button
@@ -286,7 +290,7 @@ watch(
                         class="listing-form-footer__primary"
                         @click="nextStep"
                     >
-                        Продолжить
+                        {{ t('admin.listings.form.continue') }}
                     </button>
                     <button
                         v-else
@@ -295,7 +299,7 @@ watch(
                         :disabled="form.processing"
                         @click="submit(true)"
                     >
-                        Опубликовать
+                        {{ t('admin.listings.form.publish') }}
                     </button>
                 </footer>
             </div>
@@ -517,6 +521,9 @@ watch(
 }
 
 .listing-form-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     border: 1px solid #dbe3ee;
     background: #fff;
     border-radius: 999px;

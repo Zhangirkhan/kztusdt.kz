@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Support\AdminNavPresenter;
+use App\Support\AdminUrl;
 use App\Support\CompanyPresenter;
 use App\Support\LocaleManager;
 use App\Support\SeoPresenter;
@@ -18,7 +19,13 @@ final class HandleInertiaRequests extends Middleware
 
     public function version(Request $request): ?string
     {
-        return null;
+        $manifest = public_path('build/manifest.json');
+
+        if (! is_readable($manifest)) {
+            return parent::version($request);
+        }
+
+        return (string) filemtime($manifest);
     }
 
     /**
@@ -58,7 +65,14 @@ final class HandleInertiaRequests extends Middleware
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
             ],
-            'ziggy' => fn () => (new Ziggy(AdminNavPresenter::ziggyGroup($user)))->toArray(),
+            'adminApp' => fn () => [
+                'url' => AdminUrl::base(),
+                'isSubdomain' => AdminUrl::isAdminHost($request),
+            ],
+            'ziggy' => fn () => array_merge(
+                (new Ziggy(AdminNavPresenter::ziggyGroup($user)))->toArray(),
+                ['url' => $request->getSchemeAndHttpHost()],
+            ),
         ];
     }
 }

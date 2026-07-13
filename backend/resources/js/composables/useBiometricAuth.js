@@ -7,12 +7,13 @@ import {
     webAuthnSign,
 } from '@/utils/webAuthnClient';
 import { extractKzDigits } from '@/utils/phoneMask';
+import { i18n } from '@/i18n';
 
 function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 }
 
-function extractErrorMessage(payload, fallback = 'Не удалось выполнить запрос.') {
+function extractErrorMessage(payload, fallback = i18n.global.t('biometric.errors.requestFailed')) {
     if (payload.errors && typeof payload.errors === 'object') {
         const firstField = Object.values(payload.errors).find(Array.isArray);
 
@@ -89,7 +90,7 @@ export function useBiometricAuth() {
             const normalized = normalizePhoneForApi(phone);
 
             if (! normalized) {
-                throw new Error('Введите корректный номер телефона.');
+                throw new Error(i18n.global.t('biometric.errors.invalidPhone'));
             }
 
             const { publicKey } = await postJson('/webauthn/auth/options', { phone: normalized });
@@ -104,16 +105,16 @@ export function useBiometricAuth() {
 
             navigateAfterAuth(result.callback ?? '/wallet');
         } catch (exception) {
-            error.value = exception.message ?? 'Биометрия недоступна.';
+            error.value = exception.message ?? i18n.global.t('biometric.errors.unavailable');
             throw exception;
         } finally {
             busy.value = false;
         }
     }
 
-    async function registerBiometric(name = 'Face ID / отпечаток') {
+    async function registerBiometric(name = 'Face ID / fingerprint') {
         if (! supported) {
-            throw new Error('Биометрия не поддерживается на этом устройстве.');
+            throw new Error(i18n.global.t('biometric.errors.unsupported'));
         }
 
         busy.value = true;
@@ -128,7 +129,25 @@ export function useBiometricAuth() {
                 name,
             });
         } catch (exception) {
-            error.value = exception.message ?? 'Не удалось включить биометрию.';
+            error.value = exception.message ?? i18n.global.t('biometric.errors.enableFailed');
+            throw exception;
+        } finally {
+            busy.value = false;
+        }
+    }
+
+    async function unlockWithBiometric() {
+        busy.value = true;
+        error.value = null;
+
+        try {
+            const { publicKey } = await postJson('/api/app-lock/biometric/options');
+            const credential = await webAuthnSign(publicKey);
+            await postJson('/api/app-lock/biometric/verify', credential);
+
+            return true;
+        } catch (exception) {
+            error.value = exception.message ?? i18n.global.t('appLock.biometricFailed');
             throw exception;
         } finally {
             busy.value = false;
@@ -144,5 +163,6 @@ export function useBiometricAuth() {
         checkAvailability,
         loginWithBiometric,
         registerBiometric,
+        unlockWithBiometric,
     };
 }

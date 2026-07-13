@@ -3,6 +3,7 @@ import { useSupportChat } from '@/composables/useSupportChat';
 import { localizedPath, unlocalizedPath } from '@/utils/localizedPath';
 import { Link } from '@inertiajs/vue3';
 import { computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     orderId: {
@@ -14,6 +15,7 @@ const props = defineProps({
         required: true,
     },
 });
+const { t } = useI18n();
 
 const { unreadCount, refreshUnread, startUnreadPolling } = useSupportChat(props.orderId);
 
@@ -33,7 +35,7 @@ onMounted(() => {
     <Link
         :href="chatHref"
         class="support-chat-fab"
-        aria-label="Открыть чат с поддержкой"
+        :aria-label="t('support.chat.fabAria')"
     >
         <span class="material-symbols-outlined" aria-hidden="true">chat</span>
         <span v-if="unreadCount > 0" class="support-chat-fab__badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>

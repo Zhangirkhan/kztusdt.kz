@@ -2,6 +2,7 @@
 import ExchangeLayout from '@/widgets/exchange-shell/ui/ExchangeLayout.vue';
 import HistoryPanel from '@/widgets/history-panel/ui/HistoryPanel.vue';
 import { Head } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 defineProps({
     section: { type: String, default: 'wallet' },
@@ -12,13 +13,15 @@ defineProps({
     stats: Object,
     asset: String,
 });
+
+const { t } = useI18n();
 </script>
 
 <template>
-    <Head title="История" />
+    <Head :title="t('history.title')" />
 
     <ExchangeLayout>
-        <template #title>История</template>
+        <template #title>{{ t('history.title') }}</template>
         <HistoryPanel
             :section="section"
             :filter="filter"

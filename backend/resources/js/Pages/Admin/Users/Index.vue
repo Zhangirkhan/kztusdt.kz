@@ -6,6 +6,7 @@ import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { clientTypeTagColor, statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -14,38 +15,40 @@ const props = defineProps({
     stats: Object,
 });
 
+const { t } = useI18n();
+
 const search = ref(props.filters?.q ?? '');
 const statusFilter = ref(props.filters?.status ?? 'all');
 const clientTypeFilter = ref(props.filters?.client_type ?? 'all');
 
 const statItems = computed(() => [
-    { label: 'Всего', value: props.stats.total, color: '#1677ff' },
-    { label: 'Активные', value: props.stats.active, color: '#52c41a' },
-    { label: 'Приостановлены', value: props.stats.suspended, color: '#faad14' },
+    { label: t('admin.users.index.stats.total'), value: props.stats.total, color: '#1677ff' },
+    { label: t('admin.users.index.stats.active'), value: props.stats.active, color: '#52c41a' },
+    { label: t('admin.users.index.stats.suspended'), value: props.stats.suspended, color: '#faad14' },
 ]);
 
-const statusOptions = [
-    { label: 'Все', value: 'all' },
-    { label: 'Активные', value: 'active' },
-    { label: 'Приостановлены', value: 'suspended' },
-    { label: 'Заблокированы', value: 'blocked' },
-];
+const statusOptions = computed(() => [
+    { label: t('admin.users.index.filters.status.all'), value: 'all' },
+    { label: t('admin.users.index.filters.status.active'), value: 'active' },
+    { label: t('admin.users.index.filters.status.suspended'), value: 'suspended' },
+    { label: t('admin.users.index.filters.status.blocked'), value: 'blocked' },
+]);
 
-const clientTypeOptions = [
-    { label: 'Все клиенты', value: 'all' },
-    { label: 'Физ. лица', value: 'individual' },
-    { label: 'Юр. лица', value: 'legal_entity' },
-];
+const clientTypeOptions = computed(() => [
+    { label: t('admin.users.index.filters.clientType.all'), value: 'all' },
+    { label: t('admin.users.index.filters.clientType.individual'), value: 'individual' },
+    { label: t('admin.users.index.filters.clientType.legalEntity'), value: 'legal_entity' },
+]);
 
-const columns = [
+const columns = computed(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: 'Тип', key: 'client_type', width: 110 },
-    { title: 'Клиент', key: 'client' },
+    { title: t('admin.users.index.columns.type'), key: 'client_type', width: 110 },
+    { title: t('admin.users.index.columns.client'), key: 'client' },
     { title: 'KYC', dataIndex: 'kyc_status', key: 'kyc_status', width: 120 },
-    { title: 'Статус', key: 'status', width: 120 },
-    { title: 'Активность', key: 'activity', width: 160 },
+    { title: t('admin.users.index.columns.status'), key: 'status', width: 120 },
+    { title: t('admin.users.index.columns.activity'), key: 'activity', width: 160 },
     { title: '', key: 'actions', width: 90, align: 'right' },
-];
+]);
 
 function applyFilters(status = statusFilter.value, clientType = clientTypeFilter.value) {
     statusFilter.value = status;
@@ -58,23 +61,25 @@ function submitSearch() {
 }
 
 function clientTypeLabel(type) {
-    return type === 'legal_entity' ? 'Юр. лицо' : 'Физ. лицо';
+    return type === 'legal_entity'
+        ? t('admin.users.index.clientType.legalEntity')
+        : t('admin.users.index.clientType.individual');
 }
 </script>
 
 <template>
-    <Head title="Пользователи" />
+    <Head :title="t('admin.users.index.title')" />
 
     <AdminLayout>
-        <template #title>Пользователи</template>
+        <template #title>{{ t('admin.users.index.title') }}</template>
 
         <AdminPage>
             <AdminStatsRow :items="statItems" />
 
             <a-input-search
                 v-model:value="search"
-                placeholder="Поиск: имя, телефон, email, ID"
-                enter-button="Найти"
+                :placeholder="t('admin.users.index.searchPlaceholder')"
+                :enter-button="t('admin.shared.actions.find')"
                 size="large"
                 class="admin-ant-block"
                 @search="submitSearch"
@@ -102,11 +107,11 @@ function clientTypeLabel(type) {
 
                         <template v-else-if="column.key === 'client'">
                             <div>
-                                <a-typography-text strong>{{ record.company_name || record.name || '—' }}</a-typography-text>
+                                <a-typography-text strong>{{ record.company_name || record.name || t('admin.shared.empty') }}</a-typography-text>
                                 <div class="admin-ant-meta">
                                     {{ record.phone || record.email }}
-                                    <template v-if="record.client_type === 'legal_entity' && record.bin"> · БИН {{ record.bin }}</template>
-                                    <template v-else-if="record.iin"> · ИИН {{ record.iin }}</template>
+                                    <template v-if="record.client_type === 'legal_entity' && record.bin"> · {{ t('admin.users.index.meta.bin', { bin: record.bin }) }}</template>
+                                    <template v-else-if="record.iin"> · {{ t('admin.users.index.meta.iin', { iin: record.iin }) }}</template>
                                 </div>
                             </div>
                         </template>
@@ -117,21 +122,19 @@ function clientTypeLabel(type) {
 
                         <template v-else-if="column.key === 'activity'">
                             <span class="admin-ant-meta">
-                                {{ record.exchange_orders_count }} орд. ·
-                                {{ record.withdrawals_count }} выв. ·
-                                {{ record.deposits_count }} деп.
+                                {{ t('admin.users.index.activity', { orders: record.exchange_orders_count, withdrawals: record.withdrawals_count, deposits: record.deposits_count }) }}
                             </span>
                         </template>
 
                         <template v-else-if="column.key === 'actions'">
                             <Link :href="`/admin/users/${record.id}`">
-                                <a-button type="link" size="small">Открыть</a-button>
+                                <a-button type="link" size="small">{{ t('admin.shared.actions.open') }}</a-button>
                             </Link>
                         </template>
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Пользователей не найдено" />
+                        <a-empty :description="t('admin.users.index.empty')" />
                     </template>
                 </a-table>
 

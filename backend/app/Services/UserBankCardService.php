@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\UserBankCard;
+use App\Support\BankCatalog;
 use App\Support\KazakhstanAccount;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -17,24 +18,7 @@ final class UserBankCardService
      */
     public function bankCatalog(): array
     {
-        return collect(config('banks.catalog', []))
-            ->map(function (array|string $entry, string $code): array {
-                if (is_string($entry)) {
-                    return [
-                        'code' => $code,
-                        'name' => $entry,
-                        'bik' => null,
-                    ];
-                }
-
-                return [
-                    'code' => $code,
-                    'name' => (string) ($entry['name'] ?? $code),
-                    'bik' => $this->normalizeBik((string) ($entry['bik'] ?? '')),
-                ];
-            })
-            ->values()
-            ->all();
+        return BankCatalog::optionsWithBik();
     }
 
     /**

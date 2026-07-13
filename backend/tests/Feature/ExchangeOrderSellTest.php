@@ -159,7 +159,7 @@ final class ExchangeOrderSellTest extends TestCase
 
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent")
+        $this->actingAsAdmin($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent")
             ->assertRedirect(route('admin.orders.show', $order));
 
         $order->refresh();
@@ -197,7 +197,7 @@ final class ExchangeOrderSellTest extends TestCase
 
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post("/admin/orders/{$order->id}/mark-kzt-sent")
             ->assertRedirect(route('admin.orders.show', $order));
 
@@ -233,7 +233,7 @@ final class ExchangeOrderSellTest extends TestCase
 
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)->post("/admin/orders/{$order->id}/reject", [
+        $this->actingAsAdmin($admin)->post("/admin/orders/{$order->id}/reject", [
             'reason' => 'Подозрительная активность',
         ]);
 
@@ -253,7 +253,7 @@ final class ExchangeOrderSellTest extends TestCase
         $order = $this->createSellOrder($user, 100);
 
         $admin = $this->createStaff('super_admin');
-        $this->actingAs($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent");
+        $this->actingAsAdmin($admin)->post("/admin/orders/{$order->id}/mark-kzt-sent");
 
         $this->actingAs($user)->post("/ru/exchange/orders/{$order->id}/mark-received");
 

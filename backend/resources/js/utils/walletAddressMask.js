@@ -1,4 +1,5 @@
 import { sha256d } from './sha256.js';
+import { i18n } from '@/i18n';
 
 /** EVM / BEP20: 0x + 40 hex chars */
 export const EVM_ADDRESS_PREFIX = '0x';
@@ -30,8 +31,8 @@ export function walletAddressPlaceholder(format) {
  */
 export function walletAddressHint(format) {
     return format === 'tron'
-        ? 'Вставьте адрес из кошелька (Trust, TronLink…). 34 символа, начинается с T.'
-        : 'Вставьте адрес из кошелька (MetaMask, Trust…). 0x + 40 hex-символов.';
+        ? i18n.global.t('walletAddress.hint.tron')
+        : i18n.global.t('walletAddress.hint.evm');
 }
 
 /**
@@ -142,12 +143,12 @@ export function walletAddressError(value, format) {
 
     if (!isWalletAddressComplete(address, format)) {
         return format === 'tron'
-            ? 'Адрес TRON должен начинаться с T и состоять из 34 символов.'
-            : 'Адрес должен быть в формате 0x + 40 hex-символов.';
+            ? i18n.global.t('walletAddress.errors.tronLength')
+            : i18n.global.t('walletAddress.errors.evmFormat');
     }
 
     if (format === 'tron' && !isValidTronBase58Check(address)) {
-        return 'Некорректный TRON-адрес (контрольная сумма). Скопируйте адрес из кошелька.';
+        return i18n.global.t('walletAddress.errors.tronChecksum');
     }
 
     return null;

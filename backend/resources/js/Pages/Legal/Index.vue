@@ -3,11 +3,13 @@ import AppLogo from '@/Components/AppLogo.vue';
 import SeoHead from '@/Components/SeoHead.vue';
 import { localizedPath } from '@/utils/localizedPath';
 import { Link, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 defineProps({
     documents: Array,
     updatedAt: String,
 });
+const { t } = useI18n();
 
 function goBack() {
     try {
@@ -42,7 +44,7 @@ function goBack() {
             <button
                 type="button"
                 class="p-2 -ml-2 text-text-dim transition hover:text-on-surface"
-                aria-label="Назад"
+                :aria-label="t('common.back')"
                 @click="goBack"
             >
                 <span class="material-symbols-outlined">arrow_back</span>
@@ -50,9 +52,9 @@ function goBack() {
             <AppLogo show-wordmark />
         </header>
 
-        <h1 class="text-headline-xl">Юридические документы</h1>
+        <h1 class="text-headline-xl">{{ t('legal.index.title') }}</h1>
         <p class="mt-2 text-body-sm text-text-muted">
-            Обязательные документы сервиса. Редакция от {{ updatedAt }}.
+            {{ t('legal.index.subtitle', { date: updatedAt }) }}
         </p>
 
         <div class="mt-stack-section space-y-3">

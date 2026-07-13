@@ -1,13 +1,15 @@
+import { i18n } from '@/i18n';
+
 export function historyStatusLabel(status) {
     if (status === 'COMPLETED') {
-        return 'Завершено';
+        return i18n.global.t('history.filters.completed');
     }
 
     if (status === 'FAILED') {
-        return 'Ошибка';
+        return i18n.global.t('history.filters.failed');
     }
 
-    return 'В обработке';
+    return i18n.global.t('history.filters.pending');
 }
 
 export function historyIconTone(item) {

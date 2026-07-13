@@ -178,7 +178,7 @@ final class WithdrawalTest extends TestCase
 
         $officer = $this->createStaff('security_officer');
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/withdrawals/{$withdrawal->id}/approve", ['comment' => 'Проверено'])
             ->assertRedirect(route('admin.withdrawals.index'));
 
@@ -200,7 +200,7 @@ final class WithdrawalTest extends TestCase
 
         $officer = $this->createStaff('security_officer');
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/withdrawals/{$withdrawal->id}/approve")
             ->assertRedirect(route('admin.withdrawals.index'));
 
@@ -214,7 +214,7 @@ final class WithdrawalTest extends TestCase
 
         $officer = $this->createStaff('security_officer');
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/withdrawals/{$withdrawal->id}/reject", ['reason' => 'Высокий риск'])
             ->assertRedirect(route('admin.withdrawals.index'));
 
@@ -233,7 +233,7 @@ final class WithdrawalTest extends TestCase
         $withdrawal = $this->createWithdrawal($user, 100);
 
         $officer = $this->createStaff('security_officer');
-        $this->actingAs($officer)->post("/admin/withdrawals/{$withdrawal->id}/approve");
+        $this->actingAsAdmin($officer)->post("/admin/withdrawals/{$withdrawal->id}/approve");
 
         $result = app(WithdrawalService::class)->processQueue();
 

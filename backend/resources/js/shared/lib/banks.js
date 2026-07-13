@@ -8,20 +8,20 @@ export const BANK_META = {
     bcc: {
         short: 'B',
         tone: 'bcc',
-        label: 'Банк ЦентрКредит',
+        label: 'Bank CenterCredit',
         logo: '/images/banks/bcc.svg',
     },
     altyn: {
         short: 'A',
         tone: 'altyn',
         label: 'Altyn Bank',
-        logo: '/images/banks/altyn.svg',
+        logo: '/images/banks/altyn-official.svg',
     },
     halyk: {
         short: 'H',
         tone: 'halyk',
         label: 'Halyk Bank',
-        logo: '/images/banks/halyk.svg',
+        logo: '/images/banks/halyk-icon.png',
     },
     freedom: {
         short: 'F',
@@ -33,13 +33,13 @@ export const BANK_META = {
         short: 'J',
         tone: 'jusan',
         label: 'Jusan Bank',
-        logo: '/images/banks/jusan.svg',
+        logo: '/images/banks/jusan-icon.png',
     },
     forte: {
         short: 'F',
         tone: 'forte',
         label: 'ForteBank',
-        logo: '/images/banks/forte.svg',
+        logo: '/images/banks/forte.png',
     },
 };
 

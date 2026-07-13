@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 defineProps({
     conversations: {
@@ -14,9 +15,11 @@ defineProps({
     },
 });
 
+const { t } = useI18n();
+
 function formatDate(value) {
     if (!value) {
-        return '—';
+        return t('admin.shared.empty');
     }
 
     return new Date(value).toLocaleString('ru-RU');
@@ -24,30 +27,30 @@ function formatDate(value) {
 
 function orderLabel(conversation) {
     if (!conversation.order) {
-        return 'Без заявки';
+        return t('admin.support.index.noOrder');
     }
 
-    const direction = conversation.order.direction === 'buy' ? 'Покупка' : 'Продажа';
+    const direction = conversation.order.direction === 'buy' ? t('admin.shared.direction.buy') : t('admin.shared.direction.sell');
 
-    return `Заявка №${conversation.order.id} · ${direction}`;
+    return t('admin.support.index.orderLabel', { id: conversation.order.id, direction });
 }
 </script>
 
 <template>
-    <Head title="Чат с клиентами" />
+    <Head :title="t('admin.support.index.title')" />
 
     <AdminLayout>
-        <template #title>Чат с клиентами</template>
+        <template #title>{{ t('admin.support.index.title') }}</template>
 
         <AdminPage>
             <div class="admin-support-toolbar">
                 <p class="admin-support-toolbar__hint">
-                    Диалоги с клиентами по вопросам обмена.
-                    <span v-if="totalUnread > 0">Непрочитанных: {{ totalUnread }}</span>
+                    {{ t('admin.support.index.hint') }}
+                    <span v-if="totalUnread > 0">{{ t('admin.support.index.unread', { count: totalUnread }) }}</span>
                 </p>
             </div>
 
-            <a-empty v-if="conversations.length === 0" description="Пока нет сообщений от клиентов" />
+            <a-empty v-if="conversations.length === 0" :description="t('admin.support.index.empty')" />
 
             <div v-else class="admin-support-list">
                 <Link
@@ -58,7 +61,7 @@ function orderLabel(conversation) {
                 >
                     <div class="admin-support-list__main">
                         <p class="admin-support-list__name">
-                            {{ conversation.user.name || 'Клиент' }}
+                            {{ conversation.user.name || t('admin.shared.client') }}
                             <a-badge v-if="conversation.unread_count > 0" :count="conversation.unread_count" />
                         </p>
                         <p class="admin-support-list__meta">
@@ -131,5 +134,18 @@ function orderLabel(conversation) {
 .admin-support-list__time {
     flex-shrink: 0;
     white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .admin-support-list__item {
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px;
+    }
+
+    .admin-support-list__time {
+        align-self: flex-start;
+        font-size: 12px;
+    }
 }
 </style>

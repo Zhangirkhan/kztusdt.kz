@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     proof: {
@@ -17,6 +18,7 @@ const props = defineProps({
 });
 
 const showPreview = ref(false);
+const { t } = useI18n();
 
 function openProof() {
     if (props.proof.is_image) {
@@ -48,10 +50,10 @@ function openProof() {
             </span>
 
             <span class="payment-proof-card__body">
-                <span class="payment-proof-card__label">Скриншот оплаты</span>
+                <span class="payment-proof-card__label">{{ t('paymentProof.title') }}</span>
                 <span class="payment-proof-card__filename">{{ proof.filename }}</span>
                 <span class="payment-proof-card__action">
-                    {{ proof.is_image ? 'Нажмите, чтобы открыть' : 'Открыть файл' }}
+                    {{ proof.is_image ? t('paymentProof.openImage') : t('paymentProof.openFile') }}
                 </span>
             </span>
 
@@ -64,13 +66,13 @@ function openProof() {
                 class="payment-proof-modal"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Просмотр скриншота оплаты"
+                :aria-label="t('paymentProof.previewAria')"
                 @click.self="showPreview = false"
             >
                 <button
                     type="button"
                     class="payment-proof-modal__close"
-                    aria-label="Закрыть"
+                    :aria-label="t('paymentProof.closeAria')"
                     @click="showPreview = false"
                 >
                     <span class="material-symbols-outlined" aria-hidden="true">close</span>

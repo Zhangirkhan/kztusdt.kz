@@ -17,6 +17,14 @@ function applyZiggy(ziggy) {
     }
 }
 
+function removeBootSplash() {
+    document.getElementById('app-boot-splash')?.remove();
+}
+
+function isAdminSurface(page) {
+    return page?.props?.adminApp?.isSubdomain === true;
+}
+
 createInertiaApp({
     title: (title) => (title.includes(appName) ? title : `${title} - ${appName}`),
     resolve: (name) =>
@@ -25,30 +33,46 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        applyLocale(props.initialPage.props.locale?.current ?? 'ru');
-        applyThemePreference(getStoredTheme());
-        applyZiggy(props.initialPage.props.ziggy);
+        try {
+            const adminSurface = isAdminSurface(props.initialPage);
 
-        router.on('navigate', (event) => {
-            applyLocale(event.detail.page.props.locale?.current ?? 'ru');
-            applyZiggy(event.detail.page.props.ziggy);
-        });
+            applyLocale(props.initialPage.props.locale?.current ?? 'ru');
+            applyThemePreference(adminSurface ? 'light' : getStoredTheme());
+            applyZiggy(props.initialPage.props.ziggy);
 
-        router.on('invalid', (event) => {
-            const html = event.detail.response?.data;
-            if (typeof html !== 'string' || !html.includes('class="panel"')) {
-                return;
-            }
+            router.on('navigate', (event) => {
+                applyLocale(event.detail.page.props.locale?.current ?? 'ru');
+                applyZiggy(event.detail.page.props.ziggy);
 
-            event.preventDefault();
-            showServerErrorOverlay(html);
-        });
+                if (isAdminSurface(event.detail.page)) {
+                    applyThemePreference('light');
+                }
+            });
 
-        return createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .use(i18n)
-            .use(ZiggyVue)
-            .mount(el);
+            router.on('invalid', (event) => {
+                const html = event.detail.response?.data;
+                if (typeof html !== 'string' || !html.includes('class="panel"')) {
+                    return;
+                }
+
+                event.preventDefault();
+                showServerErrorOverlay(html);
+            });
+
+            const app = createApp({ render: () => h(App, props) })
+                .use(plugin)
+                .use(i18n)
+                .use(ZiggyVue)
+                .mount(el);
+
+            removeBootSplash();
+
+            return app;
+        } catch (error) {
+            removeBootSplash();
+            console.error(error);
+            throw error;
+        }
     },
     progress: {
         color: '#4B5563',
@@ -56,7 +80,11 @@ createInertiaApp({
 });
 
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-    });
+    const isAdminHost = document.documentElement.dataset.adminSurface === 'true';
+
+    if (!isAdminHost) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js?v=4').catch(() => {});
+        });
+    }
 }

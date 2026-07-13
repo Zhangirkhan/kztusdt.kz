@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\AdminUrl;
+use App\Support\LocaleManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ExchangeTestHelpers;
+use Tests\Concerns\InteractsWithAdminHost;
 use Tests\TestCase;
 
 /**
@@ -14,13 +17,26 @@ use Tests\TestCase;
 final class AdminAccessTest extends TestCase
 {
     use ExchangeTestHelpers;
+    use InteractsWithAdminHost;
     use RefreshDatabase;
+
+    public function test_client_domain_redirects_admin_paths_to_subdomain(): void
+    {
+        $this->get('/admin')
+            ->assertRedirect(AdminUrl::to());
+
+        $this->get('/admin/login')
+            ->assertRedirect(AdminUrl::to('login'));
+
+        $this->get('/admin/orders')
+            ->assertRedirect(AdminUrl::to('orders'));
+    }
 
     public function test_guest_is_redirected_to_login(): void
     {
-        $this->get('/admin')->assertRedirect('/login');
-        $this->get('/admin/kyc')->assertRedirect('/login');
-        $this->get('/admin/orders')->assertRedirect('/login');
+        $this->getAsAdmin('/admin')->assertRedirect('/admin/login');
+        $this->getAsAdmin('/admin/kyc')->assertRedirect('/admin/login');
+        $this->getAsAdmin('/admin/orders')->assertRedirect('/admin/login');
     }
 
     public function test_client_has_no_admin_access(): void
@@ -28,35 +44,35 @@ final class AdminAccessTest extends TestCase
         $client = $this->createClient();
 
         foreach (['/admin', '/admin/kyc', '/admin/orders', '/admin/withdrawals', '/admin/wallets', '/admin/sweeps', '/admin/subscriptions'] as $uri) {
-            $this->actingAs($client)->get($uri)->assertForbidden();
+            $this->actingAsAdmin($client)->get($uri)->assertRedirect('/admin/login');
         }
 
-        $this->actingAs($client)->get('/admin/account')->assertForbidden();
+        $this->actingAsAdmin($client)->get('/admin/account')->assertRedirect('/admin/login');
     }
 
     public function test_exchange_client_role_has_no_admin_access(): void
     {
         $client = $this->createStaff('exchange_client');
 
-        $this->actingAs($client)->get('/admin')->assertForbidden();
-        $this->actingAs($client)->get('/admin/orders')->assertForbidden();
+        $this->actingAsAdmin($client)->get('/admin')->assertRedirect('/admin/login');
+        $this->actingAsAdmin($client)->get('/admin/orders')->assertRedirect('/admin/login');
     }
 
     public function test_security_officer_sees_kyc_withdrawals_and_orders(): void
     {
         $officer = $this->createStaff('security_officer');
 
-        $this->actingAs($officer)->get('/admin')->assertRedirect(route('admin.kyc.index'));
-        $this->actingAs($officer)->get('/admin/kyc')->assertOk();
-        $this->actingAs($officer)->get('/admin/withdrawals')->assertOk();
-        $this->actingAs($officer)->get('/admin/orders')->assertOk();
-        $this->actingAs($officer)->get('/admin/account')->assertOk();
+        $this->actingAsAdmin($officer)->get('/admin')->assertRedirect(route('admin.kyc.index'));
+        $this->actingAsAdmin($officer)->get('/admin/kyc')->assertOk();
+        $this->actingAsAdmin($officer)->get('/admin/withdrawals')->assertOk();
+        $this->actingAsAdmin($officer)->get('/admin/orders')->assertOk();
+        $this->actingAsAdmin($officer)->get('/admin/account')->assertOk();
 
         foreach (['/admin/sweeps', '/admin/wallets', '/admin/subscriptions'] as $uri) {
-            $this->actingAs($officer)->get($uri)->assertForbidden();
+            $this->actingAsAdmin($officer)->get($uri)->assertRedirect(route('admin.kyc.index'));
         }
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post('/admin/subscriptions', [
                 'user_id' => $this->createClient()->id,
                 'subscription_plan_id' => 1,
@@ -65,21 +81,25 @@ final class AdminAccessTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_security_officer_is_redirected_from_pwa_to_admin_kyc(): void
+    public function test_security_officer_is_redirected_from_pwa_to_admin_subdomain(): void
     {
         $officer = $this->createStaff('security_officer');
+        $locale = LocaleManager::default();
 
-        foreach (['/home', '/wallet', '/exchange', '/withdraw', '/profile', '/kyc'] as $uri) {
-            $this->actingAs($officer)->get($uri)->assertRedirect(route('admin.kyc.index'));
+        foreach (['home', 'wallet', 'exchange', 'withdraw', 'profile', 'kyc'] as $page) {
+            $this->actingAs($officer)
+                ->get('/'.$locale.'/'.$page)
+                ->assertRedirect(AdminUrl::to('kyc'));
         }
     }
 
     public function test_super_admin_can_still_use_pwa(): void
     {
         $admin = $this->createStaff('super_admin');
+        $locale = LocaleManager::default();
 
-        $this->actingAs($admin)->get('/home')->assertRedirect('/wallet');
-        $this->actingAs($admin)->get('/wallet')->assertOk();
+        $this->actingAs($admin)->get('/'.$locale.'/home')->assertRedirect('/'.$locale.'/wallet');
+        $this->actingAs($admin)->get('/'.$locale.'/wallet')->assertOk();
     }
 
     public function test_super_admin_access(): void
@@ -87,7 +107,7 @@ final class AdminAccessTest extends TestCase
         $admin = $this->createStaff('super_admin');
 
         foreach (['/admin', '/admin/kyc', '/admin/orders', '/admin/withdrawals', '/admin/wallets', '/admin/sweeps', '/admin/subscriptions'] as $uri) {
-            $this->actingAs($admin)->get($uri)->assertOk();
+            $this->actingAsAdmin($admin)->get($uri)->assertOk();
         }
     }
 
@@ -95,22 +115,22 @@ final class AdminAccessTest extends TestCase
     {
         $manager = $this->createStaff('super_admin_manager');
 
-        $this->actingAs($manager)->get('/admin')->assertOk();
-        $this->actingAs($manager)->get('/admin/kyc')->assertOk();
-        $this->actingAs($manager)->get('/admin/subscriptions')->assertForbidden();
+        $this->actingAsAdmin($manager)->get('/admin')->assertOk();
+        $this->actingAsAdmin($manager)->get('/admin/kyc')->assertOk();
+        $this->actingAsAdmin($manager)->get('/admin/subscriptions')->assertRedirect('/admin');
     }
 
     public function test_exchange_admin_sees_only_orders(): void
     {
         $exchangeAdmin = $this->createStaff('exchange_admin');
 
-        $this->actingAs($exchangeAdmin)->get('/admin/orders')->assertOk();
+        $this->actingAsAdmin($exchangeAdmin)->get('/admin/orders')->assertOk();
 
-        $this->actingAs($exchangeAdmin)->get('/admin')->assertForbidden();
-        $this->actingAs($exchangeAdmin)->get('/admin/kyc')->assertForbidden();
-        $this->actingAs($exchangeAdmin)->get('/admin/withdrawals')->assertForbidden();
-        $this->actingAs($exchangeAdmin)->get('/admin/wallets')->assertForbidden();
-        $this->actingAs($exchangeAdmin)->get('/admin/subscriptions')->assertForbidden();
+        $this->actingAsAdmin($exchangeAdmin)->get('/admin')->assertRedirect(route('admin.orders.index'));
+        $this->actingAsAdmin($exchangeAdmin)->get('/admin/kyc')->assertRedirect(route('admin.orders.index'));
+        $this->actingAsAdmin($exchangeAdmin)->get('/admin/withdrawals')->assertRedirect(route('admin.orders.index'));
+        $this->actingAsAdmin($exchangeAdmin)->get('/admin/wallets')->assertRedirect(route('admin.orders.index'));
+        $this->actingAsAdmin($exchangeAdmin)->get('/admin/subscriptions')->assertRedirect(route('admin.orders.index'));
     }
 
     public function test_client_pages_require_authentication(): void

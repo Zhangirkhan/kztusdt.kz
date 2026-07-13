@@ -20,7 +20,7 @@ final class AdminSubscriptionPlanTest extends TestCase
     {
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->get('/admin/subscriptions')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
@@ -34,7 +34,7 @@ final class AdminSubscriptionPlanTest extends TestCase
     {
         $admin = $this->createStaff('super_admin');
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post('/admin/subscriptions/plans', [
                 'code' => 'premium',
                 'name' => 'Премиум',
@@ -59,7 +59,7 @@ final class AdminSubscriptionPlanTest extends TestCase
         $admin = $this->createStaff('super_admin');
         $plan = SubscriptionPlan::query()->where('code', 'economy')->firstOrFail();
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->patch("/admin/subscriptions/plans/{$plan->id}", [
                 'fee_percent' => 0.08,
                 'name' => 'Эконом',
@@ -78,7 +78,7 @@ final class AdminSubscriptionPlanTest extends TestCase
         $client = $this->createClient();
         $plan = SubscriptionPlan::query()->where('code', 'economy')->firstOrFail();
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post('/admin/subscriptions', [
                 'user_id' => $client->id,
                 'subscription_plan_id' => $plan->id,
@@ -104,13 +104,13 @@ final class AdminSubscriptionPlanTest extends TestCase
         $client = $this->createClient();
         $plan = SubscriptionPlan::query()->where('code', 'economy')->firstOrFail();
 
-        $this->actingAs($admin)->post('/admin/subscriptions', [
+        $this->actingAsAdmin($admin)->post('/admin/subscriptions', [
             'user_id' => $client->id,
             'subscription_plan_id' => $plan->id,
             'months' => 1,
         ]);
 
-        $this->actingAs($admin)->patch("/admin/subscriptions/plans/{$plan->id}", [
+        $this->actingAsAdmin($admin)->patch("/admin/subscriptions/plans/{$plan->id}", [
             'fee_percent' => 0.12,
         ]);
 

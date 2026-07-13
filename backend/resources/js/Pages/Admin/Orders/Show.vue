@@ -7,6 +7,7 @@ import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatKzt, formatPercent, formatRate, formatUsdt } from '@/utils/formatNumber';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     order: Object,
@@ -24,20 +25,21 @@ const showRejectModal = ref(false);
 const confirmForm = useForm({});
 const payoutForm = useForm({});
 const rejectForm = useForm({ reason: '' });
+const { t } = useI18n();
 
-const statusLabels = {
-    created: 'Создана',
-    awaiting_kzt_payment: 'Ждёт оплату KZT',
-    payment_proof_uploaded: 'Скрин загружен',
-    pending_admin_confirmation: 'Ждёт подтверждения',
-    kzt_sent: 'KZT отправлены',
-    kzt_received: 'KZT получены',
-    completed: 'Выполнена',
-    cancelled: 'Отменена',
-    failed: 'Ошибка',
-    dispute: 'Спор',
-    manual_review: 'Ручная проверка',
-};
+const statusLabels = computed(() => ({
+    created: t('admin.orders.status.created'),
+    awaiting_kzt_payment: t('admin.orders.status.awaiting_kzt_payment'),
+    payment_proof_uploaded: t('admin.orders.status.payment_proof_uploaded'),
+    pending_admin_confirmation: t('admin.orders.status.pending_admin_confirmation'),
+    kzt_sent: t('admin.orders.status.kzt_sent'),
+    kzt_received: t('admin.orders.status.kzt_received'),
+    completed: t('admin.orders.status.completed'),
+    cancelled: t('admin.orders.status.cancelled'),
+    failed: t('admin.orders.status.failed'),
+    dispute: t('admin.orders.status.dispute'),
+    manual_review: t('admin.orders.status.manual_review'),
+}));
 
 const isBuy = computed(() => props.order.direction === 'buy');
 
@@ -89,55 +91,62 @@ function reject() {
 }
 
 function formatDate(value) {
-    return value ? new Date(value).toLocaleString('ru-RU') : '—';
+    return value ? new Date(value).toLocaleString('ru-RU') : t('admin.shared.empty');
 }
 </script>
 
 <template>
-    <Head :title="`Заявка №${order.id}`" />
+    <Head :title="t('admin.orders.show.headTitle', { id: order.id })" />
 
     <AdminLayout>
-        <template #title>Заявка №{{ order.id }} — {{ order.direction === 'buy' ? 'покупка' : 'продажа' }}</template>
+        <template #title>
+            {{
+                t('admin.orders.show.title', {
+                    id: order.id,
+                    direction: t(order.direction === 'buy' ? 'admin.shared.direction.buyLower' : 'admin.shared.direction.sellLower'),
+                })
+            }}
+        </template>
 
         <AdminPage>
             <a-space v-if="hasActions" class="admin-ant-block">
                 <a-button v-if="canConfirmBuy" type="primary" @click="openConfirm">
-                    Подтвердить оплату
+                    {{ t('admin.orders.show.actions.confirmPayment') }}
                 </a-button>
                 <a-button v-if="canPayoutSell" type="primary" @click="openPayout">
-                    Завершить выплату
+                    {{ t('admin.orders.show.actions.completePayout') }}
                 </a-button>
                 <a-button v-if="canReject" danger @click="showRejectModal = true">
-                    Отклонить заявку
+                    {{ t('admin.orders.show.actions.reject') }}
                 </a-button>
             </a-space>
 
             <a-row :gutter="[16, 16]">
                 <a-col :xs="24" :lg="12">
-                    <a-card title="Детали заявки" size="small">
+                    <a-card :title="t('admin.orders.show.cards.details')" size="small">
                         <a-descriptions :column="1" size="small">
-                            <a-descriptions-item label="Статус">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.status')">
                                 <a-tag :color="statusTagColor(order.status)">
                                     {{ statusLabels[order.status] ?? order.status }}
                                 </a-tag>
                             </a-descriptions-item>
-                            <a-descriptions-item label="Клиент">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.client')">
                                 {{ order.user?.name }} · {{ order.user?.phone }}
                             </a-descriptions-item>
-                            <a-descriptions-item label="KYC">{{ order.user?.kyc_status }}</a-descriptions-item>
-                            <a-descriptions-item label="KZT">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.kyc')">{{ order.user?.kyc_status }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.orders.show.labels.kzt')">
                                 <a-typography-text strong>{{ formatKzt(order.fiat_amount) }} ₸</a-typography-text>
                             </a-descriptions-item>
-                            <a-descriptions-item label="USDT">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.usdt')">
                                 <a-typography-text strong>{{ formatUsdt(order.crypto_amount, 4) }}</a-typography-text>
                             </a-descriptions-item>
-                            <a-descriptions-item label="Курс">{{ formatRate(order.rate) }} ₸/USDT</a-descriptions-item>
-                            <a-descriptions-item label="Комиссия">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.rate')">{{ formatRate(order.rate) }} ₸/USDT</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.orders.show.labels.fee')">
                                 {{ formatUsdt(order.fee_amount, 4) }} ({{ formatPercent(order.fee_percent) }}%)
                             </a-descriptions-item>
-                            <a-descriptions-item label="Создана">{{ formatDate(order.created_at) }}</a-descriptions-item>
-                            <a-descriptions-item label="Завершена">{{ formatDate(order.completed_at) }}</a-descriptions-item>
-                            <a-descriptions-item v-if="order.reject_reason" label="Причина отмены">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.created')">{{ formatDate(order.created_at) }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.orders.show.labels.completed')">{{ formatDate(order.completed_at) }}</a-descriptions-item>
+                            <a-descriptions-item v-if="order.reject_reason" :label="t('admin.orders.show.labels.rejectReason')">
                                 <a-typography-text type="danger">{{ order.reject_reason }}</a-typography-text>
                             </a-descriptions-item>
                         </a-descriptions>
@@ -146,22 +155,22 @@ function formatDate(value) {
 
                 <a-col :xs="24" :lg="12">
                     <a-card
-                        :title="isBuy ? 'Оплата клиента (KZT → обменник)' : 'Выплата клиенту (обменник → KZT)'"
+                        :title="isBuy ? t('admin.orders.show.cards.paymentBuy') : t('admin.orders.show.cards.paymentSell')"
                         size="small"
                     >
                         <a-descriptions v-if="paymentRequest" :column="1" size="small">
-                            <a-descriptions-item v-if="order.payment_bank_name" label="Банк клиента">
+                            <a-descriptions-item v-if="order.payment_bank_name" :label="t('admin.orders.show.labels.clientBank')">
                                 {{ order.payment_bank_name }}
                             </a-descriptions-item>
-                            <a-descriptions-item label="Банк получателя">{{ paymentRequest.bank_name }}</a-descriptions-item>
-                            <a-descriptions-item label="Получатель">{{ paymentRequest.recipient_name }}</a-descriptions-item>
-                            <a-descriptions-item label="Счёт / карта">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.recipientBank')">{{ paymentRequest.bank_name }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.orders.show.labels.recipient')">{{ paymentRequest.recipient_name }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.orders.show.labels.account')">
                                 <a-typography-text code>{{ paymentRequest.recipient_account }}</a-typography-text>
                             </a-descriptions-item>
-                            <a-descriptions-item label="Сумма">
+                            <a-descriptions-item :label="t('admin.orders.show.labels.amount')">
                                 <a-typography-text strong>{{ formatKzt(paymentRequest.amount) }} ₸</a-typography-text>
                             </a-descriptions-item>
-                            <a-descriptions-item label="Статус оплаты">{{ paymentRequest.status }}</a-descriptions-item>
+                            <a-descriptions-item :label="t('admin.orders.show.labels.paymentStatus')">{{ paymentRequest.status }}</a-descriptions-item>
                         </a-descriptions>
 
                         <template v-if="isBuy">
@@ -170,63 +179,64 @@ function formatDate(value) {
                                 :proof="paymentProof"
                                 class="admin-ant-block"
                             />
-                            <a-typography-text v-else type="secondary">Скрин оплаты ещё не загружен.</a-typography-text>
+                            <a-typography-text v-else type="secondary">{{ t('admin.orders.show.noScreenshot') }}</a-typography-text>
                         </template>
                     </a-card>
                 </a-col>
             </a-row>
 
-            <!-- Подтверждение покупки -->
             <a-modal
                 v-model:open="showConfirmModal"
-                title="Подтвердить оплату"
-                ok-text="Да"
-                cancel-text="Нет"
+                :title="t('admin.orders.show.modals.confirm.title')"
+                :ok-text="t('admin.shared.actions.yes')"
+                :cancel-text="t('admin.shared.actions.no')"
                 :confirm-loading="confirmForm.processing"
                 width="420px"
                 destroy-on-close
                 @ok="confirmBuy"
             >
                 <a-typography-paragraph class="!mb-0">
-                    Подтвердить получение <strong>{{ formatKzt(order.fiat_amount) }} ₸</strong> и зачислить USDT клиенту?
+                    {{ t('admin.orders.show.modals.confirm.body', { amount: formatKzt(order.fiat_amount) }) }}
                 </a-typography-paragraph>
             </a-modal>
 
-            <!-- Завершение продажи -->
             <a-modal
                 v-model:open="showPayoutModal"
-                title="Завершить выплату KZT"
-                ok-text="Да"
-                cancel-text="Нет"
+                :title="t('admin.orders.show.modals.payout.title')"
+                :ok-text="t('admin.shared.actions.yes')"
+                :cancel-text="t('admin.shared.actions.no')"
                 :confirm-loading="payoutForm.processing"
                 width="420px"
                 destroy-on-close
                 @ok="payoutSell"
             >
                 <a-typography-paragraph class="!mb-0">
-                    Подтвердить, что <strong>{{ formatKzt(order.fiat_amount) }} ₸</strong> отправлены клиенту?
+                    {{ t('admin.orders.show.modals.payout.body', { amount: formatKzt(order.fiat_amount) }) }}
                 </a-typography-paragraph>
             </a-modal>
 
-            <!-- Отклонение -->
             <a-modal
                 v-model:open="showRejectModal"
-                title="Отклонить заявку"
-                ok-text="Подтвердить"
-                cancel-text="Отмена"
+                :title="t('admin.orders.show.modals.reject.title')"
+                :ok-text="t('admin.shared.actions.confirm')"
+                :cancel-text="t('admin.shared.actions.cancel')"
                 ok-type="danger"
                 :confirm-loading="rejectForm.processing"
                 destroy-on-close
                 @ok="reject"
             >
                 <a-form layout="vertical">
-                    <a-form-item label="Причина отклонения" required>
-                        <a-textarea v-model:value="rejectForm.reason" :rows="3" placeholder="Причина отклонения *" />
+                    <a-form-item :label="t('admin.orders.show.modals.reject.reasonLabel')" required>
+                        <a-textarea
+                            v-model:value="rejectForm.reason"
+                            :rows="3"
+                            :placeholder="t('admin.orders.show.modals.reject.reasonPlaceholder')"
+                        />
                     </a-form-item>
                 </a-form>
             </a-modal>
 
-            <AdminBackLink href="/admin/orders" label="К списку заявок" />
+            <AdminBackLink href="/admin/orders" :label="t('admin.orders.show.backToList')" />
         </AdminPage>
     </AdminLayout>
 </template>

@@ -1,13 +1,13 @@
 import { i18n } from '@/i18n';
-import { isActivePath, localizedPath, unlocalizedPath } from '@/utils/localizedPath';
+import { isActivePath, localizedPathFor, unlocalizedPath } from '@/utils/localizedPath';
 
-export function buildExchangeNavItems(canUseWallet) {
+export function buildExchangeNavItems(canUseWallet, locale = 'ru') {
     const t = i18n.global.t;
-    const kycHref = localizedPath('/kyc');
+    const kycHref = localizedPathFor(locale, '/kyc');
 
     return [
         {
-            href: canUseWallet ? localizedPath('/wallet') : kycHref,
+            href: canUseWallet ? localizedPathFor(locale, '/wallet') : kycHref,
             label: t('nav.wallet'),
             icon: 'wallet',
             locked: !canUseWallet,
@@ -18,14 +18,14 @@ export function buildExchangeNavItems(canUseWallet) {
             },
         },
         {
-            href: canUseWallet ? localizedPath('/exchange') : kycHref,
+            href: canUseWallet ? localizedPathFor(locale, '/exchange') : kycHref,
             label: t('nav.exchange'),
             icon: 'exchange',
             locked: !canUseWallet,
             active: (url) => isActivePath(url, '/exchange') || isActivePath(url, '/market'),
         },
         {
-            href: localizedPath('/profile'),
+            href: localizedPathFor(locale, '/profile'),
             label: t('nav.profile'),
             icon: 'user',
             locked: false,

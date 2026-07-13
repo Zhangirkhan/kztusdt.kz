@@ -1,5 +1,6 @@
 <script setup>
 import ExchangeLayout from '@/Layouts/ExchangeLayout.vue';
+import { useWithdrawalStatusLabels } from '@/shared/lib/i18n/useOrderStatusLabels';
 import { clampDecimalAmount, formatAmountForInput, maxWithdrawableAmount } from '@/utils/amountInput';
 import { formatPercent, formatUsdt } from '@/utils/formatNumber';
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/utils/walletAddressMask';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     balance: Object,
@@ -27,6 +29,8 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t, locale } = useI18n();
+const withdrawalStatusLabels = useWithdrawalStatusLabels();
 const addressTouched = ref(false);
 
 const form = useForm({
@@ -64,19 +68,6 @@ const localAddressError = computed(() => {
 });
 
 const addressFieldError = computed(() => form.errors.to_address || localAddressError.value);
-
-const statusLabels = {
-    created: 'Создана',
-    awaiting_telegram_confirmation: 'Ждёт подтверждения',
-    pending_review: 'На проверке СБ',
-    approved: 'Одобрена, в очереди',
-    sending: 'Отправляется',
-    sent: 'Отправлена, ждём сеть',
-    completed: 'Выполнена',
-    cancelled: 'Отменена',
-    failed: 'Ошибка',
-    rejected: 'Отклонена',
-};
 
 const preview = computed(() => {
     const amount = parseFloat(form.amount) || 0;
@@ -136,7 +127,7 @@ function submit() {
 }
 
 function cancelWithdrawal(id) {
-    if (confirm('Отменить заявку на вывод?')) {
+    if (confirm(t('withdraw.cancelConfirm'))) {
         router.post(route('withdraw.cancel', id), {}, { preserveScroll: true });
     }
 }
@@ -146,35 +137,46 @@ function short(value) {
 }
 
 function formatDate(value) {
-    return new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const localeMap = {
+        ru: 'ru-RU',
+        en: 'en-US',
+        kk: 'kk-KZ',
+    };
+
+    return new Date(value).toLocaleString(localeMap[locale.value] ?? locale.value, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 </script>
 
 <template>
-    <Head title="Вывод USDT" />
+    <Head :title="t('withdraw.title')" />
 
     <ExchangeLayout>
-        <template #title>Вывод USDT</template>
+        <template #title>{{ t('withdraw.title') }}</template>
 
         <div v-if="page.props.flash?.success" class="card mb-4 border border-accent/30 text-accent">
             {{ page.props.flash.success }}
         </div>
 
         <section class="card card--highlight mb-stack-element">
-            <p class="text-label-caps uppercase text-white/70">Доступно</p>
+            <p class="text-label-caps uppercase text-white/70">{{ t('withdraw.available') }}</p>
             <p class="mt-1 text-headline-md font-bold">{{ formatUsdt(balance.available, 2) }} USDT</p>
             <p v-if="parseFloat(balance.locked) > 0" class="mt-1 text-body-sm text-white/80">
-                Заблокировано в заявках: {{ formatUsdt(balance.locked, 2) }} USDT
+                {{ t('withdraw.lockedInOrders', { amount: formatUsdt(balance.locked, 2) }) }}
             </p>
         </section>
 
         <div v-if="!withdrawalsEnabled" class="warning-box mb-stack-element">
-            Автоматическая отправка временно отключена: заявки принимаются и будут отправлены после включения.
+            {{ t('withdraw.withdrawalsDisabled') }}
         </div>
 
         <section class="card space-y-stack-element">
             <div v-if="networks.length > 1">
-                <label class="mb-2 block text-label-caps uppercase text-text-dim">Сеть вывода</label>
+                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('withdraw.networkLabel') }}</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button
                         v-for="net in networks"
@@ -191,7 +193,7 @@ function formatDate(value) {
             </div>
 
             <div>
-                <label class="mb-2 block text-label-caps uppercase text-text-dim">Адрес получателя ({{ currentNetwork.code }})</label>
+                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('withdraw.recipientAddress', { network: currentNetwork.code }) }}</label>
                 <p class="mb-2 text-xs text-text-dim">{{ addressHint }}</p>
                 <input
                     :value="form.to_address"
@@ -214,7 +216,7 @@ function formatDate(value) {
             </div>
 
             <div>
-                <label class="mb-2 block text-label-caps uppercase text-text-dim">Сумма USDT</label>
+                <label class="mb-2 block text-label-caps uppercase text-text-dim">{{ t('withdraw.amountUsdt') }}</label>
                 <div class="wallet-amount-row">
                     <input
                         :value="form.amount"
@@ -235,41 +237,43 @@ function formatDate(value) {
                     </button>
                 </div>
                 <p class="mt-1 text-xs text-text-dim">
-                    Можно вывести до {{ formatUsdt(maxAmount, 2) }} USDT (с учётом комиссий).
-                    Минимум {{ formatUsdt(minAmount, 2) }} USDT. Все выводы проходят ручную проверку СБ.
+                    {{ t('withdraw.withdrawableHint', {
+                        max: formatUsdt(maxAmount, 2),
+                        min: formatUsdt(minAmount, 2),
+                    }) }}
                 </p>
                 <p v-if="form.errors.amount" class="mt-1 text-sm text-red-400">{{ form.errors.amount }}</p>
             </div>
 
             <div class="rounded-xl bg-surface-container-low p-4 text-body-sm">
                 <div class="flex justify-between py-1 font-semibold">
-                    <span>Получатель получит</span>
+                    <span>{{ t('withdraw.recipientGets') }}</span>
                     <span>{{ formatUsdt(parseFloat(form.amount) || 0, 4) }} USDT</span>
                 </div>
                 <div class="flex justify-between py-1">
-                    <span class="text-text-dim">Комиссия сервиса ({{ formatPercent(feePercent) }}%)</span>
+                    <span class="text-text-dim">{{ t('withdraw.serviceFee', { percent: formatPercent(feePercent) }) }}</span>
                     <span>{{ preview.fee }} USDT</span>
                 </div>
                 <div class="flex justify-between py-1">
-                    <span class="text-text-dim">Комиссия сети</span>
+                    <span class="text-text-dim">{{ t('withdraw.networkFee') }}</span>
                     <span>{{ preview.network }} USDT</span>
                 </div>
                 <div class="flex justify-between border-t border-outline-variant/40 py-2 font-semibold">
-                    <span>Итого к списанию</span>
+                    <span>{{ t('withdraw.totalDebit') }}</span>
                     <span class="text-accent">{{ preview.total }} USDT</span>
                 </div>
             </div>
 
             <p v-if="form.errors.form" class="text-sm text-red-400">{{ form.errors.form }}</p>
 
-            <button class="btn-primary" :disabled="form.processing" @click="submit">Создать заявку</button>
+            <button class="btn-primary" :disabled="form.processing" @click="submit">{{ t('withdraw.createRequest') }}</button>
             <p class="text-center text-body-sm text-text-dim">
-                После создания заявка будет проверена службой безопасности.
+                {{ t('withdraw.securityCheckHint') }}
             </p>
         </section>
 
         <section v-if="withdrawals.length" class="mt-stack-element">
-            <h2 class="mb-3 text-label-caps uppercase text-text-dim">Мои выводы</h2>
+            <h2 class="mb-3 text-label-caps uppercase text-text-dim">{{ t('withdraw.myWithdrawals') }}</h2>
             <div class="space-y-3">
                 <div v-for="withdrawal in withdrawals" :key="withdrawal.id" class="card">
                     <div class="flex items-center justify-between">
@@ -290,7 +294,7 @@ function formatDate(value) {
                             <p class="text-xs font-semibold"
                                :class="withdrawal.status === 'completed' ? 'text-accent'
                                    : ['cancelled', 'rejected', 'failed'].includes(withdrawal.status) ? 'text-red-400' : 'text-amber-400'">
-                                {{ statusLabels[withdrawal.status] ?? withdrawal.status }}
+                                {{ withdrawalStatusLabels[withdrawal.status] ?? withdrawal.status }}
                             </p>
                             <p class="mt-1 text-xs text-text-dim">{{ formatDate(withdrawal.created_at) }}</p>
                             <button
@@ -298,7 +302,7 @@ function formatDate(value) {
                                 class="mt-2 rounded-lg bg-surface-container-high px-3 py-1 text-xs font-semibold text-red-400"
                                 @click="cancelWithdrawal(withdrawal.id)"
                             >
-                                Отменить
+                                {{ t('withdraw.cancel') }}
                             </button>
                         </div>
                     </div>
@@ -306,6 +310,6 @@ function formatDate(value) {
             </div>
         </section>
 
-        <Link :href="route('wallet')" class="mt-4 block text-center text-body-sm text-text-dim">← В кошелёк</Link>
+        <Link :href="route('wallet')" class="mt-4 block text-center text-body-sm text-text-dim">{{ t('withdraw.backToWallet') }}</Link>
     </ExchangeLayout>
 </template>

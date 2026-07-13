@@ -8,6 +8,7 @@ use App\Models\ExchangeListing;
 use App\Models\ExchangeOrder;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\BankCatalog;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use RuntimeException;
@@ -43,7 +44,6 @@ final class ExchangeListingService
     public function clientPayload(ExchangeListing $listing): array
     {
         $rate = $this->rateForListing($listing);
-        $banks = (array) config('banks.catalog', []);
 
         return [
             'id' => $listing->id,
@@ -63,7 +63,7 @@ final class ExchangeListingService
             'payment_methods' => collect($listing->payment_methods ?? [])
                 ->map(fn (string $code): array => [
                     'code' => $code,
-                    'name' => $banks[$code] ?? $code,
+                    'name' => BankCatalog::nameForCode($code),
                 ])
                 ->values()
                 ->all(),
@@ -76,8 +76,6 @@ final class ExchangeListingService
      */
     public function adminPayload(ExchangeListing $listing): array
     {
-        $banks = (array) config('banks.catalog', []);
-
         return [
             'id' => $listing->id,
             'direction' => $listing->direction,
@@ -93,7 +91,7 @@ final class ExchangeListingService
             'payment_methods' => collect($listing->payment_methods ?? [])
                 ->map(fn (string $code): array => [
                     'code' => $code,
-                    'name' => $banks[$code] ?? $code,
+                    'name' => BankCatalog::nameForCode($code),
                 ])
                 ->values()
                 ->all(),
@@ -306,10 +304,7 @@ final class ExchangeListingService
      */
     public function bankOptions(): array
     {
-        return collect((array) config('banks.catalog', []))
-            ->map(fn (string $name, string $code): array => ['code' => $code, 'name' => $name])
-            ->values()
-            ->all();
+        return BankCatalog::options();
     }
 
     /**

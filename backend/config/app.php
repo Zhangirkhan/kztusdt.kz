@@ -54,6 +54,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'admin_domain' => env('APP_ADMIN_DOMAIN', 'admin.kztusdt.kz'),
+
+    'admin_url' => env('APP_ADMIN_URL', 'https://admin.kztusdt.kz'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

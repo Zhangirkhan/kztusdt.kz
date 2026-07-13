@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useSumsubKyc } from '@/composables/useSumsubKyc';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     kycStatus: { type: String, default: 'none' },
@@ -9,6 +10,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['approved', 'pending', 'rejected']);
+const { t } = useI18n();
 
 const { error, loading, notice, currentStep, launch } = useSumsubKyc({
     onApproved: (data) => emit('approved', data),
@@ -27,7 +29,7 @@ onMounted(() => {
     <div class="sumsub-kyc-widget">
         <p v-if="loading" class="flex items-center gap-2 text-body-sm text-text-muted">
             <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
-            Загрузка проверки документов…
+            {{ t('sumsub.widget.loading') }}
         </p>
         <p v-if="currentStep && !compact" class="mb-3 text-sm font-medium text-accent">
             {{ currentStep }}
@@ -35,7 +37,7 @@ onMounted(() => {
         <p v-if="notice" class="mb-3 text-sm text-accent">{{ notice }}</p>
         <p v-if="error" class="mb-3 text-sm text-error">{{ error }}</p>
         <p v-if="!error && kycStatus !== 'approved'" class="mb-3 text-xs text-text-dim">
-            Сначала сфотографируйте удостоверение, затем пройдите короткую видео-проверку — всё на этой странице.
+            {{ t('sumsub.widget.hint') }}
         </p>
         <div :id="containerId" class="sumsub-kyc-container" />
     </div>

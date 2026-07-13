@@ -1,13 +1,32 @@
 @php
     $seo = \App\Support\SeoPresenter::forBlade(request());
+    $isAdminSurface = \App\Support\AdminUrl::isAdminHost(request());
+    $assetVersion = is_readable(public_path('build/manifest.json'))
+        ? (string) filemtime(public_path('build/manifest.json'))
+        : '0';
 @endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-admin-surface="{{ $isAdminSurface ? 'true' : 'false' }}">
     <head>
         <meta charset="utf-8">
         <script>
             (function () {
+                var isAdminHost = {{ \App\Support\AdminUrl::isAdminHost(request()) ? 'true' : 'false' }};
+                if (!isAdminHost && window.location.pathname.indexOf('/admin') === 0) {
+                    window.location.replace(@json(\App\Support\AdminUrl::base()) + window.location.pathname + window.location.search + window.location.hash);
+                }
+            })();
+        </script>
+        <script>
+            (function () {
                 if (!('serviceWorker' in navigator)) {
+                    return;
+                }
+
+                var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
+                var purgeKey = isAdmin ? 'kztusdt_legacy_cache_purged_admin_v5' : 'kztusdt_legacy_cache_purged_client_v5';
+
+                if (localStorage.getItem(purgeKey) === '1') {
                     return;
                 }
 
@@ -15,9 +34,13 @@
                     registrations.forEach(function (registration) {
                         var url = (registration.active && registration.active.scriptURL) || '';
 
-                        // Remove the legacy Workbox precache SW that caused stale
-                        // assets, but keep the push SW served at /sw.js.
-                        if (url.indexOf('/build/') !== -1 || url.indexOf('workbox') !== -1 || url.endsWith('/build/sw.js')) {
+                        if (
+                            isAdmin
+                            || url.indexOf('/build/') !== -1
+                            || url.indexOf('workbox') !== -1
+                            || url.endsWith('/build/sw.js')
+                            || url.endsWith('/sw.js')
+                        ) {
                             registration.unregister();
                         }
                     });
@@ -26,18 +49,88 @@
                 if ('caches' in window) {
                     caches.keys().then(function (keys) {
                         keys.forEach(function (key) {
-                            if (/workbox|precache|pages-vite/i.test(key)) {
-                                caches.delete(key);
-                            }
+                            caches.delete(key);
                         });
                     });
+                }
+
+                localStorage.setItem(purgeKey, '1');
+            })();
+        </script>
+        <script>
+            (function () {
+                var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
+                var key = (isAdmin ? 'kztusdt_admin' : 'kztusdt_client') + '_build_etag';
+                var reloadGuardKey = (isAdmin ? 'kztusdt_admin' : 'kztusdt_client') + '_build_reload';
+                var xhr = new XMLHttpRequest();
+
+                try {
+                    xhr.open('GET', '/build/manifest.json?_=' + Date.now(), false);
+                    xhr.setRequestHeader('Cache-Control', 'no-cache');
+                    xhr.send(null);
+
+                    if (xhr.status === 200) {
+                        var live = xhr.getResponseHeader('ETag')
+                            || xhr.getResponseHeader('Last-Modified')
+                            || String(xhr.responseText.length);
+                        var previous = localStorage.getItem(key);
+
+                        if (previous && live && previous !== live) {
+                            if (sessionStorage.getItem(reloadGuardKey) !== '1') {
+                                sessionStorage.setItem(reloadGuardKey, '1');
+                                localStorage.setItem(key, live);
+                                window.location.reload();
+                                return;
+                            }
+
+                            sessionStorage.removeItem(reloadGuardKey);
+                        } else {
+                            sessionStorage.removeItem(reloadGuardKey);
+                        }
+
+                        if (live) {
+                            localStorage.setItem(key, live);
+                        }
+                    }
+                } catch (error) {
+                    // Ignore manifest probe errors and continue booting.
+                }
+            })();
+        </script>
+        <script>
+            (function () {
+                var version = @json($assetVersion);
+                var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
+                var key = isAdmin ? 'kztusdt_admin_asset_v' : 'kztusdt_client_asset_v';
+                var reloadKey = isAdmin ? 'kztusdt_admin_force_reload' : 'kztusdt_client_force_reload';
+                var previous = localStorage.getItem(key);
+
+                if (previous && previous !== version) {
+                    localStorage.setItem(key, version);
+                    sessionStorage.setItem(reloadKey, '1');
+                    window.location.reload();
+                    return;
+                }
+
+                localStorage.setItem(key, version);
+
+                if (sessionStorage.getItem(reloadKey) === '1') {
+                    sessionStorage.removeItem(reloadKey);
                 }
             })();
         </script>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
         <script>
             (function () {
+                var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
                 var key = 'kztusdt.theme';
+
+                if (isAdmin) {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.dataset.theme = 'light';
+                    return;
+                }
+
                 var stored = localStorage.getItem(key);
                 var dark = stored === 'dark';
                 if (dark) {
@@ -46,12 +139,15 @@
                 document.documentElement.dataset.theme = dark ? 'dark' : 'light';
             })();
         </script>
-        <meta name="theme-color" content="#ffffff">
+        <meta name="theme-color" content="{{ $isAdminSurface ? '#001529' : '#ffffff' }}">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-status-bar-style" content="{{ $isAdminSurface ? 'black' : 'black-translucent' }}">
+        @if ($isAdminSurface)
+            <meta name="apple-mobile-web-app-title" content="KZTUSDT Admin">
+        @endif
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <link rel="manifest" href="/build/manifest.webmanifest">
+        <link rel="manifest" href="/manifest.webmanifest">
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
         <link rel="apple-touch-icon" href="/icons/icon-192.png">
@@ -87,6 +183,12 @@
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
+        <div id="app-boot-splash" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:{{ $isAdminSurface ? '#001529' : '#eef1f6' }};color:{{ $isAdminSurface ? '#ffffff' : '#0f172a' }};font-family:Manrope,ui-sans-serif,system-ui,sans-serif;">
+            <div style="text-align:center;padding:24px;">
+                <p style="margin:0 0 8px;font-size:18px;font-weight:700;">{{ $isAdminSurface ? 'KZTUSDT Admin' : 'kztusdt.kz' }}</p>
+                <p style="margin:0;font-size:14px;color:{{ $isAdminSurface ? '#94a3b8' : '#64748b' }};">Загрузка…</p>
+            </div>
+        </div>
         <noscript>
             <div style="max-width:420px;margin:2rem auto;padding:1.5rem;font-family:sans-serif;color:#e8eaed;background:#151c26;border-radius:1rem;">
                 <p style="font-size:1.125rem;font-weight:700;margin:0 0 .75rem;">kztusdt.kz</p>
@@ -94,5 +196,69 @@
             </div>
         </noscript>
         @inertia
+        <script>
+            (function () {
+                var isAdmin = document.documentElement.dataset.adminSurface === 'true';
+
+                function hardReload() {
+                    try {
+                        localStorage.removeItem('kztusdt_admin_asset_v');
+                        localStorage.removeItem('kztusdt_client_asset_v');
+                        localStorage.removeItem('kztusdt_admin_build_etag');
+                        localStorage.removeItem('kztusdt_client_build_etag');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v5');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v5');
+                    } catch (error) {}
+
+                    if ('caches' in window) {
+                        caches.keys().then(function (keys) {
+                            return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+                        }).finally(function () {
+                            window.location.reload();
+                        });
+
+                        return;
+                    }
+
+                    window.location.reload();
+                }
+
+                function showBootFailure() {
+                    var splash = document.getElementById('app-boot-splash');
+
+                    if (!splash || splash.dataset.failed === '1') {
+                        return;
+                    }
+
+                    splash.dataset.failed = '1';
+                    splash.innerHTML = ''
+                        + '<div style="text-align:center;padding:24px;max-width:360px;">'
+                        + '<p style="margin:0 0 8px;font-size:18px;font-weight:700;">' + (isAdmin ? 'KZTUSDT Admin' : 'kztusdt.kz') + '</p>'
+                        + '<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:' + (isAdmin ? '#94a3b8' : '#64748b') + ';">'
+                        + 'Не удалось загрузить приложение. Обычно помогает обновление страницы.'
+                        + '</p>'
+                        + '<button type="button" id="app-boot-reload" style="border:0;border-radius:12px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;background:#2563eb;color:#fff;">'
+                        + 'Обновить'
+                        + '</button>'
+                        + '</div>';
+
+                    var button = document.getElementById('app-boot-reload');
+
+                    if (button) {
+                        button.addEventListener('click', hardReload);
+                    }
+                }
+
+                window.addEventListener('error', function (event) {
+                    var target = event.target;
+
+                    if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+                        showBootFailure();
+                    }
+                }, true);
+
+                window.setTimeout(showBootFailure, 10000);
+            })();
+        </script>
     </body>
 </html>

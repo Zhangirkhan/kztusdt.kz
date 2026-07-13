@@ -1392,6 +1392,11 @@
         padding: 0;
     }
 
+    .bank-logo[data-tone='altyn'] .bank-logo__img,
+    .bank-logo[data-tone='forte'] .bank-logo__img {
+        padding: 12%;
+    }
+
     .bank-logo__fallback {
         @apply text-sm font-extrabold text-slate-600;
     }

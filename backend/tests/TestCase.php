@@ -9,9 +9,11 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use RuntimeException;
+use Tests\Concerns\InteractsWithAdminHost;
 
 abstract class TestCase extends BaseTestCase
 {
+    use InteractsWithAdminHost;
     /**
      * Hard guard: this code runs on the production server, so make sure the
      * suite can never run (and wipe data) against the production database.

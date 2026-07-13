@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\BankCatalog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -31,26 +32,12 @@ final class UserBankCard extends Model
 
     public static function bankNameForCode(string $code): string
     {
-        $entry = config("banks.catalog.{$code}");
-
-        if (is_array($entry)) {
-            return (string) ($entry['name'] ?? $code);
-        }
-
-        return (string) ($entry ?? $code);
+        return BankCatalog::nameForCode($code);
     }
 
     public static function bikForCode(string $code): ?string
     {
-        $entry = config("banks.catalog.{$code}");
-
-        if (! is_array($entry)) {
-            return null;
-        }
-
-        $bik = strtoupper(trim((string) ($entry['bik'] ?? '')));
-
-        return $bik !== '' ? $bik : null;
+        return BankCatalog::bikForCode($code);
     }
 
     public function hasPhone(): bool

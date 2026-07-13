@@ -1,6 +1,7 @@
 <script setup>
 import ExchangeLayout from '@/Layouts/ExchangeLayout.vue';
 import AppIcon from '@/shared/ui/icon/AppIcon.vue';
+import { useOrderStatusLabels } from '@/shared/lib/i18n/useOrderStatusLabels';
 import PaymentProofPreview from '@/shared/ui/payment-proof/PaymentProofPreview.vue';
 import SupportChatFab from '@/widgets/support-chat/ui/SupportChatFab.vue';
 import { useOrderCountdown } from '@/composables/useOrderCountdown';
@@ -8,6 +9,7 @@ import { formatKzt, formatUsdt } from '@/utils/formatNumber';
 import { localizedPath } from '@/utils/localizedPath';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     order: Object,
@@ -27,13 +29,15 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
+const orderStatusLabels = useOrderStatusLabels();
 const copiedField = ref(null);
 const showCancelModal = ref(false);
 const showAppealModal = ref(false);
 const markingPaid = ref(false);
 const markingReceived = ref(false);
 const refreshingStatus = ref(false);
-const cancelReason = ref('Передумал(а)');
+const cancelReason = ref('changed_mind');
 const cancelReasonOther = ref('');
 
 let statusPollTimer = null;
@@ -70,9 +74,9 @@ const activeStep = computed(() => {
 });
 
 const stepItems = computed(() => [
-    { id: 1, label: 'Ожидание' },
-    { id: 2, label: 'Подтверждение' },
-    { id: 3, label: 'Готово' },
+    { id: 1, label: t('order.show.steps.waiting') },
+    { id: 2, label: t('order.show.steps.confirmation') },
+    { id: 3, label: t('order.show.steps.done') },
 ]);
 
 const paymentDeadline = computed(() => {
@@ -163,34 +167,36 @@ onUnmounted(() => {
 
 const statusTitle = computed(() => {
     if (isCompleted.value) {
-        return 'Заявка завершена';
+        return t('order.show.statusTitle.completed');
     }
 
     if (isCancelled.value) {
-        return props.order.status === 'failed' ? 'Ошибка заявки' : 'Заявка отменена';
+        return props.order.status === 'failed'
+            ? t('order.show.statusTitle.failed')
+            : t('order.show.statusTitle.cancelled');
     }
 
     if (isBuy.value) {
         if (activeStep.value === 1) {
-            return 'Ожидание оплаты';
+            return t('order.show.statusTitle.awaitingPayment');
         }
 
-        return 'Пользователь отметил оплату';
+        return t('order.show.statusTitle.paymentMarked');
     }
 
     if (props.order.status === 'kzt_sent') {
-        return 'Подтвердите получение KZT';
+        return t('order.show.statusTitle.confirmReceipt');
     }
 
-    return 'Ожидание выплаты KZT';
+    return orderStatusLabels.value[props.order.status] ?? t('order.show.statusTitle.awaitingPayout');
 });
 
 const amountLabel = computed(() => {
     if (isCompleted.value) {
-        return 'Сумма сделки';
+        return t('order.show.amountLabel.deal');
     }
 
-    return isBuy.value ? 'К оплате' : 'К получению';
+    return isBuy.value ? t('order.show.amountLabel.toPay') : t('order.show.amountLabel.toReceive');
 });
 
 const showPaymentRequisites = computed(
@@ -203,10 +209,10 @@ const showPayoutRequisites = computed(
 
 const requisitesTitle = computed(() => {
     if (isCompleted.value) {
-        return 'Детали сделки';
+        return t('order.show.requisites.titleCompleted');
     }
 
-    return isBuy.value ? 'Реквизиты для оплаты' : 'Реквизиты для получения KZT';
+    return isBuy.value ? t('order.show.requisites.titlePayment') : t('order.show.requisites.titlePayout');
 });
 
 const requisitesRows = computed(() => {
@@ -214,22 +220,22 @@ const requisitesRows = computed(() => {
         return [
             {
                 key: 'bank',
-                label: 'Название банка',
+                label: t('order.show.requisites.labels.bank'),
                 value: props.paymentRequest?.bank_name ?? props.companyRequisites.bank_name,
             },
             {
                 key: 'account',
-                label: 'Номер счёта',
+                label: t('order.show.requisites.labels.account'),
                 value: props.paymentRequest?.recipient_account ?? props.companyRequisites.recipient_account,
             },
             {
                 key: 'bin',
-                label: 'БИН',
+                label: t('order.show.requisites.labels.bin'),
                 value: props.companyRequisites.bin,
             },
             {
                 key: 'kbe',
-                label: 'КБе',
+                label: t('order.show.requisites.labels.kbe'),
                 value: props.companyRequisites.kbe,
             },
         ].filter((row) => row.value);
@@ -238,17 +244,17 @@ const requisitesRows = computed(() => {
     return [
         {
             key: 'bank',
-            label: 'Название банка',
+            label: t('order.show.requisites.labels.bank'),
             value: props.paymentRequest?.bank_name,
         },
         {
             key: 'account',
-            label: 'Номер счёта',
+            label: t('order.show.requisites.labels.account'),
             value: props.paymentRequest?.recipient_account,
         },
         {
             key: 'recipient',
-            label: 'Получатель',
+            label: t('order.show.requisites.labels.recipient'),
             value: props.paymentRequest?.recipient_name,
         },
     ].filter((row) => row.value);
@@ -288,35 +294,46 @@ const chatUrl = computed(() => {
     return localizedPath(`/support/chat?order=${props.order.id}&back=${back}`);
 });
 
+const chatKeyword = computed(() => t('order.show.chatKeyword').toLowerCase());
+
 const flashSuggestsChat = computed(() => {
     const message = page.props.flash?.success ?? '';
+    const normalized = typeof message === 'string' ? message.toLowerCase() : '';
 
-    return typeof message === 'string' && message.toLowerCase().includes('чат');
+    return normalized.includes(chatKeyword.value) || normalized.includes('chat');
 });
 
 const instructionText = computed(() => {
     if (isCompleted.value) {
-        return 'Сделка прошла через эскроу Kazakhstan Crypto Trust';
+        return t('order.show.instructions.completed');
     }
 
     if (isBuy.value) {
         if (activeStep.value === 1) {
-            return 'Переводите точную сумму с личного банковского счёта. Чек можно отправить в чат сделки.';
+            return t('order.show.instructions.buyStepOne');
         }
 
-        return 'Ожидайте подтверждения перевода продавцом. После подтверждения заявка будет завершена.';
+        return t('order.show.instructions.buyStepTwo');
     }
 
     if (props.order.status === 'kzt_sent') {
-        return 'Проверьте поступление KZT на ваш счёт и подтвердите получение.';
+        return t('order.show.instructions.sellReceipt');
     }
 
-    return 'USDT заблокированы. Администратор переведёт KZT на указанные реквизиты.';
+    return t('order.show.instructions.sellPayout');
 });
 
 const orderSubtitle = computed(
-    () => (isBuy.value ? 'Покупка USDT' : 'Продажа USDT'),
+    () => (isBuy.value ? t('order.show.subtitle.buy') : t('order.show.subtitle.sell')),
 );
+
+const cancelReasonOptions = computed(() => [
+    { value: 'changed_mind', label: t('order.show.cancelModal.reasons.changedMind') },
+    { value: 'payment_failed', label: t('order.show.cancelModal.reasons.cannotPay') },
+    { value: 'wrong_requisites', label: t('order.show.cancelModal.reasons.wrongRequisites') },
+    { value: 'long_wait', label: t('order.show.cancelModal.reasons.longWait') },
+    { value: 'other', label: t('order.show.cancelModal.reasons.other') },
+]);
 
 function markPaid() {
     markingPaid.value = true;
@@ -339,7 +356,10 @@ function markReceived() {
 function confirmCancel() {
     showCancelModal.value = false;
     const other = cancelReasonOther.value.trim();
-    const reason = cancelReason.value === 'Другое' ? (other !== '' ? other : 'Другое') : cancelReason.value;
+    const selectedReason = cancelReasonOptions.value.find((option) => option.value === cancelReason.value);
+    const reason = cancelReason.value === 'other'
+        ? (other !== '' ? other : t('order.show.cancelModal.reasons.other'))
+        : (selectedReason?.label ?? t('order.show.cancelModal.reasons.changedMind'));
 
     router.post(route('exchange.orders.cancel', props.order.id), { reason });
 }
@@ -364,29 +384,29 @@ async function copyText(text, field) {
 </script>
 
 <template>
-    <Head :title="`Заявка №${order.id}`" />
+    <Head :title="t('order.show.headTitle', { id: order.id })" />
 
     <ExchangeLayout>
-        <template #title>Заявка №{{ order.id }}</template>
+        <template #title>{{ t('order.show.headTitle', { id: order.id }) }}</template>
 
         <div v-if="page.props.flash?.success" class="order-flash-success mb-4" role="status">
             <span class="material-symbols-outlined order-flash-success__icon" aria-hidden="true">check_circle</span>
             <div class="min-w-0 flex-1">
                 <p class="order-flash-success__text">{{ page.props.flash.success }}</p>
                 <Link v-if="flashSuggestsChat" :href="chatUrl" class="order-flash-success__action">
-                    Открыть чат сделки →
+                    {{ t('order.show.actions.openDealChat') }}
                 </Link>
             </div>
         </div>
 
         <div :class="modeClass" class="order-flow">
-            <Link :href="localizedPath('/exchange')" class="order-flow__back" aria-label="Назад к обмену">
+            <Link :href="localizedPath('/exchange')" class="order-flow__back" :aria-label="t('order.show.aria.backToExchange')">
                 <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
             </Link>
 
             <p class="order-flow__subtitle">{{ orderSubtitle }}</p>
 
-            <nav class="order-stepper" aria-label="Этапы сделки">
+            <nav class="order-stepper" :aria-label="t('order.show.aria.dealSteps')">
                 <div
                     v-for="(step, index) in stepItems"
                     :key="step.id"
@@ -439,7 +459,7 @@ async function copyText(text, field) {
                             v-else-if="countdownExpired && !isCompleted && !isCancelled"
                             class="order-status-banner__timer order-status-banner__timer--expired"
                         >
-                            Время истекло
+                            {{ t('order.show.timer.expired') }}
                         </p>
                     </div>
                 </div>
@@ -474,7 +494,7 @@ async function copyText(text, field) {
                     <button
                         type="button"
                         class="order-requisites-card__copy"
-                        :aria-label="copiedField === row.key ? 'Скопировано' : 'Копировать'"
+                        :aria-label="copiedField === row.key ? t('order.show.requisites.copied') : t('order.show.requisites.copy')"
                         @click="copyText(row.value, row.key)"
                     >
                         <AppIcon :name="copiedField === row.key ? 'check' : 'copy'" :size="18" :stroke-width="2" />
@@ -482,7 +502,7 @@ async function copyText(text, field) {
                 </div>
 
                 <p v-if="isBuy && order.payment_bank_name" class="order-requisites-card__bank-note">
-                    Банк оплаты: {{ order.payment_bank_name }}
+                    {{ t('order.show.paymentBankNote', { bank: order.payment_bank_name }) }}
                 </p>
             </section>
 
@@ -494,24 +514,24 @@ async function copyText(text, field) {
             </div>
 
             <div v-if="isBuy && activeStep === 1 && !isCompleted" class="order-flow__steps-list">
-                <p>1. Переведите средства на указанные реквизиты.</p>
-                <p>2. Нажмите «Я оплатил».</p>
-                <p>3. Сохраните чек и отправьте его в чат сделки.</p>
+                <p>{{ t('order.show.checklist.buy.one') }}</p>
+                <p>{{ t('order.show.checklist.buy.two') }}</p>
+                <p>{{ t('order.show.checklist.buy.three') }}</p>
             </div>
 
             <div v-if="isWaitingSellPayout && !isCompleted" class="order-flow__steps-list">
-                <p>1. USDT заблокированы на вашем балансе.</p>
-                <p>2. Ожидайте перевод KZT на реквизиты ниже.</p>
-                <p>3. Статус обновится автоматически — затем подтвердите получение.</p>
+                <p>{{ t('order.show.checklist.sellPayout.one') }}</p>
+                <p>{{ t('order.show.checklist.sellPayout.two') }}</p>
+                <p>{{ t('order.show.checklist.sellPayout.three') }}</p>
             </div>
 
             <div v-if="isWaitingSellReceipt && !isCompleted" class="order-flow__steps-list">
-                <p>1. Проверьте поступление {{ formatKzt(order.fiat_amount) }} ₸ на ваш счёт.</p>
-                <p>2. Нажмите «Я получил KZT» для завершения сделки.</p>
+                <p>{{ t('order.show.checklist.sellReceipt.one', { amount: formatKzt(order.fiat_amount) }) }}</p>
+                <p>{{ t('order.show.checklist.sellReceipt.two') }}</p>
             </div>
 
             <div v-if="order.listing_conditions && !isCompleted" class="order-flow__conditions">
-                <p class="order-flow__conditions-title">Условия сделки</p>
+                <p class="order-flow__conditions-title">{{ t('order.show.conditionsTitle') }}</p>
                 <p>{{ order.listing_conditions }}</p>
             </div>
 
@@ -527,7 +547,7 @@ async function copyText(text, field) {
                 @click="markPaid"
             >
                 <span class="material-symbols-outlined text-xl" aria-hidden="true">check</span>
-                Я оплатил
+                {{ t('order.show.actions.markPaid') }}
             </button>
 
             <button
@@ -538,7 +558,7 @@ async function copyText(text, field) {
                 @click="markReceived"
             >
                 <span class="material-symbols-outlined text-xl" aria-hidden="true">check</span>
-                {{ markingReceived ? 'Подтверждаем…' : 'Я получил KZT' }}
+                {{ markingReceived ? t('order.show.actions.confirming') : t('order.show.actions.markReceived') }}
             </button>
 
             <button
@@ -549,7 +569,7 @@ async function copyText(text, field) {
                 @click="refreshStatus()"
             >
                 <span class="material-symbols-outlined text-xl" aria-hidden="true">refresh</span>
-                {{ refreshingStatus ? 'Проверяем…' : 'Проверить статус выплаты' }}
+                {{ refreshingStatus ? t('order.show.actions.checking') : t('order.show.actions.checkPayoutStatus') }}
             </button>
 
             <Link
@@ -557,7 +577,7 @@ async function copyText(text, field) {
                 :href="localizedPath('/exchange')"
                 class="btn-primary order-flow__cta"
             >
-                Вернуться в обмен
+                {{ t('order.show.actions.backToExchange') }}
             </Link>
 
             <Link
@@ -567,7 +587,7 @@ async function copyText(text, field) {
                 :class="(canMarkReceived || isWaitingSellPayout || (isBuy && activeStep >= 2)) ? 'order-flow__cta--chat' : 'btn-primary order-flow__cta'"
             >
                 <span class="material-symbols-outlined text-xl" aria-hidden="true">chat</span>
-                {{ isBuy && activeStep >= 2 ? 'Открыть чат сделки' : 'Написать в чат сделки' }}
+                {{ isBuy && activeStep >= 2 ? t('order.show.actions.openDealChat') : t('order.show.actions.writeDealChat') }}
             </Link>
 
             <button
@@ -578,7 +598,7 @@ async function copyText(text, field) {
                 @click="refreshStatus()"
             >
                 <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
-                {{ refreshingStatus ? 'Проверяем…' : 'Проверить статус' }}
+                {{ refreshingStatus ? t('order.show.actions.checking') : t('order.show.actions.checkStatus') }}
             </button>
 
             <div v-if="canAppeal || canCancel" class="order-flow__secondary-actions">
@@ -589,7 +609,7 @@ async function copyText(text, field) {
                     @click="showAppealModal = true"
                 >
                     <span class="material-symbols-outlined text-xl" aria-hidden="true">warning</span>
-                    Подать апелляцию
+                    {{ t('order.show.actions.appeal') }}
                 </button>
 
                 <button
@@ -598,18 +618,18 @@ async function copyText(text, field) {
                     class="order-flow__cancel"
                     @click="showCancelModal = true"
                 >
-                    Отменить заявку
+                    {{ t('order.show.actions.cancelOrder') }}
                 </button>
             </div>
 
             <section v-if="isCompleted" class="order-flow__tx-card">
-                <p class="order-flow__tx-label">ID транзакции</p>
+                <p class="order-flow__tx-label">{{ t('order.show.txLabel') }}</p>
                 <div class="order-flow__tx-row">
                     <span class="order-flow__tx-value">TX{{ order.id }}</span>
                     <button
                         type="button"
                         class="order-requisites-card__copy"
-                        aria-label="Копировать ID"
+                        :aria-label="t('order.show.copyTxId')"
                         @click="copyText(`TX${order.id}`, 'tx')"
                     >
                         <AppIcon :name="copiedField === 'tx' ? 'check' : 'copy'" :size="18" :stroke-width="2" />
@@ -626,46 +646,34 @@ async function copyText(text, field) {
                     <div class="order-modal__icon order-modal__icon--danger">
                         <span class="material-symbols-outlined" aria-hidden="true">warning</span>
                     </div>
-                    <h2 id="cancel-title" class="order-modal__title">Отмена заявки</h2>
+                    <h2 id="cancel-title" class="order-modal__title">{{ t('order.show.cancelModal.title') }}</h2>
                     <p class="order-modal__text">
-                        При подтверждении отмены мы не несем ответственности за ваши дальнейшие операции с данными реквизитами.
+                        {{ t('order.show.cancelModal.text') }}
                     </p>
-                    <p class="order-modal__question">Причина отмены</p>
+                    <p class="order-modal__question">{{ t('order.show.cancelModal.question') }}</p>
                     <div class="mt-3 space-y-2 text-left">
-                        <label class="flex items-start gap-2 text-sm">
-                            <input v-model="cancelReason" type="radio" value="Передумал(а)" />
-                            <span>Передумал(а)</span>
-                        </label>
-                        <label class="flex items-start gap-2 text-sm">
-                            <input v-model="cancelReason" type="radio" value="Не получилось оплатить" />
-                            <span>Не получилось оплатить</span>
-                        </label>
-                        <label class="flex items-start gap-2 text-sm">
-                            <input v-model="cancelReason" type="radio" value="Ошибка/неверные реквизиты" />
-                            <span>Ошибка/неверные реквизиты</span>
-                        </label>
-                        <label class="flex items-start gap-2 text-sm">
-                            <input v-model="cancelReason" type="radio" value="Слишком долгое ожидание" />
-                            <span>Слишком долгое ожидание</span>
-                        </label>
-                        <label class="flex items-start gap-2 text-sm">
-                            <input v-model="cancelReason" type="radio" value="Другое" />
-                            <span>Другое</span>
+                        <label
+                            v-for="option in cancelReasonOptions"
+                            :key="option.value"
+                            class="flex items-start gap-2 text-sm"
+                        >
+                            <input v-model="cancelReason" type="radio" :value="option.value" />
+                            <span>{{ option.label }}</span>
                         </label>
                         <input
-                            v-if="cancelReason === 'Другое'"
+                            v-if="cancelReason === 'other'"
                             v-model="cancelReasonOther"
                             type="text"
                             maxlength="120"
                             class="w-full rounded-xl border border-outline-variant bg-surface px-3 py-2 text-sm"
-                            placeholder="Введите причину..."
+                            :placeholder="t('order.show.cancelModal.placeholder')"
                         />
                     </div>
                     <button type="button" class="btn-primary order-modal__confirm" @click="confirmCancel">
-                        Продолжить отмену
+                        {{ t('order.show.cancelModal.continue') }}
                     </button>
                     <button type="button" class="order-modal__back" @click="showCancelModal = false">
-                        Вернуться
+                        {{ t('order.show.cancelModal.back') }}
                     </button>
                 </div>
             </div>
@@ -675,15 +683,15 @@ async function copyText(text, field) {
                     <div class="order-modal__icon order-modal__icon--danger">
                         <span class="material-symbols-outlined" aria-hidden="true">warning</span>
                     </div>
-                    <h2 id="appeal-title" class="order-modal__title">Подать апелляцию</h2>
+                    <h2 id="appeal-title" class="order-modal__title">{{ t('order.show.appealModal.title') }}</h2>
                     <p class="order-modal__text">
-                        Раздел апелляций пока в разработке. Если возникла проблема со сделкой, напишите в чат поддержки.
+                        {{ t('order.show.appealModal.text') }}
                     </p>
                     <Link :href="chatUrl" class="btn-primary order-modal__confirm" @click="showAppealModal = false">
-                        Открыть чат
+                        {{ t('order.show.appealModal.openChat') }}
                     </Link>
                     <button type="button" class="order-modal__back" @click="showAppealModal = false">
-                        Назад
+                        {{ t('order.show.appealModal.back') }}
                     </button>
                 </div>
             </div>

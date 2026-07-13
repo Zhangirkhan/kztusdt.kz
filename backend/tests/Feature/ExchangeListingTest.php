@@ -20,7 +20,7 @@ final class ExchangeListingTest extends TestCase
 
         $admin = $this->createStaff('exchange_admin');
 
-        $response = $this->actingAs($admin)->post('/admin/listings', [
+        $response = $this->actingAsAdmin($admin)->post('/admin/listings', [
             'direction' => ExchangeListing::DIRECTION_SELL_USDT,
             'price_type' => ExchangeListing::PRICE_FLOATING,
             'margin_percent' => 20,
@@ -128,7 +128,7 @@ final class ExchangeListingTest extends TestCase
         $user = $this->createClient();
         $admin = $this->createStaff('exchange_admin');
 
-        $this->actingAs($admin)->post('/admin/listings', [
+        $this->actingAsAdmin($admin)->post('/admin/listings', [
             'direction' => ExchangeListing::DIRECTION_SELL_USDT,
             'price_type' => ExchangeListing::PRICE_FLOATING,
             'margin_percent' => 20,

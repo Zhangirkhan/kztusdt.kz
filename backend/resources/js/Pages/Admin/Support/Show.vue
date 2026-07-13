@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminBackLink from '@/shared/ui/admin/AdminBackLink.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { nextTick, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -22,6 +23,7 @@ const props = defineProps({
 });
 
 const messagesEl = ref(null);
+const { t } = useI18n();
 
 const form = useForm({
     body: '',
@@ -42,12 +44,12 @@ function formatDate(value) {
 
 function orderLabel(conversation) {
     if (!conversation.order) {
-        return 'Без заявки';
+        return t('admin.support.index.noOrder');
     }
 
-    const direction = conversation.order.direction === 'buy' ? 'Покупка' : 'Продажа';
+    const direction = conversation.order.direction === 'buy' ? t('admin.shared.direction.buy') : t('admin.shared.direction.sell');
 
-    return `Заявка №${conversation.order.id} · ${direction}`;
+    return t('admin.support.index.orderLabel', { id: conversation.order.id, direction });
 }
 
 function scrollToBottom() {
@@ -77,17 +79,17 @@ watch(
 </script>
 
 <template>
-    <Head :title="`Чат — ${conversation.user.name || 'Клиент'}`" />
+    <Head :title="t('admin.support.show.headTitle', { name: conversation.user.name || t('admin.shared.client') })" />
 
     <AdminLayout>
-        <template #title>Чат с клиентом</template>
+        <template #title>{{ t('admin.support.show.title') }}</template>
 
         <AdminPage>
             <AdminBackLink :href="route('admin.support.index')" />
 
             <div class="admin-support-thread">
                 <aside class="admin-support-thread__sidebar">
-                    <p class="admin-support-thread__sidebar-title">Диалоги</p>
+                    <p class="admin-support-thread__sidebar-title">{{ t('admin.support.show.sidebarTitle') }}</p>
                     <Link
                         v-for="item in conversations"
                         :key="item.id"
@@ -96,7 +98,7 @@ watch(
                         :class="{ 'admin-support-thread__sidebar-item--active': item.id === conversation.id }"
                     >
                         <span class="admin-support-thread__sidebar-name">
-                            {{ item.user.name || 'Клиент' }}
+                            {{ item.user.name || t('admin.shared.client') }}
                             <a-badge v-if="item.unread_count > 0" :count="item.unread_count" />
                         </span>
                         <span class="admin-support-thread__sidebar-order">{{ orderLabel(item) }}</span>
@@ -107,7 +109,7 @@ watch(
                 <section class="admin-support-thread__main">
                     <header class="admin-support-thread__header">
                         <div>
-                            <h2 class="admin-support-thread__title">{{ conversation.user.name || 'Клиент' }}</h2>
+                            <h2 class="admin-support-thread__title">{{ conversation.user.name || t('admin.shared.client') }}</h2>
                             <p class="admin-support-thread__meta">
                                 {{ orderLabel(conversation) }}
                                 · {{ conversation.user.phone || conversation.user.email || `ID ${conversation.user.id}` }}
@@ -119,10 +121,10 @@ watch(
                                 :href="route('admin.orders.show', conversation.order.id)"
                                 class="admin-support-thread__profile-link"
                             >
-                                Заявка
+                                {{ t('admin.support.show.links.order') }}
                             </Link>
                             <Link :href="route('admin.users.show', conversation.user.id)" class="admin-support-thread__profile-link">
-                                Профиль
+                                {{ t('admin.support.show.links.profile') }}
                             </Link>
                         </div>
                     </header>
@@ -136,7 +138,7 @@ watch(
                         >
                             <p class="admin-support-bubble__body">{{ message.body }}</p>
                             <p class="admin-support-bubble__meta">
-                                {{ message.is_mine ? 'Вы' : (message.sender_name || 'Клиент') }}
+                                {{ message.is_mine ? t('admin.shared.you') : (message.sender_name || t('admin.shared.client')) }}
                                 · {{ formatDate(message.created_at) }}
                             </p>
                         </article>
@@ -147,13 +149,13 @@ watch(
                             v-model:value="form.body"
                             :rows="3"
                             maxlength="2000"
-                            placeholder="Ответ клиенту..."
+                            :placeholder="t('admin.support.show.composer.placeholder')"
                             :disabled="form.processing"
                         />
                         <p v-if="form.errors.body" class="admin-support-thread__error">{{ form.errors.body }}</p>
                         <div class="admin-support-thread__actions">
                             <a-button type="primary" html-type="submit" :loading="form.processing" :disabled="!form.body.trim()">
-                                Отправить
+                                {{ t('admin.shared.actions.send') }}
                             </a-button>
                         </div>
                     </form>
@@ -325,10 +327,32 @@ watch(
 @media (max-width: 960px) {
     .admin-support-thread {
         grid-template-columns: 1fr;
+        min-height: calc(100dvh - 120px);
     }
 
     .admin-support-thread__sidebar {
-        max-height: 180px;
+        display: none;
+    }
+
+    .admin-support-thread__main {
+        min-height: calc(100dvh - 180px);
+    }
+
+    .admin-support-thread__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-support-thread__header-actions {
+        flex-wrap: wrap;
+    }
+
+    .admin-support-thread__messages {
+        min-height: 0;
+    }
+
+    .admin-support-bubble {
+        max-width: 92%;
     }
 }
 </style>

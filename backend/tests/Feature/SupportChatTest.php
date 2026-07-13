@@ -42,7 +42,7 @@ final class SupportChatTest extends TestCase
             ->assertCreated()
             ->assertJsonMissingPath('auto_reply');
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post(route('admin.support.messages.store', $conversation), ['body' => 'Добрый день, чем помочь?'])
             ->assertRedirect(route('admin.support.show', $conversation));
 
@@ -120,7 +120,7 @@ final class SupportChatTest extends TestCase
             'body' => 'Нужна помощь',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->get('/admin/support')
             ->assertOk()
             ->assertInertia(fn ($page) => $page

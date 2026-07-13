@@ -5,6 +5,8 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue
 import { useI18n } from 'vue-i18n';
 import { useBiometricAuth } from '@/composables/useBiometricAuth';
 import { navigateAfterAuth } from '@/utils/authNavigation';
+import { isAppLockConfigured } from '@/utils/appLockStorage';
+import AppLockOverlay from '@/widgets/app-lock/ui/AppLockOverlay.vue';
 import { localizedPath } from '@/utils/localizedPath';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
@@ -20,13 +22,9 @@ const props = defineProps({
     kyc: { type: Object, default: null },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const {
-    supported: biometricSupported,
-    busy: biometricBusy,
-    error: biometricError,
     savePhone,
-    registerBiometric,
 } = useBiometricAuth();
 
 const step = ref(props.initialStep);
@@ -49,7 +47,11 @@ const isExpired = computed(() => props.status === 'expired');
 const canResend = computed(() => !resending.value && resendCooldown.value <= 0);
 const canSubmit = computed(() => code.value.length === props.codeLength && !submitting.value && !isExpired.value);
 const expiresAtLabel = computed(() =>
-    props.expiresAt ? new Date(props.expiresAt).toLocaleTimeString('ru-RU') : '',
+    props.expiresAt
+        ? new Date(props.expiresAt).toLocaleTimeString(
+            locale.value === 'kk' ? 'kk-KZ' : locale.value === 'en' ? 'en-US' : 'ru-RU',
+        )
+        : '',
 );
 
 function csrfToken() {
@@ -93,7 +95,7 @@ async function submitCode() {
         const result = await response.json();
 
         if (!response.ok) {
-            errorMessage.value = result.message ?? 'Неверный код.';
+            errorMessage.value = result.message ?? t('auth.verify.errors.invalidCode');
             code.value = '';
 
             if (codeInput.value) {
@@ -106,16 +108,17 @@ async function submitCode() {
 
         savePhone(props.phone);
 
-        if (biometricSupported && result.suggest_biometric) {
+        if (result.user_id && !isAppLockConfigured(result.user_id)) {
             pendingRedirect.value = result;
-            step.value = 'biometric';
+            await router.reload({ preserveState: true });
+            step.value = 'app-lock';
 
             return;
         }
 
         continueAfterLogin(result);
     } catch {
-        errorMessage.value = 'Не удалось отправить код. Попробуйте ещё раз.';
+        errorMessage.value = t('auth.verify.errors.submitFailed');
     } finally {
         submitting.value = false;
     }
@@ -159,7 +162,7 @@ async function resendCode() {
         const result = await response.json();
 
         if (!response.ok) {
-            errorMessage.value = result.message ?? 'Не удалось отправить код повторно.';
+            errorMessage.value = result.message ?? t('auth.verify.errors.resendFailed');
 
             return;
         }
@@ -172,7 +175,7 @@ async function resendCode() {
             router.reload({ only: ['loginCode', 'phone', 'status', 'expiresAt', 'codeLength'] });
         }
     } catch {
-        errorMessage.value = 'Не удалось отправить код повторно.';
+        errorMessage.value = t('auth.verify.errors.resendFailed');
     } finally {
         resending.value = false;
     }
@@ -196,21 +199,11 @@ function continueAfterLogin(result) {
     navigateAfterAuth(result.redirect ?? '/wallet');
 }
 
-function finishBiometricStep() {
+function onAppLockSetupComplete() {
     if (pendingRedirect.value) {
         continueAfterLogin(pendingRedirect.value);
     } else {
         navigateAfterAuth('/wallet');
-    }
-}
-
-async function enableBiometric() {
-    try {
-        savePhone(props.phone);
-        await registerBiometric();
-        finishBiometricStep();
-    } catch {
-        // error shown via biometricError
     }
 }
 
@@ -244,16 +237,18 @@ onUnmounted(() => {
 
 <template>
     <SeoHead />
-    <Head :title="step === 'kyc' ? 'Верификация документов' : step === 'biometric' ? 'Быстрый вход' : t('auth.verify.heading')" />
+    <Head :title="step === 'kyc' ? t('auth.verify.kyc.title') : step === 'app-lock' ? t('appLock.setup.createTitle') : t('auth.verify.heading')" />
 
-    <div class="app-frame">
+    <AppLockOverlay v-if="step === 'app-lock'" mode="setup" @setup-complete="onAppLockSetupComplete" />
+
+    <div v-else class="app-frame">
         <div class="app-shell page-enter flex min-h-dvh flex-col px-margin-page pb-8">
         <div class="flex flex-1 flex-col justify-center py-stack-section">
-            <div v-if="step !== 'biometric'" class="mb-stack-element">
+            <div v-if="step === 'whatsapp'" class="mb-stack-element">
                 <div class="mb-6 flex items-center justify-center gap-3 text-xs font-semibold uppercase tracking-wide">
                     <span :class="step === 'whatsapp' ? 'text-accent' : 'text-text-dim'">{{ t('auth.verify.stepLabel') }}</span>
                     <span class="text-text-dim">→</span>
-                    <span :class="step === 'kyc' ? 'text-accent' : 'text-text-dim'">2. Документ + видео</span>
+                    <span :class="step === 'kyc' ? 'text-accent' : 'text-text-dim'">{{ t('auth.verify.stepKyc') }}</span>
                 </div>
             </div>
 
@@ -267,7 +262,7 @@ onUnmounted(() => {
                         {{ t('auth.verify.subtitle', { phone }) }}
                     </p>
                     <p v-if="isExpired" class="mt-3 text-sm text-error">
-                        Срок действия кода истёк. Нажмите «Отправить код повторно».
+                        {{ t('auth.verify.codeExpired') }}
                     </p>
                 </div>
 
@@ -310,46 +305,14 @@ onUnmounted(() => {
                 </div>
             </template>
 
-            <template v-else-if="step === 'biometric'">
-                <div class="mb-stack-section text-center">
-                    <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-light">
-                        <span class="material-symbols-outlined text-4xl text-accent">fingerprint</span>
-                    </div>
-                    <h1 class="text-headline-xl">Быстрый вход</h1>
-                    <p class="mt-3 text-body-sm text-text-muted">
-                        Включите Face ID, Touch ID или отпечаток — чтобы не выходить из приложения и не подтверждать код каждый раз.
-                    </p>
-                </div>
-
-                <button
-                    type="button"
-                    class="btn-primary mb-3 w-full"
-                    :disabled="biometricBusy"
-                    @click="enableBiometric"
-                >
-                    Включить биометрию
-                </button>
-
-                <button
-                    type="button"
-                    class="btn-secondary w-full"
-                    :disabled="biometricBusy"
-                    @click="finishBiometricStep"
-                >
-                    Пропустить
-                </button>
-
-                <p v-if="biometricError" class="mt-3 text-center text-sm text-error">{{ biometricError }}</p>
-            </template>
-
             <template v-else>
                 <div class="mb-stack-section text-center">
                     <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-light">
                         <span class="material-symbols-outlined text-4xl text-accent">verified_user</span>
                     </div>
-                    <h1 class="text-headline-xl">Верификация личности</h1>
+                    <h1 class="text-headline-xl">{{ t('auth.verify.kyc.title') }}</h1>
                     <p class="mt-3 text-body-sm text-text-muted">
-                        Телефон подтверждён. Сфотографируйте удостоверение и пройдите короткую видео-проверку — без перехода на другую страницу.
+                        {{ t('auth.verify.kyc.subtitle') }}
                     </p>
                 </div>
 
@@ -363,9 +326,9 @@ onUnmounted(() => {
                 </section>
 
                 <section v-else-if="kycStatus === 'pending_review'" class="card text-center">
-                    <p class="font-semibold text-accent">Документы на проверке</p>
-                    <p class="mt-2 text-body-sm text-text-muted">Обычно это занимает 1–2 минуты. Можно перейти на главную.</p>
-                    <Link :href="route('wallet')" class="btn-primary mt-4 inline-block text-center no-underline">На главную</Link>
+                    <p class="font-semibold text-accent">{{ t('auth.verify.kyc.pendingTitle') }}</p>
+                    <p class="mt-2 text-body-sm text-text-muted">{{ t('auth.verify.kyc.pendingHint') }}</p>
+                    <Link :href="route('wallet')" class="btn-primary mt-4 inline-block text-center no-underline">{{ t('auth.verify.kyc.toHome') }}</Link>
                 </section>
             </template>
         </div>

@@ -6,6 +6,7 @@ import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -15,25 +16,27 @@ const props = defineProps({
     sumsubAdminEnabled: { type: Boolean, default: false },
 });
 
+const { t } = useI18n();
+
 const statItems = computed(() => [
-    { label: 'На проверке', value: props.stats.pending, color: '#faad14' },
-    { label: 'Одобрено', value: props.stats.approved, color: '#52c41a' },
-    { label: 'Отклонено', value: props.stats.rejected, color: '#ff4d4f' },
+    { label: t('admin.kyc.index.stats.pending'), value: props.stats.pending, color: '#faad14' },
+    { label: t('admin.kyc.index.stats.approved'), value: props.stats.approved, color: '#52c41a' },
+    { label: t('admin.kyc.index.stats.rejected'), value: props.stats.rejected, color: '#ff4d4f' },
 ]);
 
 const filterOptions = computed(() => [
-    { label: `На проверке (${props.stats.pending})`, value: 'pending_review' },
-    { label: `Одобрено (${props.stats.approved})`, value: 'approved' },
-    { label: `Отклонено (${props.stats.rejected})`, value: 'rejected' },
-    { label: 'Все', value: 'all' },
+    { label: t('admin.kyc.index.filters.pending', { count: props.stats.pending }), value: 'pending_review' },
+    { label: t('admin.kyc.index.filters.approved', { count: props.stats.approved }), value: 'approved' },
+    { label: t('admin.kyc.index.filters.rejected', { count: props.stats.rejected }), value: 'rejected' },
+    { label: t('admin.kyc.index.filters.all'), value: 'all' },
 ]);
 
-const columns = [
-    { title: 'Клиент', key: 'client' },
-    { title: 'Документ', key: 'document' },
-    { title: 'Статус', key: 'status', width: 140 },
+const columns = computed(() => [
+    { title: t('admin.kyc.index.columns.client'), key: 'client' },
+    { title: t('admin.kyc.index.columns.document'), key: 'document' },
+    { title: t('admin.kyc.index.columns.status'), key: 'status', width: 140 },
     { title: '', key: 'actions', width: 90, align: 'right' },
-];
+]);
 
 function setFilter(status) {
     router.get('/admin/kyc', { status }, { preserveState: true });
@@ -41,10 +44,10 @@ function setFilter(status) {
 </script>
 
 <template>
-    <Head title="KYC Admin" />
+    <Head :title="t('admin.kyc.index.title')" />
 
     <AdminLayout>
-        <template #title>KYC / верификация</template>
+        <template #title>{{ t('admin.kyc.index.title') }}</template>
 
         <AdminPage>
             <AdminStatsRow :items="statItems" />
@@ -65,7 +68,7 @@ function setFilter(status) {
                                 <a-typography-text strong>
                                     {{ [record.first_name, record.last_name].filter(Boolean).join(' ') || record.user?.name || `User #${record.user?.id}` }}
                                 </a-typography-text>
-                                <div class="admin-ant-meta">{{ record.user?.phone ?? '—' }}</div>
+                                <div class="admin-ant-meta">{{ record.user?.phone ?? t('admin.shared.empty') }}</div>
                             </div>
                         </template>
 
@@ -74,7 +77,7 @@ function setFilter(status) {
                             <span v-else-if="record.document_type || record.document_number">
                                 {{ record.document_type }} {{ record.document_number }}
                             </span>
-                            <span v-else class="admin-ant-meta">—</span>
+                            <span v-else class="admin-ant-meta">{{ t('admin.shared.empty') }}</span>
                         </template>
 
                         <template v-else-if="column.key === 'status'">
@@ -83,13 +86,13 @@ function setFilter(status) {
 
                         <template v-else-if="column.key === 'actions'">
                             <Link :href="`/admin/kyc/${record.id}`">
-                                <a-button type="link" size="small">Открыть</a-button>
+                                <a-button type="link" size="small">{{ t('admin.shared.actions.open') }}</a-button>
                             </Link>
                         </template>
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Заявок нет" />
+                        <a-empty :description="t('admin.kyc.index.empty')" />
                     </template>
                 </a-table>
 

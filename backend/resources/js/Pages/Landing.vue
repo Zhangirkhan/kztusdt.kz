@@ -11,7 +11,7 @@ defineProps({
         type: Object,
         default: () => ({
             name: 'kztusdt.kz',
-            tagline: 'Крипто-обменник USDT / KZT',
+            tagline: 'Crypto exchange USDT / KZT',
         }),
     },
 });

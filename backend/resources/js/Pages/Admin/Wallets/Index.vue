@@ -7,6 +7,7 @@ import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatUsdt } from '@/utils/formatNumber';
 import { Head, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -19,24 +20,26 @@ const props = defineProps({
     stats: Object,
 });
 
+const { t } = useI18n();
+
 const search = ref(props.filters.q ?? '');
 
-const depositStatusLabels = {
-    detected: 'Обнаружен',
-    confirmed: 'Подтверждается',
-    credited: 'Зачислен',
-    failed: 'Ошибка',
-};
+const depositStatusLabels = computed(() => ({
+    detected: t('admin.wallets.deposits.status.detected'),
+    confirmed: t('admin.wallets.deposits.status.confirmed'),
+    credited: t('admin.wallets.deposits.status.credited'),
+    failed: t('admin.wallets.deposits.status.failed'),
+}));
 
-const systemWalletLabels = {
-    hot: 'Hot wallet (выводы и sweep)',
-    gas: 'Gas wallet (комиссии сети)',
-};
+const systemWalletLabels = computed(() => ({
+    hot: t('admin.wallets.systemWallets.hot'),
+    gas: t('admin.wallets.systemWallets.gas'),
+}));
 
 const statItems = computed(() => [
-    { label: 'Клиентских адресов', value: props.stats.wallets_total, color: '#1677ff' },
-    { label: 'Депозитов всего', value: props.stats.deposits_total },
-    { label: 'Зачислено', value: props.stats.deposits_credited, color: '#52c41a' },
+    { label: t('admin.wallets.stats.clientAddresses'), value: props.stats.wallets_total, color: '#1677ff' },
+    { label: t('admin.wallets.stats.depositsTotal'), value: props.stats.deposits_total },
+    { label: t('admin.wallets.stats.deposited'), value: props.stats.deposits_credited, color: '#52c41a' },
 ]);
 
 const networkOptions = computed(() => props.availableNetworks.map((net) => ({
@@ -44,26 +47,26 @@ const networkOptions = computed(() => props.availableNetworks.map((net) => ({
     value: net.code,
 })));
 
-const depositStatusOptions = [
-    { label: 'Все', value: 'all' },
-    { label: 'Обнаружены', value: 'detected' },
-    { label: 'Подтверждаются', value: 'confirmed' },
-    { label: 'Зачислены', value: 'credited' },
-    { label: 'Ошибки', value: 'failed' },
-];
+const depositStatusOptions = computed(() => [
+    { label: t('admin.wallets.deposits.filters.all'), value: 'all' },
+    { label: t('admin.wallets.deposits.filters.detected'), value: 'detected' },
+    { label: t('admin.wallets.deposits.filters.confirmed'), value: 'confirmed' },
+    { label: t('admin.wallets.deposits.filters.credited'), value: 'credited' },
+    { label: t('admin.wallets.deposits.filters.failed'), value: 'failed' },
+]);
 
-const walletColumns = [
-    { title: 'Клиент', key: 'client' },
-    { title: 'Адрес', key: 'address' },
-    { title: 'Баланс', key: 'balance', width: 140 },
-];
+const walletColumns = computed(() => [
+    { title: t('admin.wallets.clientAddresses.columns.client'), key: 'client' },
+    { title: t('admin.wallets.clientAddresses.columns.address'), key: 'address' },
+    { title: t('admin.wallets.clientAddresses.columns.balance'), key: 'balance', width: 140 },
+]);
 
-const depositColumns = [
-    { title: 'Депозит', key: 'deposit' },
-    { title: 'Сумма', key: 'amount', width: 160 },
-    { title: 'Статус', key: 'status', width: 140 },
-    { title: 'Время', key: 'time', width: 170 },
-];
+const depositColumns = computed(() => [
+    { title: t('admin.wallets.deposits.columns.deposit'), key: 'deposit' },
+    { title: t('admin.wallets.deposits.columns.amount'), key: 'amount', width: 160 },
+    { title: t('admin.wallets.deposits.columns.status'), key: 'status', width: 140 },
+    { title: t('admin.wallets.deposits.columns.time'), key: 'time', width: 170 },
+]);
 
 function applyFilters(extra = {}) {
     router.get('/admin/wallets', {
@@ -83,11 +86,11 @@ function setNetwork(network) {
 }
 
 function short(value) {
-    return value ? `${value.slice(0, 10)}…${value.slice(-8)}` : '—';
+    return value ? `${value.slice(0, 10)}…${value.slice(-8)}` : t('admin.shared.empty');
 }
 
 function formatDate(value) {
-    return value ? new Date(value).toLocaleString('ru-RU') : '—';
+    return value ? new Date(value).toLocaleString('ru-RU') : t('admin.shared.empty');
 }
 
 function addressUrl(address) {
@@ -100,10 +103,10 @@ function txUrl(hash) {
 </script>
 
 <template>
-    <Head title="Кошельки" />
+    <Head :title="t('admin.wallets.headTitle')" />
 
     <AdminLayout>
-        <template #title>Кошельки · {{ meta.asset }} · {{ meta.network }}</template>
+        <template #title>{{ t('admin.wallets.title', { asset: meta.asset, network: meta.network }) }}</template>
 
         <AdminPage>
             <AdminStatsRow :items="statItems" />
@@ -117,22 +120,22 @@ function txUrl(hash) {
 
             <a-input-search
                 v-model:value="search"
-                placeholder="Телефон, адрес, tx hash…"
-                enter-button="Найти"
+                :placeholder="t('admin.wallets.searchPlaceholder')"
+                :enter-button="t('admin.shared.actions.find')"
                 size="large"
                 class="admin-ant-block"
                 @search="applyFilters()"
             >
                 <template v-if="filters.q" #addonAfter>
-                    <a-button @click="search = ''; applyFilters({ q: undefined })">Сброс</a-button>
+                    <a-button @click="search = ''; applyFilters({ q: undefined })">{{ t('admin.shared.actions.reset') }}</a-button>
                 </template>
             </a-input-search>
 
-            <a-card title="Системные кошельки" size="small" class="admin-ant-card">
+            <a-card :title="t('admin.wallets.systemWallets.cardTitle')" size="small" class="admin-ant-card">
                 <a-space wrap class="admin-ant-block">
-                    <a-tag>Sweep: {{ meta.sweep_enabled ? 'включён' : 'выключен' }}</a-tag>
-                    <a-tag>Выводы: {{ meta.withdrawals_enabled ? 'включены' : 'выключены' }}</a-tag>
-                    <a-tag>Подтверждений: {{ meta.confirmations_required }}</a-tag>
+                    <a-tag>{{ t('admin.wallets.systemWallets.sweep', { status: meta.sweep_enabled ? t('admin.shared.boolean.enabledSingular') : t('admin.shared.boolean.disabledSingular') }) }}</a-tag>
+                    <a-tag>{{ t('admin.wallets.systemWallets.withdrawals', { status: meta.withdrawals_enabled ? t('admin.shared.boolean.enabled') : t('admin.shared.boolean.disabled') }) }}</a-tag>
+                    <a-tag>{{ t('admin.wallets.systemWallets.confirmations', { count: meta.confirmations_required }) }}</a-tag>
                 </a-space>
 
                 <a-row :gutter="[16, 16]">
@@ -148,13 +151,13 @@ function txUrl(hash) {
                                     <a-col :span="12">
                                         <a-statistic
                                             :title="wallet.native_asset"
-                                            :value="wallet.native != null ? formatUsdt(wallet.native, 6) : '—'"
+                                            :value="wallet.native != null ? formatUsdt(wallet.native, 6) : t('admin.shared.empty')"
                                         />
                                     </a-col>
                                     <a-col :span="12">
                                         <a-statistic
                                             title="USDT"
-                                            :value="wallet.usdt != null ? formatUsdt(wallet.usdt, 6) : '—'"
+                                            :value="wallet.usdt != null ? formatUsdt(wallet.usdt, 6) : t('admin.shared.empty')"
                                             :value-style="{ color: '#52c41a' }"
                                         />
                                     </a-col>
@@ -167,7 +170,7 @@ function txUrl(hash) {
                 </a-row>
             </a-card>
 
-            <a-card title="Клиентские адреса депозита" size="small" class="admin-ant-card">
+            <a-card :title="t('admin.wallets.clientAddresses.cardTitle')" size="small" class="admin-ant-card">
                 <a-table
                     :columns="walletColumns"
                     :data-source="wallets.data"
@@ -178,9 +181,9 @@ function txUrl(hash) {
                     <template #bodyCell="{ column, record }">
                         <template v-if="column.key === 'client'">
                             <div>
-                                <a-typography-text strong>{{ record.user?.phone ?? '—' }}</a-typography-text>
+                                <a-typography-text strong>{{ record.user?.phone ?? t('admin.shared.empty') }}</a-typography-text>
                                 <div class="admin-ant-meta">
-                                    {{ record.user?.name ?? '—' }} · KYC: {{ record.user?.kyc_status ?? '—' }}
+                                    {{ record.user?.name ?? t('admin.shared.empty') }} · {{ t('admin.wallets.clientAddresses.kyc', { status: record.user?.kyc_status ?? t('admin.shared.empty') }) }}
                                 </div>
                             </div>
                         </template>
@@ -197,14 +200,14 @@ function txUrl(hash) {
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Адресов не найдено" />
+                        <a-empty :description="t('admin.wallets.clientAddresses.empty')" />
                     </template>
                 </a-table>
 
                 <AdminPagination :pagination="wallets" page-param="wallets_page" />
             </a-card>
 
-            <a-card title="История депозитов" size="small" class="admin-ant-card">
+            <a-card :title="t('admin.wallets.deposits.cardTitle')" size="small" class="admin-ant-card">
                 <AdminFilters
                     :model-value="filters.deposit_status"
                     :options="depositStatusOptions"
@@ -251,7 +254,7 @@ function txUrl(hash) {
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Депозитов не найдено" />
+                        <a-empty :description="t('admin.wallets.deposits.empty')" />
                     </template>
                 </a-table>
 

@@ -5,6 +5,7 @@ import { useSupportChat } from '@/composables/useSupportChat';
 import { localizedPath } from '@/utils/localizedPath';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     orderId: {
@@ -33,6 +34,7 @@ const messagesEl = ref(null);
 const proofInput = ref(null);
 const uploadingProof = ref(false);
 const proofError = ref(null);
+const { t, locale } = useI18n();
 
 const showProofHint = computed(() => props.needsPaymentProof && !props.paymentProof);
 
@@ -49,10 +51,10 @@ const {
 } = useSupportChat(props.orderId);
 
 const backLabel = computed(() =>
-    props.backUrl.startsWith('/exchange/orders/') ? 'К заявке' : 'Назад',
+    props.backUrl.startsWith('/exchange/orders/') ? t('support.chat.backToOrder') : t('common.back'),
 );
 
-const proofMessageMarker = 'скриншот оплаты отправлен';
+const proofMessageMarker = computed(() => t('support.chat.proof.messageMarker').toLowerCase());
 
 const proofAttachmentMessageId = computed(() => {
     if (!props.paymentProof) {
@@ -60,7 +62,7 @@ const proofAttachmentMessageId = computed(() => {
     }
 
     const proofMessages = messages.value.filter(
-        (message) => message.is_mine && message.body?.toLowerCase().includes(proofMessageMarker),
+        (message) => message.is_mine && message.body?.toLowerCase().includes(proofMessageMarker.value),
     );
 
     if (proofMessages.length > 0) {
@@ -106,7 +108,9 @@ function formatTime(value) {
         return '';
     }
 
-    return new Date(value).toLocaleString('ru-RU', {
+    const dateLocale = locale.value === 'kk' ? 'kk-KZ' : (locale.value === 'en' ? 'en-US' : 'ru-RU');
+
+    return new Date(value).toLocaleString(dateLocale, {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',
@@ -147,7 +151,7 @@ async function uploadProofFile(file) {
         const proofErrors = data.errors?.proof;
         const proofMessage = Array.isArray(proofErrors) ? proofErrors[0] : proofErrors;
 
-        throw new Error(proofMessage ?? data.message ?? 'Не удалось отправить скриншот.');
+        throw new Error(proofMessage ?? data.message ?? t('support.chat.proof.uploadFailed'));
     }
 
     return data;
@@ -165,7 +169,7 @@ function onProofSelected(event) {
 
     uploadProofFile(file)
         .then(async () => {
-            draft.value = 'Скриншот оплаты отправлен.';
+            draft.value = t('support.chat.proof.sentMessage');
             await sendMessage();
             await loadThread({ silent: true });
             router.reload({ only: ['paymentProof', 'needsPaymentProof', 'canUploadProof'], preserveScroll: true });
@@ -181,11 +185,11 @@ function onProofSelected(event) {
 </script>
 
 <template>
-    <Head title="Чат с поддержкой" />
+    <Head :title="t('support.chat.headTitle')" />
 
     <ExchangeLayout hide-header flush-main>
         <div class="support-chat-layout support-chat-layout--fullscreen">
-            <section class="support-chat-page support-chat-page--fullscreen" aria-label="Чат с поддержкой">
+            <section class="support-chat-page support-chat-page--fullscreen" :aria-label="t('support.chat.aria.section')">
                 <header class="support-chat-page__header support-chat-page__header--with-back">
                     <Link
                         :href="localizedPath(backUrl)"
@@ -195,8 +199,8 @@ function onProofSelected(event) {
                         <span class="material-symbols-outlined text-xl" aria-hidden="true">arrow_back</span>
                     </Link>
                     <div class="min-w-0 flex-1">
-                        <p class="support-chat-page__title">Чат по заявке №{{ orderId }}</p>
-                        <p class="support-chat-page__subtitle">Ответит администратор обменника</p>
+                        <p class="support-chat-page__title">{{ t('support.chat.title', { id: orderId }) }}</p>
+                        <p class="support-chat-page__subtitle">{{ t('support.chat.subtitle') }}</p>
                     </div>
                 </header>
 
@@ -207,22 +211,22 @@ function onProofSelected(event) {
                 >
                     <span class="material-symbols-outlined support-chat-page__proof-hint-icon" aria-hidden="true">receipt_long</span>
                     <div class="min-w-0 flex-1">
-                        <p class="support-chat-page__proof-hint-title">Отправьте скриншот оплаты</p>
+                        <p class="support-chat-page__proof-hint-title">{{ t('support.chat.proof.hintTitle') }}</p>
                         <p class="support-chat-page__proof-hint-text">
-                            Прикрепите чек перевода через кнопку
+                            {{ t('support.chat.proof.hintTextBefore') }}
                             <span class="material-symbols-outlined align-middle text-base" aria-hidden="true">attach_file</span>
-                            внизу — так администратор быстрее подтвердит заявку.
+                            {{ t('support.chat.proof.hintTextAfter') }}
                         </p>
                     </div>
                 </div>
 
                 <div ref="messagesEl" class="support-chat-page__messages">
-                    <p v-if="loading && messages.length === 0" class="support-chat-page__empty">Загрузка...</p>
+                    <p v-if="loading && messages.length === 0" class="support-chat-page__empty">{{ t('common.loading') }}</p>
                     <p v-else-if="messages.length === 0 && showProofHint" class="support-chat-page__empty">
-                        После перевода KZT отправьте скриншот чека в этот чат.
+                        {{ t('support.chat.empty.needProof') }}
                     </p>
                     <p v-else-if="messages.length === 0" class="support-chat-page__empty">
-                        Напишите вопрос — администратор ответит здесь.
+                        {{ t('support.chat.empty.default') }}
                     </p>
                     <div
                         v-for="message in messages"
@@ -254,7 +258,7 @@ function onProofSelected(event) {
                         type="button"
                         class="support-chat-page__attach"
                         :disabled="uploadingProof"
-                        aria-label="Отправить скриншот оплаты"
+                        :aria-label="t('support.chat.proof.attachAria')"
                         @click="openProofPicker"
                     >
                         <span
@@ -277,7 +281,7 @@ function onProofSelected(event) {
                         rows="1"
                         maxlength="2000"
                         class="support-chat-page__input"
-                        :placeholder="showProofHint ? '' : 'Сообщение...'"
+                        :placeholder="showProofHint ? '' : t('support.chat.messagePlaceholder')"
                         :disabled="sending"
                         @keydown.enter.exact.prevent="onSubmit"
                     />
@@ -285,7 +289,7 @@ function onProofSelected(event) {
                         type="submit"
                         class="support-chat-page__send"
                         :disabled="sending || !draft.trim()"
-                        aria-label="Отправить"
+                        :aria-label="t('support.chat.sendAria')"
                     >
                         <span class="material-symbols-outlined" aria-hidden="true">send</span>
                     </button>

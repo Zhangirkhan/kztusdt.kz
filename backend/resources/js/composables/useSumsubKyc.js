@@ -1,6 +1,7 @@
 import { onUnmounted, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { localizedPath } from '@/utils/localizedPath';
+import { i18n } from '@/i18n';
 
 export function useSumsubKyc(options = {}) {
     const error = ref('');
@@ -23,7 +24,7 @@ export function useSumsubKyc(options = {}) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error ?? 'Не удалось получить токен проверки');
+            throw new Error(data.error ?? i18n.global.t('sumsub.errors.token'));
         }
 
         return data.token;
@@ -41,18 +42,18 @@ export function useSumsubKyc(options = {}) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error ?? 'Не удалось обновить статус проверки');
+            throw new Error(data.error ?? i18n.global.t('sumsub.errors.sync'));
         }
 
         if (data.kyc_status === 'approved') {
-            notice.value = 'Верификация одобрена.';
+            notice.value = i18n.global.t('sumsub.notice.approved');
             options.onApproved?.(data);
         } else if (data.kyc_status === 'rejected') {
             notice.value = '';
             options.onRejected?.(data);
             router.reload({ only: options.reloadOnly ?? ['profile', 'kycStatus', 'rejectionReason', 'provider', 'userStatus', 'kyc'] });
         } else if (data.kyc_status === 'pending_review') {
-            notice.value = 'Документы отправлены на проверку. Обычно это занимает 1–2 минуты.';
+            notice.value = i18n.global.t('sumsub.notice.pendingReview');
             options.onPending?.(data);
         }
 
@@ -84,7 +85,7 @@ export function useSumsubKyc(options = {}) {
             const script = document.createElement('script');
             script.src = 'https://static.sumsub.com/idensic/static/sns-websdk-builder.js';
             script.onload = resolve;
-            script.onerror = () => reject(new Error('Не удалось загрузить Sumsub SDK'));
+            script.onerror = () => reject(new Error(i18n.global.t('sumsub.errors.sdkLoad')));
             document.head.appendChild(script);
         });
     }
@@ -93,19 +94,19 @@ export function useSumsubKyc(options = {}) {
         const reason = String(err?.reason ?? err?.code ?? err?.message ?? err ?? '');
 
         if (/permission/i.test(reason)) {
-            return 'Нет доступа к камере. Разрешите камеру для kztusdt.kz в настройках браузера и обновите страницу.';
+            return i18n.global.t('sumsub.errors.cameraPermission');
         }
 
-        return reason || 'Ошибка проверки';
+        return reason || i18n.global.t('sumsub.errors.generic');
     }
 
     function mapStepLabel(step) {
         if (step === 'IDENTITY' || step === 'IDENTITY2') {
-            return 'Сфотографируйте удостоверение';
+            return i18n.global.t('sumsub.steps.identity');
         }
 
         if (step === 'SELFIE' || step === 'LIVENESS') {
-            return 'Видео-подтверждение: следуйте подсказкам на экране';
+            return i18n.global.t('sumsub.steps.selfie');
         }
 
         return '';
@@ -139,7 +140,7 @@ export function useSumsubKyc(options = {}) {
                     }
                 })
                 .on('idCheck.onApplicantSubmitted', () => {
-                    notice.value = 'Документы и видео отправлены. Обновляем статус…';
+                    notice.value = i18n.global.t('sumsub.notice.submitted');
                     scheduleStatusSync();
                     syncSumsubStatus().catch(() => {});
                 })
@@ -149,7 +150,7 @@ export function useSumsubKyc(options = {}) {
                 .build()
                 .launch(`#${containerId}`);
         } catch (err) {
-            error.value = err?.message ?? 'Не удалось запустить проверку';
+            error.value = err?.message ?? i18n.global.t('sumsub.errors.launch');
             launched = false;
         } finally {
             loading.value = false;

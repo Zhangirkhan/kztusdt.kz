@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n';
+
 const WS_URLS = [
     'wss://127.0.0.1:13579',
     'wss://localhost:13579',
@@ -35,16 +37,16 @@ function extractSignature(response) {
     }
 
     if (response?.code === '500' || response?.code === 500) {
-        throw new Error(response.message || 'Ошибка NCALayer');
+        throw new Error(response.message || i18n.global.t('ncalayer.errors.generic'));
     }
 
     if (response?.status === false) {
-        const details = response.details || response.message || 'Подписание отменено';
+        const details = response.details || response.message || i18n.global.t('ncalayer.errors.cancelled');
 
         throw new Error(typeof details === 'string' ? details : JSON.stringify(details));
     }
 
-    throw new Error('Не удалось получить подпись от NCALayer');
+    throw new Error(i18n.global.t('ncalayer.errors.signatureMissing'));
 }
 
 function connectNcaLayer() {
@@ -57,7 +59,7 @@ function connectNcaLayer() {
             if (index >= WS_URLS.length) {
                 if (! settled) {
                     settled = true;
-                    reject(new Error('NCALayer не запущен. Установите и запустите NCALayer с сайта НУЦ РК.'));
+                    reject(new Error(i18n.global.t('ncalayer.errors.notRunning')));
                 }
 
                 return;
@@ -96,7 +98,7 @@ function sendRequest(socket, payload) {
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
             socket.close();
-            reject(new Error('Превышено время ожидания ответа NCALayer'));
+            reject(new Error(i18n.global.t('ncalayer.errors.timeout')));
         }, REQUEST_TIMEOUT_MS);
 
         socket.onmessage = (event) => {
@@ -113,16 +115,14 @@ function sendRequest(socket, payload) {
 
         socket.onerror = () => {
             clearTimeout(timeout);
-            reject(new Error('Ошибка соединения с NCALayer'));
+            reject(new Error(i18n.global.t('ncalayer.errors.connection')));
         };
 
         socket.send(JSON.stringify(payload));
     });
 }
 
-/**
- * Подписать данные (Base64) отсоединённой CMS-подписью через NCALayer (ПК).
- */
+/** Sign Base64 data with detached CMS signature via NCALayer desktop app. */
 export async function signBase64Detached(base64Data) {
     const socket = await connectNcaLayer();
 

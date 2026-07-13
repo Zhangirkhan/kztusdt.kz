@@ -8,8 +8,8 @@ use Tests\TestCase;
 
 final class ExampleTest extends TestCase
 {
-    public function test_the_application_redirects_root_to_phone_auth(): void
+    public function test_the_application_redirects_root_to_locale_home(): void
     {
-        $this->get('/')->assertRedirect('/auth/phone');
+        $this->get('/')->assertRedirect('/ru/');
     }
 }

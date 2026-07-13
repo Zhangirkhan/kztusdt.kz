@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AppLogo from '@/Components/AppLogo.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     company: {
@@ -9,6 +10,7 @@ const props = defineProps({
         default: null,
     },
 });
+const { t } = useI18n();
 
 const data = computed(() => props.company ?? usePage().props.companyHero ?? usePage().props.company ?? {});
 </script>
@@ -29,7 +31,7 @@ const data = computed(() => props.company ?? usePage().props.companyHero ?? useP
         </p>
 
         <p v-if="data.legal_name" class="mt-3 text-xs text-text-dim">
-            Оператор: {{ data.legal_name }}, БИН {{ data.bin }}
+            {{ t('company.operatorBin', { legalName: data.legal_name, bin: data.bin }) }}
         </p>
     </section>
 </template>

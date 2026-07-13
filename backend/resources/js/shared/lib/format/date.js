@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n';
+
 const LOCALE_MAP = {
     ru: 'ru-RU',
     kk: 'kk-KZ',
@@ -18,7 +20,7 @@ export function formatDate(value, locale = 'ru') {
 
 export function formatDateTime(value, locale = 'ru-RU') {
     if (!value) {
-        return '—';
+        return i18n.global.t('common.empty');
     }
 
     return new Date(value).toLocaleString(locale);
@@ -34,10 +36,10 @@ export function formatTime(value, locale = 'ru-RU') {
 
 export function formatHistoryGroupLabel(isoDate) {
     if (!isoDate) {
-        return 'Без даты';
+        return i18n.global.t('history.group.noDate');
     }
 
-    return new Date(isoDate).toLocaleDateString('ru-RU', {
+    return new Date(isoDate).toLocaleDateString(resolveDateLocale(i18n.global.locale.value), {
         day: 'numeric',
         month: 'long',
         year: 'numeric',

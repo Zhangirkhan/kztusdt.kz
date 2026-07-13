@@ -66,9 +66,9 @@ final class PhoneAuthTest extends TestCase
         return self::OTP_CODE;
     }
 
-    public function test_root_redirects_to_phone_auth_page(): void
+    public function test_root_redirects_to_locale_home(): void
     {
-        $this->get('/')->assertRedirect('/auth/phone');
+        $this->get('/')->assertRedirect('/ru/');
     }
 
     public function test_start_sends_otp_and_creates_pending_session(): void

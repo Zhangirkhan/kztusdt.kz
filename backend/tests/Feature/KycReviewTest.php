@@ -8,6 +8,7 @@ use App\Jobs\CreateWalletAfterKycApproved;
 use App\Models\KycProfile;
 use App\Models\ManualApproval;
 use App\Models\WalletAddress;
+use App\Support\AdminUrl;
 use App\Services\UserNotificationService;
 use App\Services\WalletService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,7 +31,7 @@ final class KycReviewTest extends TestCase
         $admin = $this->createStaff('super_admin');
         $user = $this->createUnverifiedClient();
 
-        $this->actingAs($admin)
+        $this->actingAsAdmin($admin)
             ->post(route('admin.users.kyc.manual-approve', $user), [
                 'first_name' => 'Айгуль',
                 'last_name' => 'Серикова',
@@ -61,7 +62,7 @@ final class KycReviewTest extends TestCase
     {
         $client = $this->createClient();
 
-        $this->actingAs($client)->get('/admin/kyc')->assertForbidden();
+        $this->actingAs($client)->get('/admin/kyc')->assertRedirect(AdminUrl::to('kyc'));
     }
 
     public function test_security_officer_sees_pending_profiles(): void
@@ -69,7 +70,7 @@ final class KycReviewTest extends TestCase
         $officer = $this->createStaff('security_officer');
         $this->makePendingProfile();
 
-        $this->actingAs($officer)->get('/admin/kyc')->assertOk();
+        $this->actingAsAdmin($officer)->get('/admin/kyc')->assertOk();
     }
 
     public function test_approval_marks_profile_and_dispatches_wallet_job(): void
@@ -79,7 +80,7 @@ final class KycReviewTest extends TestCase
         $officer = $this->createStaff('security_officer');
         $profile = $this->makePendingProfile();
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/kyc/{$profile->id}/approve", ['comment' => 'Все документы в порядке'])
             ->assertRedirect(route('admin.kyc.show', $profile));
 
@@ -112,7 +113,7 @@ final class KycReviewTest extends TestCase
         $officer = $this->createStaff('security_officer');
         $profile = $this->makePendingProfile();
 
-        $this->actingAs($officer)->post("/admin/kyc/{$profile->id}/approve");
+        $this->actingAsAdmin($officer)->post("/admin/kyc/{$profile->id}/approve");
 
         $wallet = WalletAddress::query()->where('user_id', $profile->user_id)->firstOrFail();
 
@@ -128,7 +129,7 @@ final class KycReviewTest extends TestCase
         $officer = $this->createStaff('security_officer');
         $profile = $this->makePendingProfile();
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/kyc/{$profile->id}/reject", ['reason' => 'Фото нечитаемо'])
             ->assertRedirect(route('admin.kyc.show', $profile));
 
@@ -152,7 +153,7 @@ final class KycReviewTest extends TestCase
         $officer = $this->createStaff('security_officer');
         $profile = $this->makePendingProfile();
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/kyc/{$profile->id}/reject", [])
             ->assertSessionHasErrors(['reason']);
     }
@@ -162,7 +163,7 @@ final class KycReviewTest extends TestCase
         $officer = $this->createStaff('security_officer');
         $profile = $this->makePendingProfile('approved');
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/kyc/{$profile->id}/approve")
             ->assertStatus(422);
     }
@@ -173,7 +174,7 @@ final class KycReviewTest extends TestCase
         $profile = $this->makePendingProfile('approved');
         $profile->user->update(['kyc_status' => 'approved']);
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/kyc/{$profile->id}/reset", ['comment' => 'Повторная верификация'])
             ->assertRedirect(route('admin.kyc.show', $profile));
 
@@ -194,7 +195,7 @@ final class KycReviewTest extends TestCase
         $profile = $this->makePendingProfile('draft');
         $profile->user->update(['kyc_status' => 'none']);
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->post("/admin/kyc/{$profile->id}/reset")
             ->assertStatus(422);
     }
@@ -208,7 +209,7 @@ final class KycReviewTest extends TestCase
         $sumsub = $this->makePendingProfile();
         $sumsub->update(['provider' => 'sumsub', 'sumsub_applicant_id' => 'applicant-1']);
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->get('/admin/kyc?status=all')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
@@ -216,7 +217,7 @@ final class KycReviewTest extends TestCase
                 ->has('profiles.data', 1)
                 ->where('profiles.data.0.id', $manual->id));
 
-        $this->actingAs($officer)
+        $this->actingAsAdmin($officer)
             ->get("/admin/kyc/{$sumsub->id}")
             ->assertNotFound();
     }

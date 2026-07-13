@@ -226,7 +226,7 @@ function bankName(code) {
                     </div>
 
                     <div v-if="renamingCardId === card.id" class="mt-3 space-y-2">
-                        <input v-model="renameValue" class="input-field" maxlength="255" placeholder="Название карты" />
+                        <input v-model="renameValue" class="input-field" maxlength="255" :placeholder="t('bank.cardNamePlaceholder')" />
                         <div class="flex gap-2">
                             <button type="button" class="btn-primary flex-1" @click="submitRename(card)">{{ t('common.save') }}</button>
                             <button type="button" class="btn-secondary flex-1" @click="cancelRename">{{ t('common.cancel') }}</button>
@@ -332,7 +332,7 @@ function bankName(code) {
                             class="input-field"
                             required
                             maxlength="255"
-                            placeholder="Иванов Иван Иванович"
+                            :placeholder="t('bank.holderNamePlaceholder')"
                         />
                         <p v-if="form.errors.holder_name" class="mt-2 text-sm text-error">{{ form.errors.holder_name }}</p>
                     </div>
@@ -346,7 +346,7 @@ function bankName(code) {
                             inputmode="numeric"
                             autocomplete="off"
                             maxlength="12"
-                            placeholder="12 цифр"
+                            :placeholder="t('bank.iinPlaceholder')"
                             @input="(e) => { form.iin = e.target.value.replace(/\\D/g, '').slice(0, 12); e.target.value = form.iin; }"
                         />
                         <p v-if="form.errors.iin" class="mt-2 text-sm text-error">{{ form.errors.iin }}</p>

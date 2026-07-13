@@ -3,22 +3,25 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     logs: Object,
     filters: Object,
 });
 
+const { t } = useI18n();
+
 const search = ref(props.filters?.q ?? '');
 
-const columns = [
+const columns = computed(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: 'Action', key: 'action' },
     { title: 'Entity', key: 'entity' },
-    { title: 'Пользователь', key: 'user' },
-    { title: 'Дата', key: 'date', width: 180 },
-];
+    { title: t('admin.audit.columns.user'), key: 'user' },
+    { title: t('admin.audit.columns.date'), key: 'date', width: 180 },
+]);
 
 function submitSearch() {
     router.get('/admin/audit', { q: search.value }, { preserveState: true });
@@ -26,16 +29,16 @@ function submitSearch() {
 </script>
 
 <template>
-    <Head title="Журнал аудита" />
+    <Head :title="t('admin.audit.title')" />
 
     <AdminLayout>
-        <template #title>Журнал аудита</template>
+        <template #title>{{ t('admin.audit.title') }}</template>
 
         <AdminPage>
             <a-input-search
                 v-model:value="search"
-                placeholder="Поиск по action или entity"
-                enter-button="Найти"
+                :placeholder="t('admin.audit.searchPlaceholder')"
+                :enter-button="t('admin.shared.actions.find')"
                 size="large"
                 class="admin-ant-block"
                 @search="submitSearch"
@@ -61,16 +64,16 @@ function submitSearch() {
                         </template>
 
                         <template v-else-if="column.key === 'user'">
-                            {{ record.user?.name || record.user?.email || '—' }}
+                            {{ record.user?.name || record.user?.email || t('admin.shared.empty') }}
                         </template>
 
                         <template v-else-if="column.key === 'date'">
-                            {{ record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : '—' }}
+                            {{ record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : t('admin.shared.empty') }}
                         </template>
                     </template>
 
                     <template #emptyText>
-                        <a-empty description="Записей не найдено" />
+                        <a-empty :description="t('admin.audit.empty')" />
                     </template>
                 </a-table>
 

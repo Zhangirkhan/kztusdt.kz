@@ -1,20 +1,20 @@
 import { i18n } from '@/i18n';
-import { localizedPath } from '@/utils/localizedPath';
+import { localizedPathFor } from '@/utils/localizedPath';
 
-export function buildProfileMenuItems(languageLabel, canUseWallet = true) {
+export function buildProfileMenuItems(languageLabel, canUseWallet = true, locale = 'ru') {
     return [
-        { href: localizedPath('/profile/personal'), icon: 'badge', labelKey: 'profile.menu.personal' },
+        { href: localizedPathFor(locale, '/profile/personal'), icon: 'badge', labelKey: 'profile.menu.personal' },
         {
-            href: canUseWallet ? localizedPath('/profile/bank') : localizedPath('/kyc'),
+            href: canUseWallet ? localizedPathFor(locale, '/profile/bank') : localizedPathFor(locale, '/kyc'),
             icon: 'account_balance_wallet',
             labelKey: 'profile.menu.bank',
             locked: !canUseWallet,
         },
-        { href: localizedPath('/profile/security'), icon: 'security', labelKey: 'profile.menu.security' },
-        { href: localizedPath('/profile/language'), icon: 'translate', labelKey: 'profile.menu.language', value: languageLabel },
-        { href: localizedPath('/profile/appearance'), icon: 'dark_mode', labelKey: 'profile.menu.appearance' },
-        { href: localizedPath('/profile/notifications'), icon: 'notifications', labelKey: 'profile.menu.notifications' },
-        { href: localizedPath('/profile/support'), icon: 'support_agent', labelKey: 'profile.menu.support' },
+        { href: localizedPathFor(locale, '/profile/security'), icon: 'security', labelKey: 'profile.menu.security' },
+        { href: localizedPathFor(locale, '/profile/language'), icon: 'translate', labelKey: 'profile.menu.language', value: languageLabel },
+        { href: localizedPathFor(locale, '/profile/appearance'), icon: 'dark_mode', labelKey: 'profile.menu.appearance' },
+        { href: localizedPathFor(locale, '/profile/notifications'), icon: 'notifications', labelKey: 'profile.menu.notifications' },
+        { href: localizedPathFor(locale, '/profile/support'), icon: 'support_agent', labelKey: 'profile.menu.support' },
     ];
 }
 

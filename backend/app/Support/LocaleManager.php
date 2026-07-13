@@ -113,6 +113,11 @@ final class LocaleManager
         $parts = parse_url($target);
 
         $path = (string) ($parts['path'] ?? '');
+
+        if (self::isAdminPath($path) || self::isAdminHostUrl($target)) {
+            return self::sameHostUrl($target, self::normalizeAdminPath($path));
+        }
+
         $localizedPath = self::localizedPath($locale, $path !== '' ? $path : '/');
         $query = isset($parts['query']) && $parts['query'] !== '' ? '?'.$parts['query'] : '';
         $fragment = isset($parts['fragment']) && $parts['fragment'] !== '' ? '#'.$parts['fragment'] : '';
@@ -126,6 +131,61 @@ final class LocaleManager
         }
 
         return $localizedPath.$query.$fragment;
+    }
+
+    public static function redirectAfterLocaleChange(Request $request, string $locale): string
+    {
+        $referer = (string) ($request->headers->get('referer') ?: url()->previous());
+        $path = (string) (parse_url($referer, PHP_URL_PATH) ?? '/');
+
+        if (self::isAdminPath($path) || AdminUrl::isAdminHost($request) || self::isAdminHostUrl($referer)) {
+            return self::sameHostUrl($referer, self::normalizeAdminPath($path));
+        }
+
+        return self::localizedUrl($locale, $referer);
+    }
+
+    public static function isAdminPath(string $path): bool
+    {
+        $normalized = '/'.trim($path, '/');
+
+        return $normalized === '/admin' || str_starts_with($normalized, '/admin/');
+    }
+
+    private static function normalizeAdminPath(string $path): string
+    {
+        $segments = explode('/', trim($path, '/'));
+
+        if (($segments[0] ?? '') !== '' && self::isSupported($segments[0])) {
+            array_shift($segments);
+        }
+
+        $normalized = '/'.implode('/', $segments);
+
+        if ($normalized === '/' || $normalized === '') {
+            return '/admin';
+        }
+
+        return $normalized;
+    }
+
+    private static function isAdminHostUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return is_string($host) && strtolower($host) === strtolower(AdminUrl::domain());
+    }
+
+    private static function sameHostUrl(string $baseUrl, string $path): string
+    {
+        $parts = parse_url($baseUrl);
+        $scheme = (string) ($parts['scheme'] ?? request()->getScheme());
+        $host = (string) ($parts['host'] ?? request()->getHost());
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $query = isset($parts['query']) && $parts['query'] !== '' ? '?'.$parts['query'] : '';
+        $fragment = isset($parts['fragment']) && $parts['fragment'] !== '' ? '#'.$parts['fragment'] : '';
+
+        return sprintf('%s://%s%s%s%s%s', $scheme, $host, $port, $path, $query, $fragment);
     }
 
     public static function apply(string $locale): void
