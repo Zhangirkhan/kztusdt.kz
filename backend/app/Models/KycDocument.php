@@ -19,6 +19,10 @@ final class KycDocument extends Model
         'file_size',
     ];
 
+    protected $hidden = [
+        'file_path',
+    ];
+
     public function kycProfile(): BelongsTo
     {
         return $this->belongsTo(KycProfile::class);

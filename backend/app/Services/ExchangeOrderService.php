@@ -267,6 +267,24 @@ final class ExchangeOrderService
         }
 
         DB::transaction(function () use ($order, $file): void {
+            $order = ExchangeOrder::query()->lockForUpdate()->findOrFail($order->id);
+            $order->load('fiatPaymentRequest');
+
+            if (! in_array($order->status, [
+                ExchangeOrder::STATUS_AWAITING_KZT_PAYMENT,
+                ExchangeOrder::STATUS_PAYMENT_PROOF_UPLOADED,
+                ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION,
+            ], true)) {
+                throw new RuntimeException('Заявка не ожидает загрузку подтверждения оплаты.');
+            }
+
+            if (
+                $order->status === ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION
+                && $order->fiatPaymentRequest?->proof_file_path !== null
+            ) {
+                throw new RuntimeException('Скрин оплаты уже загружен.');
+            }
+
             $path = $file->store("payment-proofs/{$order->user_id}", 'local');
 
             $order->fiatPaymentRequest()->lockForUpdate()->firstOrFail()->update([
@@ -312,6 +330,12 @@ final class ExchangeOrderService
         }
 
         DB::transaction(function () use ($order): void {
+            $order = ExchangeOrder::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->status !== ExchangeOrder::STATUS_AWAITING_KZT_PAYMENT) {
+                throw new RuntimeException('Заявка не ожидает подтверждения оплаты.');
+            }
+
             $order->update([
                 'status' => ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION,
                 'payment_marked_at' => now(),

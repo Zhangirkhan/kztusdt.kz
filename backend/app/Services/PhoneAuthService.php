@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\ClientType;
 use App\Models\AuthSession;
 use App\Models\User;
+use App\Support\RequestLogContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -62,7 +63,7 @@ final class PhoneAuthService
         if ($resumable !== null) {
             $this->auditLogService->log(
                 action: 'auth.phone.resume',
-                payload: ['phone' => $normalizedPhone, 'login_code' => $resumable->login_code],
+                payload: ['phone' => RequestLogContext::maskPhone($normalizedPhone)],
                 request: request(),
             );
 
@@ -93,7 +94,7 @@ final class PhoneAuthService
 
         $this->auditLogService->log(
             action: 'auth.phone.start',
-            payload: ['phone' => $normalizedPhone],
+            payload: ['phone' => RequestLogContext::maskPhone($normalizedPhone)],
             request: request(),
         );
 
@@ -146,7 +147,7 @@ final class PhoneAuthService
 
         $this->auditLogService->log(
             action: 'auth.phone.legal.pending',
-            payload: ['phone' => $normalizedPhone, 'bin' => $normalizedBin],
+            payload: ['phone' => RequestLogContext::maskPhone($normalizedPhone), 'bin' => $normalizedBin],
             request: request(),
         );
 
@@ -167,13 +168,12 @@ final class PhoneAuthService
 
         $session->update([
             'expires_at' => now()->addSeconds($expiresIn),
-            'code_attempts' => 0,
             'status' => 'pending',
         ]);
 
         $this->auditLogService->log(
             action: 'auth.phone.start',
-            payload: ['phone' => $session->phone],
+            payload: ['phone' => RequestLogContext::maskPhone($session->phone)],
             request: request(),
         );
 
@@ -188,17 +188,34 @@ final class PhoneAuthService
             throw new RuntimeException('Сначала подтвердите ЭЦП организации.');
         }
 
+        $maxAttempts = (int) config('otp.max_attempts');
+
+        if ($session->code_attempts >= $maxAttempts) {
+            $session->update(['status' => 'failed']);
+
+            throw new RuntimeException('Превышено число попыток. Запросите новый код.');
+        }
+
+        $cooldown = (int) config('otp.resend_cooldown_seconds', 60);
+        $ttl = max(1, (int) config('otp.code_ttl_seconds', 300));
+        $sentAt = $session->expires_at->copy()->subSeconds($ttl);
+
+        if ($sentAt->greaterThan(now()->subSeconds($cooldown))) {
+            $wait = max(1, $cooldown - $sentAt->diffInSeconds(now()));
+
+            throw new RuntimeException("Повторная отправка через {$wait} сек.");
+        }
+
         $expiresIn = $this->whatsappOtp->send($session->phone);
 
         $session->update([
             'expires_at' => now()->addSeconds($expiresIn),
-            'code_attempts' => 0,
             'status' => 'pending',
         ]);
 
         $this->auditLogService->log(
             action: 'auth.phone.resend',
-            payload: ['phone' => $session->phone],
+            payload: ['phone' => RequestLogContext::maskPhone($session->phone)],
             request: request(),
         );
 
@@ -251,7 +268,7 @@ final class PhoneAuthService
 
             $this->auditLogService->log(
                 action: 'auth.phone.code_invalid',
-                payload: ['phone' => $session->phone, 'attempts' => $attempts],
+                payload: ['phone' => RequestLogContext::maskPhone($session->phone), 'attempts' => $attempts],
                 request: request(),
             );
 
@@ -330,7 +347,7 @@ final class PhoneAuthService
             userId: $user->id,
             entityType: 'auth_session',
             entityId: $session->id,
-            payload: ['phone' => $session->phone],
+            payload: ['phone' => RequestLogContext::maskPhone($session->phone)],
             request: request(),
         );
 

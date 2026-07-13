@@ -77,6 +77,17 @@ final class LedgerService
         ?string $memo = null,
     ): void {
         DB::transaction(function () use ($userId, $asset, $grossAmount, $feeAmount, $refType, $refId, $memo): void {
+            $alreadyCredited = LedgerEntry::query()
+                ->where('ref_type', $refType)
+                ->where('ref_id', $refId)
+                ->where('account', 'user_available')
+                ->lockForUpdate()
+                ->exists();
+
+            if ($alreadyCredited) {
+                return;
+            }
+
             $netAmount = bcsub($grossAmount, $feeAmount, 18);
 
             $this->entry(null, 'external_fiat', $asset, $grossAmount, '0', $refType, $refId, $memo);

@@ -66,26 +66,27 @@ final class PhoneAuthPageController extends Controller
         }
 
         if ($session->isVerified()) {
-            $user = $session->user;
-
-            if ($user !== null) {
-                if (! Auth::check()) {
-                    Auth::login($user, remember: true);
-                    request()->session()->regenerate();
-                }
-
-                $pageProps = [
-                    'loginCode' => $loginCode,
-                    'phone' => $session->phone,
-                    'status' => $session->status,
-                    'expiresAt' => $session->expires_at->toIso8601String(),
-                    'codeLength' => (int) config('otp.code_length'),
-                ];
-
-                return $this->renderOnboardingStep($user, $pageProps);
+            // Verified login_code must not authenticate by itself (URL leak = takeover).
+            // Session is established only via OTP verify / other auth endpoints.
+            if (! Auth::check()) {
+                return redirect()->route('auth.phone', ['locale' => $locale]);
             }
 
-            return redirect()->route('auth.phone', ['locale' => $locale]);
+            $user = Auth::user();
+
+            if ($user === null || ($session->user_id !== null && (int) $session->user_id !== (int) $user->id)) {
+                return redirect()->route('auth.phone', ['locale' => $locale]);
+            }
+
+            $pageProps = [
+                'loginCode' => $loginCode,
+                'phone' => $this->maskedPhone($session->phone),
+                'status' => $session->status,
+                'expiresAt' => $session->expires_at->toIso8601String(),
+                'codeLength' => (int) config('otp.code_length'),
+            ];
+
+            return $this->renderOnboardingStep($user, $pageProps);
         }
 
         if ($session->status === 'failed') {
@@ -96,7 +97,7 @@ final class PhoneAuthPageController extends Controller
 
         $pageProps = [
             'loginCode' => $loginCode,
-            'phone' => $session->phone,
+            'phone' => $this->maskedPhone($session->phone),
             'status' => $session->status,
             'expiresAt' => $session->expires_at->toIso8601String(),
             'codeLength' => (int) config('otp.code_length'),
@@ -112,6 +113,11 @@ final class PhoneAuthPageController extends Controller
             'kycStatus' => 'none',
             'kyc' => null,
         ]);
+    }
+
+    private function maskedPhone(string $phone): string
+    {
+        return \App\Support\RequestLogContext::maskPhone($phone) ?? '***';
     }
 
     /**

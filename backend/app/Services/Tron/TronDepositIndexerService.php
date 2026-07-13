@@ -22,6 +22,8 @@ final class TronDepositIndexerService
 {
     private const NETWORK = 'TRC20';
 
+    private const MAX_PAGES = 10;
+
     public function __construct(
         private readonly TronGridClient $client,
         private readonly DepositConfirmationService $confirmationService,
@@ -36,7 +38,7 @@ final class TronDepositIndexerService
         $head = $this->client->blockNumber();
         $contract = (string) config('tron.usdt_contract');
         $decimals = (int) config('tron.usdt_decimals');
-        $limit = (int) config('tron.scan_limit', 50);
+        $limit = (int) config('tron.scan_limit', 200);
         $asset = (string) config('networks.networks.TRC20.asset', 'USDT');
 
         $wallets = WalletAddress::query()
@@ -72,63 +74,98 @@ final class TronDepositIndexerService
         string $asset,
         int $head,
     ): int {
-        $transfers = $this->client->incomingTrc20Transfers($wallet->address, $contract, $limit);
+        $knownHashes = Deposit::query()
+            ->where('wallet_address_id', $wallet->id)
+            ->orderByDesc('id')
+            ->limit(200)
+            ->pluck('tx_hash')
+            ->flip();
+
+        $fingerprint = null;
         $detected = 0;
 
-        foreach ($transfers as $transfer) {
-            if ((string) ($transfer['type'] ?? 'Transfer') !== 'Transfer') {
-                continue;
-            }
-
-            $txid = (string) ($transfer['transaction_id'] ?? '');
-            $amountRaw = (string) ($transfer['value'] ?? '0');
-
-            if ($txid === '' || $amountRaw === '0' || $amountRaw === '') {
-                continue;
-            }
-
-            // Guard against a different token reusing the endpoint shape.
-            $tokenContract = (string) ($transfer['token_info']['address'] ?? $contract);
-
-            if ($tokenContract !== $contract) {
-                continue;
-            }
-
-            $amount = bcdiv($amountRaw, bcpow('10', (string) $decimals, 0), 18);
-
-            $deposit = Deposit::query()->firstOrCreate(
-                [
-                    'network' => self::NETWORK,
-                    'tx_hash' => $txid,
-                    'log_index' => 0,
-                ],
-                [
-                    'user_id' => $wallet->user_id,
-                    'wallet_address_id' => $wallet->id,
-                    'asset' => $asset,
-                    'from_address' => (string) ($transfer['from'] ?? ''),
-                    'to_address' => $wallet->address,
-                    'amount' => $amount,
-                    'amount_raw' => $amountRaw,
-                    'block_number' => $this->resolveBlockNumber($txid, $head),
-                    'status' => 'detected',
-                    'detected_at' => now(),
-                ],
+        for ($page = 0; $page < self::MAX_PAGES; $page++) {
+            [$transfers, $nextFingerprint] = $this->client->incomingTrc20TransfersPage(
+                $wallet->address,
+                $contract,
+                $limit,
+                $fingerprint,
             );
 
-            if ($deposit->wasRecentlyCreated) {
-                $detected++;
+            if ($transfers === []) {
+                break;
+            }
 
-                $this->notifier->notifyKey(
-                    $deposit->user,
-                    'deposit_detected',
+            $hitKnown = false;
+
+            foreach ($transfers as $transfer) {
+                if ((string) ($transfer['type'] ?? 'Transfer') !== 'Transfer') {
+                    continue;
+                }
+
+                $txid = (string) ($transfer['transaction_id'] ?? '');
+                $amountRaw = (string) ($transfer['value'] ?? '0');
+
+                if ($txid === '' || $amountRaw === '0' || $amountRaw === '') {
+                    continue;
+                }
+
+                if ($knownHashes->has($txid)) {
+                    $hitKnown = true;
+
+                    continue;
+                }
+
+                // Guard against a different token reusing the endpoint shape.
+                $tokenContract = (string) ($transfer['token_info']['address'] ?? $contract);
+
+                if ($tokenContract !== $contract) {
+                    continue;
+                }
+
+                $amount = bcdiv($amountRaw, bcpow('10', (string) $decimals, 0), 18);
+
+                $deposit = Deposit::query()->firstOrCreate(
                     [
+                        'network' => self::NETWORK,
+                        'tx_hash' => $txid,
+                        'log_index' => 0,
+                    ],
+                    [
+                        'user_id' => $wallet->user_id,
+                        'wallet_address_id' => $wallet->id,
+                        'asset' => $asset,
+                        'from_address' => (string) ($transfer['from'] ?? ''),
+                        'to_address' => $wallet->address,
                         'amount' => $amount,
-                        'asset' => $deposit->asset,
-                        'network' => 'TRC20',
+                        'amount_raw' => $amountRaw,
+                        'block_number' => $this->resolveBlockNumber($txid, $head),
+                        'status' => 'detected',
+                        'detected_at' => now(),
                     ],
                 );
+
+                if ($deposit->wasRecentlyCreated) {
+                    $detected++;
+                    $knownHashes[$txid] = true;
+
+                    $this->notifier->notifyKey(
+                        $deposit->user,
+                        'deposit_detected',
+                        [
+                            'amount' => $amount,
+                            'asset' => $deposit->asset,
+                            'network' => 'TRC20',
+                        ],
+                    );
+                }
             }
+
+            if ($hitKnown || $nextFingerprint === null) {
+                break;
+            }
+
+            $fingerprint = $nextFingerprint;
         }
 
         return $detected;

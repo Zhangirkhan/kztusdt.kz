@@ -68,6 +68,10 @@ final class PhoneAuthController extends Controller
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 
+        if (! $user->isActive()) {
+            return response()->json(['message' => 'Аккаунт заблокирован.'], 403);
+        }
+
         Auth::loginUsingId($user->id, remember: true);
         $request->session()->regenerate();
 
@@ -83,6 +87,7 @@ final class PhoneAuthController extends Controller
         return response()->json([
             'verified' => true,
             'user_id' => $user->id,
+            'phone' => $user->phone,
             'redirect' => $kyc['needs_verification']
                 ? null
                 : route('home', ['locale' => LocaleManager::resolve($request)]),

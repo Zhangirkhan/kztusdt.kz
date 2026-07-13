@@ -40,7 +40,14 @@ return Application::configure(basePath: dirname(__DIR__))
             return \App\Support\RegistrationResume::path($request->user(), $request);
         });
 
-        $middleware->trustProxies(at: '*');
+        // nginx + Cloudflare already rewrite REMOTE_ADDR via CF-Connecting-IP.
+        // Trust proto/host only — do not take client IP from spoofable X-Forwarded-For.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT,
+        );
         $middleware->web(prepend: [
             \App\Http\Middleware\ResetZiggyRouteGenerator::class,
             \App\Http\Middleware\AttachRequestLogContext::class,
@@ -52,14 +59,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\HideTechnologyHeaders::class,
             \App\Http\Middleware\LogHttpRequests::class,
+            \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
             'api/auth/telegram/webhook',
-            'api/auth/phone/start',
-            'api/auth/phone/resend/*',
-            'api/auth/phone/verify/*',
-            'api/auth/biometric/check',
             'api/kyc/sumsub/webhook',
             'api/auth/aitu/logout',
             'api/auth/aitu/validate',

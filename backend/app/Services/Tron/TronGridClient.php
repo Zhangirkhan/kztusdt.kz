@@ -30,18 +30,24 @@ final class TronGridClient
     /**
      * Incoming TRC20 transfers to a given address (newest first).
      *
-     * @return array<int, array<string, mixed>>
+     * @return array{0: array<int, array<string, mixed>>, 1: string|null} [transfers, nextFingerprint]
      */
-    public function incomingTrc20Transfers(string $address, string $contract, int $limit): array
+    public function incomingTrc20TransfersPage(string $address, string $contract, int $limit, ?string $fingerprint = null): array
     {
+        $query = [
+            'only_to' => 'true',
+            'only_confirmed' => 'true',
+            'contract_address' => $contract,
+            'limit' => $limit,
+        ];
+
+        if ($fingerprint !== null && $fingerprint !== '') {
+            $query['fingerprint'] = $fingerprint;
+        }
+
         $response = $this->request()->get(
             $this->url("/v1/accounts/{$address}/transactions/trc20"),
-            [
-                'only_to' => 'true',
-                'only_confirmed' => 'true',
-                'contract_address' => $contract,
-                'limit' => $limit,
-            ],
+            $query,
         );
 
         if (! $response->successful()) {
@@ -49,8 +55,24 @@ final class TronGridClient
         }
 
         $data = $response->json('data');
+        $next = $response->json('meta.fingerprint');
 
-        return is_array($data) ? $data : [];
+        return [
+            is_array($data) ? $data : [],
+            is_string($next) && $next !== '' ? $next : null,
+        ];
+    }
+
+    /**
+     * Incoming TRC20 transfers to a given address (newest first).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function incomingTrc20Transfers(string $address, string $contract, int $limit): array
+    {
+        [$transfers] = $this->incomingTrc20TransfersPage($address, $contract, $limit);
+
+        return $transfers;
     }
 
     /**

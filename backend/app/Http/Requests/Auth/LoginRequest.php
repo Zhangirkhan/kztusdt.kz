@@ -53,13 +53,15 @@ class LoginRequest extends FormRequest
 
         $user = Auth::user();
 
-        if ($user === null || ! AdminNavPresenter::canAccessAdmin($user)) {
+        if ($user === null || ! AdminNavPresenter::canAccessAdmin($user) || ! $user->isActive()) {
             Auth::logout();
 
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => 'Доступ только для сотрудников. Клиентам — вход по телефону.',
+                'email' => $user !== null && ! $user->isActive()
+                    ? 'Аккаунт заблокирован.'
+                    : 'Доступ только для сотрудников. Клиентам — вход по телефону.',
             ]);
         }
 

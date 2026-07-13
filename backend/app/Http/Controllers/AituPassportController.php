@@ -120,6 +120,10 @@ final class AituPassportController extends Controller
             return $this->redirectWithError($request, $exception->getMessage());
         }
 
+        if (! $user->isActive()) {
+            return $this->redirectWithError($request, 'Аккаунт заблокирован.');
+        }
+
         Auth::loginUsingId($user->id, remember: true);
         $request->session()->regenerate();
         $request->session()->put(self::ID_TOKEN_KEY, $tokens['id_token']);

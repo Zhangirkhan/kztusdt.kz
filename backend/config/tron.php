@@ -17,8 +17,8 @@ return [
     // Confirmations (solidified blocks) required before crediting a deposit.
     'confirmations' => (int) env('TRON_CONFIRMATIONS', 19),
 
-    // How many TRC20 transfer events to pull per address polling pass.
-    'scan_limit' => (int) env('TRON_SCAN_LIMIT', 50),
+    // How many TRC20 transfer events to pull per address polling page.
+    'scan_limit' => (int) env('TRON_SCAN_LIMIT', 200),
 
     // Fee limit (in SUN, 1 TRX = 1_000_000 SUN) for a TRC20 transfer broadcast.
     'fee_limit' => (int) env('TRON_FEE_LIMIT', 30_000_000),

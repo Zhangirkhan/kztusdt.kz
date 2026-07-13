@@ -114,7 +114,7 @@ async function submitCode() {
             return;
         }
 
-        savePhone(props.phone);
+        savePhone(result.phone ?? props.phone);
 
         if (result.user_id && !isAppLockConfigured(result.user_id)) {
             pendingRedirect.value = result;

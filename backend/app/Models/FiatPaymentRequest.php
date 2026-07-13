@@ -39,6 +39,10 @@ final class FiatPaymentRequest extends Model
         'comment',
     ];
 
+    protected $hidden = [
+        'proof_file_path',
+    ];
+
     protected function casts(): array
     {
         return [

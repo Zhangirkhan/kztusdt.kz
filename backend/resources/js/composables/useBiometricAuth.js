@@ -25,6 +25,15 @@ function extractErrorMessage(payload, fallback = i18n.global.t('biometric.errors
     return payload.message ?? fallback;
 }
 
+function isBiometricCancelled(exception) {
+    const name = exception?.name ?? '';
+    const message = String(exception?.message ?? '');
+
+    return name === 'NotAllowedError'
+        || name === 'AbortError'
+        || /not allowed|abort|cancel|denied/i.test(message);
+}
+
 async function postJson(url, body = {}) {
     const response = await fetch(url, {
         method: 'POST',
@@ -105,7 +114,9 @@ export function useBiometricAuth() {
 
             navigateAfterAuth(result.callback ?? '/wallet');
         } catch (exception) {
-            error.value = exception.message ?? i18n.global.t('biometric.errors.unavailable');
+            if (! isBiometricCancelled(exception)) {
+                error.value = exception.message ?? i18n.global.t('biometric.errors.unavailable');
+            }
             throw exception;
         } finally {
             busy.value = false;

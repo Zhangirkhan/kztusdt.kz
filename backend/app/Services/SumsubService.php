@@ -67,7 +67,13 @@ final class SumsubService
         $applicantId = (string) ($response->json('id') ?? '');
 
         if (! $response->successful() || $applicantId === '') {
-            throw new RuntimeException('Sumsub: не удалось создать applicant: '.$response->body());
+            AppLog::warning('sumsub.applicant_create_failed', [
+                'user_id' => $user->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ], 'errors');
+
+            throw new RuntimeException('KYC временно недоступен. Попробуйте позже.');
         }
 
         $profile->update([
@@ -96,7 +102,13 @@ final class SumsubService
         $token = (string) ($response->json('token') ?? '');
 
         if (! $response->successful() || $token === '') {
-            throw new RuntimeException('Sumsub: не удалось получить access token: '.$response->body());
+            AppLog::warning('sumsub.access_token_failed', [
+                'user_id' => $user->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ], 'errors');
+
+            throw new RuntimeException('KYC временно недоступен. Попробуйте позже.');
         }
 
         return $token;
@@ -185,7 +197,13 @@ final class SumsubService
         $response = $this->request('GET', '/resources/applicants/'.rawurlencode($applicantId).'/one');
 
         if (! $response->successful()) {
-            throw new RuntimeException('Sumsub: не удалось получить статус applicant: '.$response->body());
+            AppLog::warning('sumsub.applicant_status_failed', [
+                'user_id' => $user->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ], 'errors');
+
+            throw new RuntimeException('KYC временно недоступен. Попробуйте позже.');
         }
 
         $review = $response->json('review') ?? [];
@@ -228,7 +246,13 @@ final class SumsubService
         $response = $this->request('GET', '/resources/applicants/'.rawurlencode($applicantId).'/one');
 
         if (! $response->successful()) {
-            throw new RuntimeException('Sumsub: не удалось получить данные applicant: '.$response->body());
+            AppLog::warning('sumsub.applicant_details_failed', [
+                'applicant_id' => $applicantId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ], 'errors');
+
+            throw new RuntimeException('KYC временно недоступен. Попробуйте позже.');
         }
 
         $data = $response->json() ?? [];

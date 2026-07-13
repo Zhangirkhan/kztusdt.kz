@@ -29,8 +29,9 @@ final class BiometricAuthController extends Controller
             ->where('phone_verified', true)
             ->first();
 
-        $available = $user !== null && $user->webauthnKeys()->exists();
+        $available = $user !== null && $user->isActive() && $user->webauthnKeys()->exists();
 
+        // Uniform shape — do not reveal whether the phone is registered.
         return response()->json([
             'available' => $available,
             'phone' => $available ? $phone : null,

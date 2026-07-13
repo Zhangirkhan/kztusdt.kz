@@ -166,9 +166,15 @@ final class User extends Authenticatable
         return app(\App\Services\SubscriptionPlanService::class)->feePercentFor($this);
     }
 
+    public function isActive(): bool
+    {
+        return ($this->status ?? 'active') === 'active';
+    }
+
     public function canUseWallet(): bool
     {
-        return $this->phone_verified
+        return $this->isActive()
+            && $this->phone_verified
             && $this->kyc_status === 'approved'
             && ! $this->hasIinMismatch();
     }
