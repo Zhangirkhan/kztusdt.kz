@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { clientTypeTagColor, statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -89,10 +90,9 @@ function clientTypeLabel(type) {
             <AdminFilters :model-value="clientTypeFilter" :options="clientTypeOptions" size="small" @change="(v) => applyFilters(statusFilter, v)" />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="users.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -133,10 +133,39 @@ function clientTypeLabel(type) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-space wrap :size="4">
+                                <a-typography-text strong>#{{ record.id }}</a-typography-text>
+                                <a-tag :color="clientTypeTagColor(record.client_type)">
+                                    {{ clientTypeLabel(record.client_type) }}
+                                </a-tag>
+                                <a-tag :color="statusTagColor(record.status)">{{ record.status }}</a-tag>
+                            </a-space>
+                            <div>
+                                <a-typography-text strong>{{ record.company_name || record.name || t('admin.shared.empty') }}</a-typography-text>
+                                <div class="admin-ant-meta">
+                                    {{ record.phone || record.email }}
+                                    <template v-if="record.client_type === 'legal_entity' && record.bin"> · {{ t('admin.users.index.meta.bin', { bin: record.bin }) }}</template>
+                                    <template v-else-if="record.iin"> · {{ t('admin.users.index.meta.iin', { iin: record.iin }) }}</template>
+                                </div>
+                            </div>
+                            <div class="admin-ant-meta">KYC: {{ record.kyc_status }}</div>
+                            <div class="admin-ant-meta">
+                                {{ t('admin.users.index.activity', { orders: record.exchange_orders_count, withdrawals: record.withdrawals_count, deposits: record.deposits_count }) }}
+                            </div>
+                        </div>
+                        <div class="admin-responsive-table__actions">
+                            <Link :href="`/admin/users/${record.id}`">
+                                <a-button type="primary" block>{{ t('admin.shared.actions.open') }}</a-button>
+                            </Link>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.users.index.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="users" />
             </a-card>

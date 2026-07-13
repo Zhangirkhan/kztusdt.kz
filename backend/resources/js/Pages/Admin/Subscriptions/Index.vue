@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import { formatPercent } from '@/utils/formatNumber';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
@@ -254,10 +255,9 @@ function statusColor(status) {
                     <a-button type="primary" @click="openGrant">{{ t('admin.subscriptions.userSubscriptions.grant') }}</a-button>
                 </template>
 
-                <a-table
+                <AdminResponsiveTable
                     :columns="subscriptionColumns"
                     :data-source="subscriptions.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -304,10 +304,38 @@ function statusColor(status) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>
+                                {{ record.user?.name ?? t('admin.shared.empty') }}
+                            </a-typography-text>
+                            <div class="admin-ant-meta">
+                                {{ record.user?.phone ?? record.user?.email ?? t('admin.shared.empty') }}
+                            </div>
+                        </div>
+                        <div>
+                            {{ record.plan?.name ?? t('admin.shared.empty') }}
+                            <a-tag color="processing" style="margin-left: 4px">
+                                {{ record.plan ? formatPercent(record.plan.fee_percent) : t('admin.shared.empty') }}%
+                            </a-tag>
+                            <div v-if="record.comment" class="admin-ant-meta">{{ record.comment }}</div>
+                        </div>
+                        <div>
+                            <div>{{ formatDate(record.starts_at) }} — {{ formatDate(record.expires_at) }}</div>
+                            <div class="admin-ant-meta">{{ t('admin.subscriptions.userSubscriptions.grantedBy', { name: record.granted_by?.name ?? t('admin.shared.empty') }) }}</div>
+                        </div>
+                        <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+                        <div v-if="record.status === 'active'" class="admin-responsive-table__actions">
+                            <a-button danger block @click="openCancelSubscription(record.id)">
+                                {{ t('admin.subscriptions.userSubscriptions.cancel') }}
+                            </a-button>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.subscriptions.userSubscriptions.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="subscriptions" />
             </a-card>
@@ -542,6 +570,18 @@ function statusColor(status) {
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+}
+
+@media (max-width: 767px) {
+    .admin-ant-plan-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-ant-plan-row .ant-btn {
+        width: 100%;
+        min-height: 40px;
+    }
 }
 
 .admin-ant-meta {

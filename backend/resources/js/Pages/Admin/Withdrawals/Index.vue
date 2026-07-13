@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { networkTagColor, withdrawalStatusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatUsdt } from '@/utils/formatNumber';
@@ -150,10 +151,9 @@ function explorerTxUrl(network, txHash) {
             <AdminFilters :model-value="filterStatus" :options="filterOptions" @change="setFilter" />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="withdrawals.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -216,10 +216,61 @@ function explorerTxUrl(network, txHash) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-space wrap :size="4">
+                                <a-typography-text strong>№{{ record.id }}</a-typography-text>
+                                <a-tag :color="networkTagColor(record.network)">{{ record.network }}</a-tag>
+                                <a-tag>{{ record.asset }}</a-tag>
+                                <a-tag v-if="record.requires_manual_approval" color="error">{{ t('admin.withdrawals.meta.compliance') }}</a-tag>
+                            </a-space>
+                            <div class="admin-ant-meta">
+                                {{ record.user?.name ?? t('admin.shared.empty') }} · {{ record.user?.phone ?? t('admin.shared.empty') }}
+                            </div>
+                            <div class="admin-ant-meta">
+                                {{ t('admin.withdrawals.meta.created', { date: formatDate(record.created_at) }) }}
+                                <template v-if="record.completed_at">
+                                    {{ t('admin.withdrawals.meta.completed', { date: formatDate(record.completed_at) }) }}
+                                </template>
+                            </div>
+                            <a-typography-text code class="admin-ant-meta">{{ record.to_address }}</a-typography-text>
+                            <div v-if="record.tx_hash">
+                                <a :href="explorerTxUrl(record.network, record.tx_hash)" target="_blank" rel="noopener">
+                                    <a-button type="link" size="small" style="padding-left: 0">
+                                        tx: {{ short(record.tx_hash) }}
+                                    </a-button>
+                                </a>
+                            </div>
+                            <a-typography-text v-if="record.last_error" type="danger" class="admin-ant-meta">
+                                {{ record.last_error }}
+                            </a-typography-text>
+                        </div>
+                        <div>
+                            <a-typography-text strong>{{ formatUsdt(record.amount, 2) }}</a-typography-text>
+                            <div class="admin-ant-meta">{{ t('admin.withdrawals.meta.debit', { amount: formatUsdt(record.total_debit, 4) }) }}</div>
+                        </div>
+                        <a-tag :color="withdrawalStatusTagColor(record.status)">
+                            {{ statusLabels[record.status] ?? record.status }}
+                        </a-tag>
+                        <div v-if="record.status === 'failed'" class="admin-responsive-table__actions">
+                            <a-popconfirm :title="t('admin.withdrawals.retryConfirm')" :ok-text="t('admin.shared.actions.yes')" :cancel-text="t('admin.shared.actions.no')" @confirm="retry(record.id)">
+                                <a-button type="primary" block>{{ t('admin.shared.actions.retry') }}</a-button>
+                            </a-popconfirm>
+                        </div>
+                        <div v-else-if="record.status === 'pending_review'" class="admin-responsive-table__actions">
+                            <a-space direction="vertical" style="width: 100%">
+                                <a-button type="primary" block @click="approve(record.id)">
+                                    {{ t('admin.shared.actions.approve') }}
+                                </a-button>
+                                <a-button danger block @click="startReject(record.id)">{{ t('admin.shared.actions.reject') }}</a-button>
+                            </a-space>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.withdrawals.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="withdrawals" />
             </a-card>

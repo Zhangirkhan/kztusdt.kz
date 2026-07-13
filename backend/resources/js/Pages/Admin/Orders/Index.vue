@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatKzt, formatUsdt } from '@/utils/formatNumber';
@@ -87,10 +88,9 @@ function formatDate(value) {
             <AdminFilters :model-value="filterDirection" :options="directionOptions" size="small" @change="setDirection" />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="orders.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -129,10 +129,37 @@ function formatDate(value) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>
+                                №{{ record.id }} · {{ record.direction === 'buy' ? t('admin.shared.direction.buy') : t('admin.shared.direction.sell') }}
+                            </a-typography-text>
+                            <div class="admin-ant-meta">
+                                {{ record.user?.name ?? t('admin.shared.empty') }} · {{ record.user?.phone ?? t('admin.shared.empty') }}
+                            </div>
+                        </div>
+                        <div>
+                            <a-typography-text strong>{{ formatKzt(record.fiat_amount) }} ₸</a-typography-text>
+                            <div class="admin-ant-meta">{{ formatUsdt(record.crypto_amount, 2) }} USDT</div>
+                        </div>
+                        <div>
+                            <a-tag :color="statusTagColor(record.status)">
+                                {{ statusLabels[record.status] ?? record.status }}
+                            </a-tag>
+                            <div v-if="record.fiat_payment_request?.proof_file_path" class="admin-ant-meta">{{ t('admin.orders.index.screenshot') }}</div>
+                            <div class="admin-ant-meta">{{ formatDate(record.created_at) }}</div>
+                        </div>
+                        <div class="admin-responsive-table__actions">
+                            <Link :href="`/admin/orders/${record.id}`">
+                                <a-button type="primary" block>{{ t('admin.shared.actions.open') }}</a-button>
+                            </Link>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.orders.index.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="orders" />
             </a-card>

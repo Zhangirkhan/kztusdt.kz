@@ -3,12 +3,13 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatUsdt } from '@/utils/formatNumber';
 import { Head, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
     sweeps: Object,
@@ -73,10 +74,9 @@ function short(hash) {
             <AdminFilters :model-value="filterStatus" :options="filterOptions" @change="setFilter" />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="sweeps.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -113,10 +113,29 @@ function short(hash) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>#{{ record.id }} · {{ record.asset }}</a-typography-text>
+                            <div class="admin-ant-meta">
+                                {{ record.user?.phone ?? t('admin.shared.empty') }} · {{ short(record.from_address) }} → {{ short(record.to_address) }}
+                            </div>
+                            <a-typography-text v-if="record.last_error" type="danger" class="admin-ant-meta">
+                                {{ record.last_error }}
+                            </a-typography-text>
+                        </div>
+                        <a-typography-text strong>{{ formatUsdt(record.amount, 8) }}</a-typography-text>
+                        <a-tag :color="statusTagColor(record.status)">{{ record.status }}</a-tag>
+                        <div v-if="['manual_review', 'failed'].includes(record.status)" class="admin-responsive-table__actions">
+                            <a-button type="primary" block @click="retry(record.id)">
+                                {{ t('admin.shared.actions.retry') }}
+                            </a-button>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.sweeps.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="sweeps" />
             </a-card>

@@ -3,12 +3,13 @@ import SeoHead from '@/shared/ui/seo-head/SeoHead.vue';
 import LocaleSwitcher from '@/Components/LocaleSwitcher.vue';
 import AdminPwaInstallBanner from '@/widgets/admin-shell/ui/AdminPwaInstallBanner.vue';
 import AdminSidebarPanel from '@/widgets/admin-shell/ui/AdminSidebarPanel.vue';
+import { useAdminBreakpoint } from '@/composables/useAdminBreakpoint';
 import { antLocale, registerAntDesign } from '@/plugins/antd';
 import 'ant-design-vue/dist/reset.css';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons-vue';
 import { usePage } from '@inertiajs/vue3';
 import { Button, ConfigProvider, Drawer, Layout, Space, Tag, Typography } from 'ant-design-vue';
-import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, getCurrentInstance, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const app = getCurrentInstance().appContext.app;
@@ -21,14 +22,13 @@ const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
 const COLLAPSED_STORAGE_KEY = 'admin_sider_collapsed';
-const MOBILE_BREAKPOINT = 992;
 
 const page = usePage();
 const { t } = useI18n();
+const { isMobile } = useAdminBreakpoint('shell');
 const userName = computed(() => page.props.auth?.user?.name ?? page.props.auth?.user?.email ?? 'Admin');
 
 const collapsed = ref(false);
-const isMobile = ref(false);
 const mobileMenuOpen = ref(false);
 
 function readCollapsedPreference() {
@@ -47,26 +47,18 @@ function persistCollapsedPreference(value) {
     window.localStorage.setItem(COLLAPSED_STORAGE_KEY, value ? '1' : '0');
 }
 
-function updateViewport() {
-    isMobile.value = window.innerWidth < MOBILE_BREAKPOINT;
-
-    if (! isMobile.value) {
-        mobileMenuOpen.value = false;
-    }
-}
-
 function toggleCollapsed() {
     collapsed.value = ! collapsed.value;
 }
 
 onMounted(() => {
     collapsed.value = readCollapsedPreference();
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
 });
 
-onUnmounted(() => {
-    window.removeEventListener('resize', updateViewport);
+watch(isMobile, (mobile) => {
+    if (! mobile) {
+        mobileMenuOpen.value = false;
+    }
 });
 
 watch(collapsed, (value) => {
@@ -162,6 +154,7 @@ watch(() => page.url, () => {
 <style scoped>
 .admin-ant-layout {
     min-height: 100dvh;
+    min-height: 100svh;
 }
 
 .admin-ant-sider {
@@ -171,6 +164,7 @@ watch(() => page.url, () => {
     overflow: auto;
     background: #001529 !important;
     z-index: 20;
+    padding-top: env(safe-area-inset-top);
 }
 
 .admin-ant-sider :deep(.ant-layout-sider-children) {
@@ -188,8 +182,8 @@ watch(() => page.url, () => {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    height: 64px;
-    padding: 0 16px;
+    height: calc(64px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 16px 0;
     background: #fff;
     border-bottom: 1px solid #f0f0f0;
     line-height: 1.2;
@@ -238,7 +232,8 @@ watch(() => page.url, () => {
 
 .admin-ant-content {
     margin: 16px;
-    min-height: calc(100dvh - 64px - 32px);
+    min-height: calc(100dvh - 64px - 32px - env(safe-area-inset-top));
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .admin-ant-page {
@@ -268,41 +263,43 @@ watch(() => page.url, () => {
 
 @media (min-width: 768px) {
     .admin-ant-header {
-        padding: 0 24px;
+        padding-inline: 24px;
     }
 
     .admin-ant-content {
         margin: 24px;
-        min-height: calc(100dvh - 64px - 48px);
+        min-height: calc(100dvh - 64px - 48px - env(safe-area-inset-top));
     }
 }
 
 @media (max-width: 575px) {
-    .admin-ant-header__title {
-        font-size: 17px;
+    .admin-ant-header {
+        height: calc(56px + env(safe-area-inset-top));
+        padding-inline: 12px;
+        gap: 8px;
     }
 
-    .admin-ant-live-tag {
+    .admin-ant-header__title {
+        font-size: 16px;
+    }
+
+    .admin-ant-live-tag,
+    .admin-ant-user-name {
         display: none;
     }
 
     .admin-ant-locale-switcher :deep(.inline-flex) {
-        max-width: 132px;
-    }
-
-    .admin-ant-user-name {
-        max-width: 110px;
-        font-size: 12px;
+        max-width: 72px;
     }
 
     .admin-ant-content {
         margin: 8px;
-        min-height: calc(100dvh - 64px - 16px);
+        min-height: calc(100dvh - 56px - 16px - env(safe-area-inset-top));
     }
 }
 
 .admin-ant-content--mobile {
-    padding-bottom: calc(16px + var(--admin-pwa-banner-offset, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom) + var(--admin-pwa-banner-offset, 0px));
 }
 </style>
 
@@ -314,22 +311,54 @@ watch(() => page.url, () => {
 .admin-ant-drawer-root .ant-drawer-body {
     padding: 0;
     height: 100%;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .admin-ant-drawer-root .admin-sidebar-panel {
-    min-height: 100dvh;
+    min-height: 100%;
+}
+
+.admin-ant-sticky-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom) + var(--admin-pwa-banner-offset, 0px));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid #f0f0f0;
+    backdrop-filter: blur(8px);
+}
+
+.admin-ant-sticky-actions .ant-btn {
+    width: 100%;
+    min-height: 44px;
+}
+
+@media (min-width: 768px) {
+    .admin-ant-sticky-actions {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        margin: 0 0 16px;
+        padding: 0;
+        background: transparent;
+        border-top: none;
+        backdrop-filter: none;
+    }
+
+    .admin-ant-sticky-actions .ant-btn {
+        width: auto;
+        min-height: 36px;
+    }
 }
 
 @media (max-width: 991px) {
-    .admin-ant-content .ant-table-wrapper {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .admin-ant-content .ant-table {
-        min-width: 560px;
-    }
-
     .admin-ant-content .ant-card-head {
         min-height: auto;
         padding: 12px 16px;

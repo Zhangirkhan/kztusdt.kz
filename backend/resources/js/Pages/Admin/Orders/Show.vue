@@ -109,7 +109,7 @@ function formatDate(value) {
         </template>
 
         <AdminPage>
-            <a-space v-if="hasActions" class="admin-ant-block">
+            <div v-if="hasActions" class="admin-ant-sticky-actions">
                 <a-button v-if="canConfirmBuy" type="primary" @click="openConfirm">
                     {{ t('admin.orders.show.actions.confirmPayment') }}
                 </a-button>
@@ -119,9 +119,13 @@ function formatDate(value) {
                 <a-button v-if="canReject" danger @click="showRejectModal = true">
                     {{ t('admin.orders.show.actions.reject') }}
                 </a-button>
-            </a-space>
+            </div>
 
-            <a-row :gutter="[16, 16]">
+            <a-row
+                :gutter="[16, 16]"
+                class="admin-orders-show__body"
+                :class="{ 'admin-orders-show__body--with-actions': hasActions }"
+            >
                 <a-col :xs="24" :lg="12">
                     <a-card :title="t('admin.orders.show.cards.details')" size="small">
                         <a-descriptions :column="1" size="small">
@@ -240,3 +244,11 @@ function formatDate(value) {
         </AdminPage>
     </AdminLayout>
 </template>
+
+<style scoped>
+@media (max-width: 767px) {
+    .admin-orders-show__body--with-actions {
+        padding-bottom: calc(140px + env(safe-area-inset-bottom) + var(--admin-pwa-banner-offset, 0px));
+    }
+}
+</style>

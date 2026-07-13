@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
@@ -45,10 +46,9 @@ function submitSearch() {
             />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="logs.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -72,10 +72,22 @@ function submitSearch() {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>#{{ record.id }}</a-typography-text>
+                            <div><a-typography-text code>{{ record.action }}</a-typography-text></div>
+                            <div class="admin-ant-meta">{{ record.entity_type }} #{{ record.entity_id }}</div>
+                            <div class="admin-ant-meta">{{ record.user?.name || record.user?.email || t('admin.shared.empty') }}</div>
+                            <div class="admin-ant-meta">
+                                {{ record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : t('admin.shared.empty') }}
+                            </div>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.audit.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="logs" />
             </a-card>

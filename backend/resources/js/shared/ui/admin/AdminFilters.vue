@@ -1,7 +1,6 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-
-const MOBILE_BREAKPOINT = 768;
+import { useAdminBreakpoint } from '@/composables/useAdminBreakpoint';
+import { computed } from 'vue';
 
 const props = defineProps({
     modelValue: {
@@ -20,7 +19,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change']);
 
-const isMobile = ref(false);
+const { isMobile } = useAdminBreakpoint('content');
 
 const hasCounts = computed(() => props.options.some((option) => option.count !== undefined && option.count !== null));
 
@@ -30,10 +29,6 @@ const selectOptions = computed(() => props.options.map((option) => ({
         : option.label,
     value: option.value,
 })));
-
-function updateViewport() {
-    isMobile.value = window.innerWidth < MOBILE_BREAKPOINT;
-}
 
 function onChange(value) {
     emit('update:modelValue', value);
@@ -54,15 +49,6 @@ function badgeStyle(value) {
         color: '#595959',
     };
 }
-
-onMounted(() => {
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('resize', updateViewport);
-});
 </script>
 
 <template>

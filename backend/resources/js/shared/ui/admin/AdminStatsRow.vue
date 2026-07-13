@@ -9,7 +9,7 @@ defineProps({
 
 <template>
     <a-row :gutter="[16, 16]" class="admin-ant-block">
-        <a-col v-for="item in items" :key="item.label" :xs="24" :sm="12" :lg="6">
+        <a-col v-for="item in items" :key="item.label" :xs="12" :sm="12" :lg="6">
             <a-card size="small" :bordered="true">
                 <a-statistic
                     :title="item.label"

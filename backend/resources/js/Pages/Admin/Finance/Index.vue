@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -64,10 +65,9 @@ function reload(params = {}) {
             <AdminFilters :model-value="status" :options="statusOptions" size="small" @change="(v) => reload({ tab, status: v })" />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="items"
-                    :pagination="false"
                     :row-key="(record) => `${record.type}-${record.id}`"
                     size="middle"
                 >
@@ -93,10 +93,29 @@ function reload(params = {}) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>
+                                #{{ record.id }} · {{ record.type === 'deposit' ? t('admin.finance.types.deposit') : t('admin.finance.types.withdrawal') }}
+                            </a-typography-text>
+                            <div class="admin-ant-meta">{{ record.user }}</div>
+                            <div>{{ record.amount }}</div>
+                            <a-tag :color="statusTagColor(record.status)">{{ record.status }}</a-tag>
+                            <div class="admin-ant-meta">
+                                {{ record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : t('admin.shared.empty') }}
+                            </div>
+                        </div>
+                        <div class="admin-responsive-table__actions">
+                            <Link :href="record.href">
+                                <a-button type="primary" block>{{ t('admin.shared.actions.open') }}</a-button>
+                            </Link>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.finance.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
             </a-card>
         </AdminPage>
     </AdminLayout>

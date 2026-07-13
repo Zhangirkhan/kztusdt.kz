@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatUsdt } from '@/utils/formatNumber';
@@ -171,10 +172,9 @@ function txUrl(hash) {
             </a-card>
 
             <a-card :title="t('admin.wallets.clientAddresses.cardTitle')" size="small" class="admin-ant-card">
-                <a-table
+                <AdminResponsiveTable
                     :columns="walletColumns"
                     :data-source="wallets.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -199,10 +199,23 @@ function txUrl(hash) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>{{ record.user?.phone ?? t('admin.shared.empty') }}</a-typography-text>
+                            <div class="admin-ant-meta">
+                                {{ record.user?.name ?? t('admin.shared.empty') }} · {{ t('admin.wallets.clientAddresses.kyc', { status: record.user?.kyc_status ?? t('admin.shared.empty') }) }}
+                            </div>
+                        </div>
+                        <a :href="addressUrl(record.address)" target="_blank" rel="noopener">
+                            <a-typography-text code style="word-break: break-all">{{ record.address }}</a-typography-text>
+                        </a>
+                        <a-typography-text strong>{{ formatUsdt(record.balance.available, 4) }} {{ record.asset }}</a-typography-text>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.wallets.clientAddresses.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="wallets" page-param="wallets_page" />
             </a-card>
@@ -215,10 +228,9 @@ function txUrl(hash) {
                     @change="setDepositStatus"
                 />
 
-                <a-table
+                <AdminResponsiveTable
                     :columns="depositColumns"
                     :data-source="deposits.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
@@ -253,10 +265,32 @@ function txUrl(hash) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>{{ record.user?.phone ?? '—' }}</a-typography-text>
+                            <div>
+                                <a :href="txUrl(record.tx_hash)" target="_blank" rel="noopener">
+                                    <a-button type="link" size="small" style="padding-left: 0">
+                                        tx: {{ short(record.tx_hash) }}
+                                    </a-button>
+                                </a>
+                            </div>
+                        </div>
+                        <a-typography-text strong type="success">
+                            +{{ formatUsdt(record.amount, 8) }} {{ record.asset }}
+                        </a-typography-text>
+                        <div>
+                            <a-tag :color="statusTagColor(record.status)">
+                                {{ depositStatusLabels[record.status] ?? record.status }}
+                            </a-tag>
+                            <div class="admin-ant-meta">{{ formatDate(record.created_at) }}</div>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.wallets.deposits.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="deposits" page-param="deposits_page" />
             </a-card>

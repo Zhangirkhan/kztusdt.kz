@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AdminFilters from '@/shared/ui/admin/AdminFilters.vue';
 import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import AdminPagination from '@/shared/ui/admin/AdminPagination.vue';
+import AdminResponsiveTable from '@/shared/ui/admin/AdminResponsiveTable.vue';
 import AdminStatsRow from '@/shared/ui/admin/AdminStatsRow.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -41,6 +42,10 @@ const columns = computed(() => [
 function setFilter(status) {
     router.get('/admin/kyc', { status }, { preserveState: true });
 }
+
+function clientName(record) {
+    return [record.first_name, record.last_name].filter(Boolean).join(' ') || record.user?.name || `User #${record.user?.id}`;
+}
 </script>
 
 <template>
@@ -55,19 +60,16 @@ function setFilter(status) {
             <AdminFilters :model-value="filterStatus" :options="filterOptions" @change="setFilter" />
 
             <a-card :bordered="false" size="small">
-                <a-table
+                <AdminResponsiveTable
                     :columns="columns"
                     :data-source="profiles.data"
-                    :pagination="false"
                     row-key="id"
                     size="middle"
                 >
                     <template #bodyCell="{ column, record }">
                         <template v-if="column.key === 'client'">
                             <div>
-                                <a-typography-text strong>
-                                    {{ [record.first_name, record.last_name].filter(Boolean).join(' ') || record.user?.name || `User #${record.user?.id}` }}
-                                </a-typography-text>
+                                <a-typography-text strong>{{ clientName(record) }}</a-typography-text>
                                 <div class="admin-ant-meta">{{ record.user?.phone ?? t('admin.shared.empty') }}</div>
                             </div>
                         </template>
@@ -91,10 +93,30 @@ function setFilter(status) {
                         </template>
                     </template>
 
+                    <template #mobile="{ record }">
+                        <div>
+                            <a-typography-text strong>{{ clientName(record) }}</a-typography-text>
+                            <div class="admin-ant-meta">{{ record.user?.phone ?? t('admin.shared.empty') }}</div>
+                        </div>
+                        <div>
+                            <a-tag v-if="sumsubAdminEnabled && record.provider === 'sumsub'" color="blue">Sumsub</a-tag>
+                            <span v-else-if="record.document_type || record.document_number">
+                                {{ record.document_type }} {{ record.document_number }}
+                            </span>
+                            <span v-else class="admin-ant-meta">{{ t('admin.shared.empty') }}</span>
+                        </div>
+                        <a-tag :color="statusTagColor(record.status)">{{ record.status }}</a-tag>
+                        <div class="admin-responsive-table__actions">
+                            <Link :href="`/admin/kyc/${record.id}`">
+                                <a-button type="primary" block>{{ t('admin.shared.actions.open') }}</a-button>
+                            </Link>
+                        </div>
+                    </template>
+
                     <template #emptyText>
                         <a-empty :description="t('admin.kyc.index.empty')" />
                     </template>
-                </a-table>
+                </AdminResponsiveTable>
 
                 <AdminPagination :pagination="profiles" />
             </a-card>

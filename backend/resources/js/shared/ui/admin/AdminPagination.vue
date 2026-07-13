@@ -1,9 +1,11 @@
 <script setup>
+import { useAdminBreakpoint } from '@/composables/useAdminBreakpoint';
 import { antPaginationLocale } from '@/plugins/antd';
 import { router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
+const { isMobile } = useAdminBreakpoint('content');
 
 const props = defineProps({
     pagination: {
@@ -38,7 +40,8 @@ function onChange(page) {
             :total="pagination.total"
             :page-size="pagination.per_page"
             :locale="antPaginationLocale"
-            :show-total="(total, range) => t('admin.shared.pagination', { from: range[0], to: range[1], total })"
+            :show-total="isMobile ? undefined : ((total, range) => t('admin.shared.pagination', { from: range[0], to: range[1], total }))"
+            :simple="isMobile"
             show-less-items
             @change="onChange"
         />
