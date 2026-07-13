@@ -46,6 +46,7 @@ final class ExchangeController extends Controller
                     'provider' => 'manual',
                     'needs_verification' => true,
                     'inline_sumsub' => false,
+                    'iin_mismatch' => false,
                 ]),
             ],
             'rates' => [

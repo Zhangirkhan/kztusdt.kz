@@ -27,6 +27,7 @@ final class AituKycService
         private readonly AituPassportService $passport,
         private readonly AuditLogService $auditLogService,
         private readonly UserNotificationService $notifier,
+        private readonly KycIinReconciler $iinReconciler,
     ) {}
 
     /**
@@ -179,10 +180,6 @@ final class AituKycService
 
             $userUpdates = ['kyc_status' => 'approved'];
 
-            if ($iin !== null) {
-                $userUpdates['iin'] = $iin;
-            }
-
             if ($phone !== null) {
                 $userUpdates['phone'] = $phone;
                 $userUpdates['phone_verified'] = true;
@@ -190,6 +187,7 @@ final class AituKycService
             }
 
             $user->update($userUpdates);
+            $this->iinReconciler->apply($user->fresh(), $iin);
 
             $this->auditLogService->log(
                 action: 'kyc.aitu.approved',

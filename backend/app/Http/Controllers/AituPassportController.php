@@ -151,19 +151,13 @@ final class AituPassportController extends Controller
 
             if ($linked !== null) {
                 $phone = $this->aituPassport->phoneFromClaims($claims);
-                $iin = $this->aituPassport->iinFromClaims($claims);
 
                 if ($phone !== null && $linked->phone === $phone) {
-                    $updates = [
+                    // Keep registration IIN intact — KycIinReconciler compares it to KYC IIN after approve.
+                    $linked->update([
                         'phone_verified' => true,
                         'phone_verified_at' => now(),
-                    ];
-
-                    if ($iin !== null) {
-                        $updates['iin'] = $iin;
-                    }
-
-                    $linked->update($updates);
+                    ]);
 
                     return $linked;
                 }
@@ -243,6 +237,19 @@ final class AituPassportController extends Controller
         $user = Auth::user();
 
         if ($returnTo === 'kyc') {
+            if ($user !== null) {
+                $user->refresh();
+            }
+
+            if ($kycStatus === 'approved' && $user?->hasIinMismatch()) {
+                return redirect()->route('kyc');
+            }
+
+            if ($kycStatus === 'approved' && $user?->canUseWallet()) {
+                return redirect()->route('wallet')
+                    ->with('success', 'Верификация пройдена! Ваш аккаунт подтверждён.');
+            }
+
             if ($kycStatus === 'approved') {
                 return redirect()->route('kyc')
                     ->with('success', 'Верификация пройдена! Ваш аккаунт подтверждён.');

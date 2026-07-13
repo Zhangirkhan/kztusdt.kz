@@ -26,6 +26,7 @@ final class SumsubService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly UserNotificationService $notifier,
+        private readonly KycIinReconciler $iinReconciler,
     ) {}
 
     public function isConfigured(): bool
@@ -168,7 +169,7 @@ final class SumsubService
     /**
      * Pull the latest review result from Sumsub (fallback when webhook is delayed).
      *
-     * @return array{kyc_status: string, profile_status: string|null, synced: bool}
+     * @return array{kyc_status: string, profile_status: string|null, synced: bool, iin_mismatch: bool}
      */
     public function syncApplicantStatus(User $user): array
     {
@@ -215,6 +216,7 @@ final class SumsubService
             'kyc_status' => (string) $user->kyc_status,
             'profile_status' => $profile->status,
             'synced' => true,
+            'iin_mismatch' => $user->hasIinMismatch(),
         ];
     }
 
@@ -244,8 +246,10 @@ final class SumsubService
             'middle_name' => (string) ($info['middleName'] ?? ''),
             'dob' => (string) ($info['dob'] ?? ''),
             'country' => (string) ($info['country'] ?? ''),
+            'tin' => (string) ($info['tin'] ?? ''),
             'document_type' => (string) ($idDoc['idDocType'] ?? ''),
             'document_number' => (string) ($idDoc['number'] ?? ''),
+            'document_additional_number' => (string) ($idDoc['additionalNumber'] ?? ''),
             'document_valid_until' => (string) ($idDoc['validUntil'] ?? ''),
             'review_status' => (string) ($review['reviewStatus'] ?? ''),
             'review_answer' => (string) ($reviewResult['reviewAnswer'] ?? ''),
@@ -257,23 +261,88 @@ final class SumsubService
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $details
+     */
+    public function extractIinFromApplicantDetails(array $details): ?string
+    {
+        foreach ([
+            $details['tin'] ?? null,
+            $details['document_additional_number'] ?? null,
+            $details['document_number'] ?? null,
+        ] as $candidate) {
+            if (! is_string($candidate) && ! is_numeric($candidate)) {
+                continue;
+            }
+
+            $normalized = $this->iinReconciler->normalize((string) $candidate);
+
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
     private function approveFromWebhook(KycProfile $profile, array $payload): void
     {
-        DB::transaction(function () use ($profile, $payload): void {
-            $profile->update([
+        $details = [];
+        $applicantId = (string) ($profile->sumsub_applicant_id ?? $payload['applicantId'] ?? '');
+
+        if ($applicantId !== '') {
+            try {
+                $details = $this->fetchApplicantDetails($applicantId);
+            } catch (RuntimeException $exception) {
+                AppLog::warning('kyc.sumsub.applicant_details_failed', [
+                    'applicant_id' => $applicantId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $kycIin = $this->extractIinFromApplicantDetails($details);
+
+        DB::transaction(function () use ($profile, $payload, $details, $kycIin): void {
+            $profileUpdates = [
                 'status' => 'approved',
                 'reviewed_at' => now(),
                 'rejection_reason' => null,
-            ]);
+            ];
+
+            if ($kycIin !== null) {
+                $profileUpdates['document_number'] = $kycIin;
+            } elseif (($details['document_number'] ?? '') !== '') {
+                $profileUpdates['document_number'] = (string) $details['document_number'];
+            }
+
+            if (($details['first_name'] ?? '') !== '') {
+                $profileUpdates['first_name'] = (string) $details['first_name'];
+            }
+
+            if (($details['last_name'] ?? '') !== '') {
+                $profileUpdates['last_name'] = (string) $details['last_name'];
+            }
+
+            if (($details['document_type'] ?? '') !== '') {
+                $profileUpdates['document_type'] = (string) $details['document_type'];
+            }
+
+            $profile->update($profileUpdates);
 
             $profile->user->update(['kyc_status' => 'approved']);
+            $this->iinReconciler->apply($profile->user->fresh(), $kycIin);
 
             $this->auditLogService->log(
                 action: 'kyc.sumsub.approved',
                 userId: $profile->user_id,
                 entityType: 'kyc_profile',
                 entityId: $profile->id,
-                payload: ['applicant_id' => $profile->sumsub_applicant_id, 'review' => $payload['reviewResult'] ?? null],
+                payload: [
+                    'applicant_id' => $profile->sumsub_applicant_id,
+                    'review' => $payload['reviewResult'] ?? null,
+                    'kyc_iin' => $kycIin,
+                ],
             );
 
             $this->notifier->notifyKey(
@@ -292,7 +361,7 @@ final class SumsubService
         $reason = (string) ($payload['reviewResult']['moderationComment'] ?? 'Проверка не пройдена');
         $locale = LocaleManager::normalize($profile->user->locale) ?? LocaleManager::default();
 
-        DB::transaction(function () use ($profile, $reason, $isFinal, $payload): void {
+        DB::transaction(function () use ($profile, $reason, $isFinal, $payload, $locale): void {
             $profile->update([
                 'status' => 'rejected',
                 'reviewed_at' => now(),

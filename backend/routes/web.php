@@ -167,6 +167,7 @@ Route::prefix('{locale}')
             Route::post('/kyc', [KycController::class, 'store'])->name('kyc.store');
             Route::post('/kyc/sumsub/token', [KycController::class, 'sumsubToken'])->name('kyc.sumsub.token');
             Route::post('/kyc/sumsub/sync', [KycController::class, 'sumsubSync'])->name('kyc.sumsub.sync');
+            Route::post('/kyc/confirm-iin', [KycController::class, 'confirmIin'])->name('kyc.confirm-iin');
 
             Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
             Route::get('/profile/personal', [ProfileController::class, 'personal'])->name('profile.personal');

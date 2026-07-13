@@ -3,21 +3,38 @@ import ServiceHero from '@/Components/ServiceHero.vue';
 import ExchangeLayout from '@/Layouts/ExchangeLayout.vue';
 import { formatKzt, formatPercent } from '@/utils/formatNumber';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
+const KycIinMismatchForm = defineAsyncComponent(() => import('@/features/kyc-iin-mismatch/ui/KycIinMismatchForm.vue'));
 
-defineProps({
+const props = defineProps({
     companyHero: Object,
     userStatus: Object,
     rates: Object,
 });
 const { t } = useI18n();
+const showIinMismatch = ref(props.userStatus?.iin_mismatch === true);
 
-function onKycApproved() {
+function onKycApproved(data) {
+    if (data?.iin_mismatch) {
+        showIinMismatch.value = true;
+
+        return;
+    }
+
     router.reload({ only: ['userStatus'] });
 }
+
+function onIinConfirmed() {
+    showIinMismatch.value = false;
+    router.reload({ only: ['userStatus'] });
+}
+
+const showInlineSumsub = computed(() =>
+    !showIinMismatch.value && props.userStatus?.inline_sumsub === true,
+);
 </script>
 
 <template>
@@ -39,7 +56,13 @@ function onKycApproved() {
             <Link :href="route('auth.phone')" class="mt-3 inline-block font-semibold text-accent">{{ t('home.confirmPhone') }}</Link>
         </section>
 
-        <section v-else-if="userStatus.inline_sumsub" class="card">
+        <KycIinMismatchForm
+            v-else-if="showIinMismatch"
+            class="mb-stack-element"
+            @confirmed="onIinConfirmed"
+        />
+
+        <section v-else-if="showInlineSumsub" class="card">
             <p class="font-semibold">{{ t('home.kycTitle') }}</p>
             <p class="mt-2 text-body-sm text-text-muted">
                 {{ t('home.kycInlineHint') }}

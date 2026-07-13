@@ -28,7 +28,11 @@ final class TronAddressService
      */
     public function fromEvmHash(string $hash40): string
     {
-        $hash = strtolower(ltrim($hash40, "0x\t\n\r "));
+        $hash = strtolower(trim($hash40));
+
+        if (str_starts_with($hash, '0x')) {
+            $hash = substr($hash, 2);
+        }
 
         if (! preg_match('/^[0-9a-f]{40}$/', $hash)) {
             throw new InvalidArgumentException('Ожидается 20-байтовый hex-хэш адреса.');
@@ -48,7 +52,11 @@ final class TronAddressService
     /** Convert a hex address (with or without the 41 prefix) to the Base58Check form. */
     public function fromHex(string $hex): string
     {
-        $hex = strtolower(ltrim($hex, "0x"));
+        $hex = strtolower(trim($hex));
+
+        if (str_starts_with($hex, '0x')) {
+            $hex = substr($hex, 2);
+        }
 
         if (strlen($hex) === 40) {
             $hex = self::PREFIX.$hex;

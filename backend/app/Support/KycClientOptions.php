@@ -20,7 +20,8 @@ final class KycClientOptions
      *     aitu_verify_url: string|null,
      *     aitu_kyc_scope_configured: bool,
      *     inline_sumsub: bool,
-     *     needs_verification: bool
+     *     needs_verification: bool,
+     *     iin_mismatch: bool
      * }
      */
     public static function forUser(User $user): array
@@ -31,6 +32,7 @@ final class KycClientOptions
         $automatedProvider = self::resolveAutomatedProvider($configuredProvider);
         $effectiveProvider = $automatedProvider ?? 'manual';
         $status = (string) $user->kyc_status;
+        $iinMismatch = $user->hasIinMismatch();
         $needsVerification = ! in_array($status, ['approved', 'pending_review'], true);
         $showManualForm = $manualEnabled && $needsVerification;
 
@@ -47,6 +49,7 @@ final class KycClientOptions
                 && app(AituPassportService::class)->kycScopeConfigured(),
             'inline_sumsub' => $automatedProvider === 'sumsub' && $status !== 'approved',
             'needs_verification' => $needsVerification,
+            'iin_mismatch' => $iinMismatch,
         ];
     }
 

@@ -36,6 +36,17 @@ final class KycAccess
 
     public static function message(User $user, string $feature = 'default'): string
     {
+        if ($user->kyc_status === 'approved' && $user->hasIinMismatch()) {
+            return match ($feature) {
+                'wallet' => 'ИИН из регистрации не совпадает с KYC. Укажите корректный ИИН.',
+                'history' => 'ИИН из регистрации не совпадает с KYC. Укажите корректный ИИН.',
+                'exchange' => 'ИИН из регистрации не совпадает с KYC. Укажите корректный ИИН.',
+                'withdraw' => 'ИИН из регистрации не совпадает с KYC. Укажите корректный ИИН.',
+                'bank' => 'ИИН из регистрации не совпадает с KYC. Укажите корректный ИИН.',
+                default => 'ИИН из регистрации не совпадает с KYC. Укажите корректный ИИН.',
+            };
+        }
+
         if ($user->kyc_status === 'pending_review') {
             return match ($feature) {
                 'wallet' => 'Кошелёк откроется после одобрения KYC. Заявка уже на проверке.',

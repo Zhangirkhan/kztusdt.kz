@@ -38,6 +38,10 @@ final class RegistrationResume
 
         $kyc = $user->kycMeta();
 
+        if ($kyc['iin_mismatch']) {
+            return route('kyc', ['locale' => $locale]);
+        }
+
         if ($kyc['inline_sumsub'] && $kyc['needs_verification']) {
             $session = AuthSession::query()
                 ->where('user_id', $user->id)

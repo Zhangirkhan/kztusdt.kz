@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ConfirmKycIinRequest;
 use App\Http\Requests\SubmitKycRequest;
+use App\Services\KycIinReconciler;
 use App\Services\KycService;
 use App\Services\SumsubService;
 use App\Support\KycClientOptions;
+use App\Support\LocaleManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +23,7 @@ final class KycController extends Controller
     public function __construct(
         private readonly KycService $kycService,
         private readonly SumsubService $sumsubService,
+        private readonly KycIinReconciler $iinReconciler,
     ) {}
 
     public function show(Request $request): Response
@@ -41,6 +45,7 @@ final class KycController extends Controller
             'showManualForm' => $options['show_manual_form'],
             'aituVerifyUrl' => $options['aitu_verify_url'],
             'aituKycScopeConfigured' => $options['aitu_kyc_scope_configured'],
+            'iinMismatch' => $options['iin_mismatch'],
         ]);
     }
 
@@ -71,6 +76,34 @@ final class KycController extends Controller
         } catch (RuntimeException $exception) {
             return response()->json(['error' => $exception->getMessage()], 502);
         }
+    }
+
+    public function confirmIin(ConfirmKycIinRequest $request): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()?->phone_verified, 403);
+
+        try {
+            $this->iinReconciler->confirm($request->user(), $request->validated('iin'));
+        } catch (RuntimeException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => $exception->getMessage()], 422);
+            }
+
+            return back()->withErrors(['iin' => $exception->getMessage()]);
+        }
+
+        $user = $request->user()->fresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'iin_mismatch' => $user->hasIinMismatch(),
+                'kyc_status' => $user->kyc_status,
+                'redirect' => route('wallet', ['locale' => LocaleManager::resolve($request)]),
+            ]);
+        }
+
+        return redirect()->route('wallet')->with('success', 'ИИН подтверждён.');
     }
 
     public function store(SubmitKycRequest $request): RedirectResponse

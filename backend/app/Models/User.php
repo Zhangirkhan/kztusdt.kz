@@ -25,6 +25,7 @@ use LaravelWebauthn\WebauthnAuthenticatable;
     'phone',
     'client_type',
     'iin',
+    'kyc_iin',
     'bin',
     'company_name',
     'eds_verified_at',
@@ -167,7 +168,14 @@ final class User extends Authenticatable
 
     public function canUseWallet(): bool
     {
-        return $this->phone_verified && $this->kyc_status === 'approved';
+        return $this->phone_verified
+            && $this->kyc_status === 'approved'
+            && ! $this->hasIinMismatch();
+    }
+
+    public function hasIinMismatch(): bool
+    {
+        return app(\App\Services\KycIinReconciler::class)->hasMismatch($this);
     }
 
     public function clientType(): ClientType

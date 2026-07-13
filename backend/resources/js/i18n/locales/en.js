@@ -235,6 +235,13 @@ export default {
             },
             pendingNoManual: 'Application submitted. Wait for the security team decision.',
         },
+        iinMismatch: {
+            title: 'IIN does not match',
+            subtitle: 'The IIN you entered during registration does not match the IIN from KYC. Enter the correct IIN that matches the verification data.',
+            submit: 'Submit',
+            submitting: 'Checking…',
+            submitFailed: 'Could not confirm the IIN. Please try again.',
+        },
         manual: {
             title: 'Manual verification',
             subtitle: 'Fill in the form and upload document photos. The security team will review the request manually.',

@@ -51,7 +51,7 @@ final class AituKycTest extends TestCase
             'confidence_level' => 'HIGH',
             'given_name' => 'Аят',
             'family_name' => 'Тестов',
-            'iin' => '900101300123',
+            'iin' => '900101100014',
         ]);
 
         $this->assertSame('approved', $status);
@@ -61,7 +61,7 @@ final class AituKycTest extends TestCase
         $this->assertSame('aitu', $profile->provider);
         $this->assertSame('approved', $profile->status);
         $this->assertSame('Аят', $profile->first_name);
-        $this->assertSame('900101300123', $profile->document_number);
+        $this->assertSame('900101100014', $profile->document_number);
 
         $this->assertDatabaseHas('audit_logs', ['action' => 'kyc.aitu.approved']);
 
@@ -168,7 +168,7 @@ final class AituKycTest extends TestCase
             'sessionDocumentId' => 'doc-session-789',
             'sid' => 'sid-789',
             'gov_doc_verification' => json_encode([
-                'iin' => '900101300123',
+                'iin' => '900101100014',
                 'firstName' => 'Аят',
                 'lastName' => 'Тестов',
             ], JSON_THROW_ON_ERROR),
@@ -180,7 +180,7 @@ final class AituKycTest extends TestCase
 
         $profile = KycProfile::query()->where('user_id', $user->id)->firstOrFail();
         $this->assertSame('doc-session-789', $profile->provider_verification_id);
-        $this->assertSame('900101300123', $profile->document_number);
+        $this->assertSame('900101100014', $profile->document_number);
     }
 
     public function test_gov_doc_verification_object_approves_kyc(): void
@@ -194,7 +194,7 @@ final class AituKycTest extends TestCase
             'sessionDocumentId' => 'doc-session-123',
             'sid' => 'sid-456',
             'gov_doc_verification' => [
-                'iin' => '900101300123',
+                'iin' => '900101100014',
                 'firstName' => 'Аят',
                 'lastName' => 'Тестов',
                 'documentNumber' => '123456789',
@@ -205,12 +205,12 @@ final class AituKycTest extends TestCase
 
         $user->refresh();
         $this->assertSame('approved', $user->kyc_status);
-        $this->assertSame('900101300123', $user->iin);
+        $this->assertSame('900101100014', $user->iin);
         $this->assertSame('+77071234567', $user->phone);
 
         $profile = KycProfile::query()->where('user_id', $user->id)->firstOrFail();
         $this->assertSame('Аят', $profile->first_name);
-        $this->assertSame('900101300123', $profile->document_number);
+        $this->assertSame('900101100014', $profile->document_number);
         $this->assertSame('doc-session-123', $profile->provider_verification_id);
         $this->assertSame('sid-456', $profile->provider_session_id);
         $this->assertNotNull($profile->reviewed_at);

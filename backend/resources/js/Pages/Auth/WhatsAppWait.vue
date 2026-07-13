@@ -14,6 +14,7 @@ import {
 } from '@/utils/registrationProgress';
 
 const SumsubKycWidget = defineAsyncComponent(() => import('@/Components/SumsubKycWidget.vue'));
+const KycIinMismatchForm = defineAsyncComponent(() => import('@/features/kyc-iin-mismatch/ui/KycIinMismatchForm.vue'));
 
 const props = defineProps({
     loginCode: String,
@@ -34,6 +35,7 @@ const {
 const step = ref(props.initialStep);
 const kycStatus = ref(props.kycStatus);
 const pendingRedirect = ref(null);
+const showIinMismatch = ref(props.kyc?.iin_mismatch === true);
 
 const code = ref('');
 const codeInput = ref(null);
@@ -44,7 +46,9 @@ const resendCooldown = ref(0);
 let cooldownTimer = null;
 
 const showInlineSumsub = ref(
-    props.kyc?.inline_sumsub === true && !['approved', 'pending_review'].includes(kycStatus.value),
+    props.kyc?.inline_sumsub === true
+        && !showIinMismatch.value
+        && !['approved', 'pending_review'].includes(kycStatus.value),
 );
 
 const isExpired = computed(() => props.status === 'expired');
@@ -227,7 +231,20 @@ function onAppLockSetupComplete() {
     }
 }
 
-function onKycApproved() {
+function onKycApproved(data) {
+    if (data?.iin_mismatch) {
+        showIinMismatch.value = true;
+        showInlineSumsub.value = false;
+        kycStatus.value = data.kyc_status ?? 'approved';
+
+        return;
+    }
+
+    finishRegistration('/wallet');
+}
+
+function onIinConfirmed() {
+    showIinMismatch.value = false;
     finishRegistration('/wallet');
 }
 
@@ -343,7 +360,11 @@ onUnmounted(() => {
                     </p>
                 </div>
 
-                <section v-if="showInlineSumsub" class="card">
+                <section v-if="showIinMismatch" class="mb-stack-section">
+                    <KycIinMismatchForm @confirmed="onIinConfirmed" />
+                </section>
+
+                <section v-else-if="showInlineSumsub" class="card">
                     <SumsubKycWidget
                         container-id="onboarding-sumsub"
                         :kyc-status="kycStatus"

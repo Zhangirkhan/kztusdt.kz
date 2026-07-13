@@ -16,6 +16,7 @@ defineProps({
     showManualForm: { type: Boolean, default: true },
     aituVerifyUrl: { type: String, default: null },
     aituKycScopeConfigured: { type: Boolean, default: true },
+    iinMismatch: { type: Boolean, default: false },
 });
 
 const page = usePage();

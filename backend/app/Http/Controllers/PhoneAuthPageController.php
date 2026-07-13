@@ -121,6 +121,15 @@ final class PhoneAuthPageController extends Controller
     {
         $kyc = $user->kycMeta();
 
+        if ($kyc['iin_mismatch']) {
+            return Inertia::render('Auth/WhatsAppWait', [
+                ...$pageProps,
+                'initialStep' => 'kyc',
+                'kycStatus' => $user->kyc_status,
+                'kyc' => $kyc,
+            ]);
+        }
+
         if (! $kyc['needs_verification']) {
             return $this->redirectAfterAuth($user);
         }
