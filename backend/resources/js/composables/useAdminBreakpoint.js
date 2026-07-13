@@ -9,7 +9,9 @@ export const ADMIN_CONTENT_BREAKPOINT = 768;
  */
 export function useAdminBreakpoint(mode = 'content') {
     const breakpoint = mode === 'shell' ? ADMIN_SHELL_BREAKPOINT : ADMIN_CONTENT_BREAKPOINT;
-    const isMobile = ref(false);
+    const isMobile = ref(
+        typeof window !== 'undefined' ? window.innerWidth < breakpoint : false,
+    );
 
     function updateViewport() {
         if (typeof window === 'undefined') {

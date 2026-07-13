@@ -55,7 +55,7 @@ export function usePushNotifications() {
     const configured = computed(() => supported && vapidKey.value !== '');
 
     async function getRegistration() {
-        await navigator.serviceWorker.register('/sw.js?v=9').catch(() => {});
+        await navigator.serviceWorker.register('/sw.js?v=10').catch(() => {});
 
         return navigator.serviceWorker.ready;
     }

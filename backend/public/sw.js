@@ -6,7 +6,7 @@
  * it as installable, but intercepting every request with fetch() caused white
  * screens in the installed client PWA (especially WebKit standalone).
  */
-const SW_VERSION = 'v9';
+const SW_VERSION = 'v10';
 
 self.addEventListener('install', () => {
     self.skipWaiting();

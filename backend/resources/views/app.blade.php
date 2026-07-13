@@ -24,7 +24,7 @@
                 }
 
                 var isAdmin = {{ $isAdminSurface ? 'true' : 'false' }};
-                var purgeKey = isAdmin ? 'kztusdt_legacy_cache_purged_admin_v9' : 'kztusdt_legacy_cache_purged_client_v9';
+                var purgeKey = isAdmin ? 'kztusdt_legacy_cache_purged_admin_v10' : 'kztusdt_legacy_cache_purged_client_v10';
 
                 try {
                     // Drop flaky ETag probe keys that caused reload loops / white screen.
@@ -193,6 +193,8 @@
                         localStorage.removeItem('kztusdt_legacy_cache_purged_client_v7');
                         localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v8');
                         localStorage.removeItem('kztusdt_legacy_cache_purged_client_v8');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v9');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v9');
                     } catch (error) {}
 
                     if ('caches' in window) {
