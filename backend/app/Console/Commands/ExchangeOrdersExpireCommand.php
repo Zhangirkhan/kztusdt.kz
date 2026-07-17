@@ -11,13 +11,13 @@ final class ExchangeOrdersExpireCommand extends Command
 {
     protected $signature = 'exchange:expire-orders';
 
-    protected $description = 'Cancel exchange orders that exceeded their payment term';
+    protected $description = 'Report exchange orders past their payment term (appeals remain available)';
 
     public function handle(ExchangeOrderService $exchangeOrderService): int
     {
         $count = $exchangeOrderService->expireOverdue();
 
-        $this->info("Expired exchange orders: {$count}.");
+        $this->info("Overdue exchange orders (not auto-cancelled): {$count}.");
 
         return self::SUCCESS;
     }

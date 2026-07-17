@@ -7,7 +7,7 @@ import SupportChatFab from '@/widgets/support-chat/ui/SupportChatFab.vue';
 import { useOrderCountdown } from '@/composables/useOrderCountdown';
 import { formatKzt, formatUsdt } from '@/utils/formatNumber';
 import { localizedPath } from '@/utils/localizedPath';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -26,6 +26,18 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    activeAppeal: {
+        type: Object,
+        default: null,
+    },
+    canAppeal: {
+        type: Boolean,
+        default: false,
+    },
+    appealReasons: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
@@ -39,6 +51,13 @@ const markingReceived = ref(false);
 const refreshingStatus = ref(false);
 const cancelReason = ref('changed_mind');
 const cancelReasonOther = ref('');
+const appealFileInput = ref(null);
+
+const appealForm = useForm({
+    reason: '',
+    description: '',
+    attachments: [],
+});
 
 let statusPollTimer = null;
 
@@ -96,6 +115,10 @@ const confirmationDeadline = computed(() => {
         return props.timers.confirmation_deadline ?? null;
     }
 
+    if (!isBuy.value && props.order.status === 'kzt_sent') {
+        return props.timers.confirmation_deadline ?? null;
+    }
+
     return null;
 });
 
@@ -120,7 +143,7 @@ function refreshStatus({ silent = false } = {}) {
 
     refreshingStatus.value = true;
     router.reload({
-        only: ['order', 'timers', 'paymentProof', 'paymentRequest'],
+        only: ['order', 'timers', 'paymentProof', 'paymentRequest', 'activeAppeal', 'canAppeal', 'appealReasons'],
         preserveScroll: true,
         onFinish: () => {
             refreshingStatus.value = false;
@@ -174,6 +197,10 @@ const statusTitle = computed(() => {
         return props.order.status === 'failed'
             ? t('order.show.statusTitle.failed')
             : t('order.show.statusTitle.cancelled');
+    }
+
+    if (hasActiveAppeal.value || props.order.status === 'dispute') {
+        return t('order.show.statusTitle.appealOpen');
     }
 
     if (isBuy.value) {
@@ -278,14 +305,31 @@ const showSellRefreshCta = computed(
     () => !isBuy.value && !isCompleted.value && !isCancelled.value && !isWaitingSellReceipt.value,
 );
 
+const hasActiveAppeal = computed(() => props.activeAppeal?.status === 'open');
+
+const canAppealButton = computed(() => props.canAppeal && !hasActiveAppeal.value);
+
 const canCancel = computed(() =>
     isBuy.value
         && ['awaiting_kzt_payment', 'payment_proof_uploaded', 'pending_admin_confirmation'].includes(props.order.status),
 );
 
-const canAppeal = computed(
-    () => !isCompleted.value && !isCancelled.value && countdownActive.value && countdownExpired.value,
+const appealReasonOptions = computed(() =>
+    (props.appealReasons ?? []).map((value) => ({
+        value,
+        label: t(`order.show.appealModal.reasons.${value}`),
+    })),
 );
+
+const appealFilesLabel = computed(() => {
+    const count = appealForm.attachments?.length ?? 0;
+
+    if (count === 0) {
+        return t('order.show.appealModal.uploadEmpty');
+    }
+
+    return t('order.show.appealModal.uploadSelected', { count });
+});
 
 const chatUrl = computed(() => {
     const back = encodeURIComponent(`/exchange/orders/${props.order.id}`);
@@ -361,6 +405,35 @@ function confirmCancel() {
         : (selectedReason?.label ?? t('order.show.cancelModal.reasons.changedMind'));
 
     router.post(route('exchange.orders.cancel', props.order.id), { reason });
+}
+
+function openAppealFilePicker() {
+    appealFileInput.value?.click();
+}
+
+function onAppealFilesSelected(event) {
+    const files = Array.from(event.target.files ?? []).slice(0, 5);
+    appealForm.attachments = files;
+}
+
+function submitAppeal() {
+    if (!appealForm.reason) {
+        return;
+    }
+
+    appealForm.post(route('exchange.orders.appeal', props.order.id), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppealModal.value = false;
+            appealForm.reset();
+            appealForm.clearErrors();
+
+            if (appealFileInput.value) {
+                appealFileInput.value.value = '';
+            }
+        },
+    });
 }
 
 async function copyText(text, field) {
@@ -600,9 +673,17 @@ async function copyText(text, field) {
                 {{ refreshingStatus ? t('order.show.actions.checking') : t('order.show.actions.checkStatus') }}
             </button>
 
-            <div v-if="canAppeal || canCancel" class="order-flow__secondary-actions">
+            <section v-if="hasActiveAppeal" class="order-flow__appeal-status mb-4 rounded-2xl border border-outline-variant bg-surface-container p-4">
+                <p class="text-sm font-semibold">{{ t('order.show.appealStatus.title') }}</p>
+                <p class="mt-1 text-sm text-on-surface-variant">{{ t('order.show.appealStatus.text') }}</p>
+                <Link :href="chatUrl" class="mt-3 inline-flex text-sm font-medium text-primary">
+                    {{ t('order.show.appealStatus.openChat') }}
+                </Link>
+            </section>
+
+            <div v-if="canAppealButton || canCancel" class="order-flow__secondary-actions">
                 <button
-                    v-if="canAppeal"
+                    v-if="canAppealButton"
                     type="button"
                     class="btn-primary order-flow__cta order-flow__cta--appeal"
                     @click="showAppealModal = true"
@@ -678,17 +759,73 @@ async function copyText(text, field) {
             </div>
 
             <div v-if="showAppealModal" class="sheet-backdrop" @click.self="showAppealModal = false">
-                <div class="sheet-panel order-modal" role="dialog" aria-modal="true" aria-labelledby="appeal-title">
+                <div class="sheet-panel order-modal order-modal--appeal" role="dialog" aria-modal="true" aria-labelledby="appeal-title">
                     <div class="order-modal__icon order-modal__icon--danger">
                         <span class="material-symbols-outlined" aria-hidden="true">warning</span>
                     </div>
                     <h2 id="appeal-title" class="order-modal__title">{{ t('order.show.appealModal.title') }}</h2>
-                    <p class="order-modal__text">
-                        {{ t('order.show.appealModal.text') }}
+                    <p class="order-modal__text">{{ t('order.show.appealModal.text') }}</p>
+
+                    <div class="mt-3 space-y-2 text-left">
+                        <p class="text-sm font-medium">{{ t('order.show.appealModal.reasonLabel') }}</p>
+                        <label
+                            v-for="option in appealReasonOptions"
+                            :key="option.value"
+                            class="flex items-start gap-2 text-sm"
+                        >
+                            <input v-model="appealForm.reason" type="radio" :value="option.value" />
+                            <span>{{ option.label }}</span>
+                        </label>
+                    </div>
+
+                    <div class="mt-4 text-left">
+                        <label class="text-sm font-medium" for="appeal-description">{{ t('order.show.appealModal.descriptionLabel') }}</label>
+                        <textarea
+                            id="appeal-description"
+                            v-model="appealForm.description"
+                            rows="4"
+                            maxlength="500"
+                            class="mt-2 w-full rounded-xl border border-outline-variant bg-surface px-3 py-2 text-sm"
+                            :placeholder="t('order.show.appealModal.descriptionPlaceholder')"
+                        />
+                        <p class="mt-1 text-right text-xs text-on-surface-variant">
+                            {{ (appealForm.description || '').length }}/500
+                        </p>
+                    </div>
+
+                    <div class="mt-4 text-left">
+                        <p class="text-sm font-medium">{{ t('order.show.appealModal.uploadLabel') }}</p>
+                        <p class="mt-1 text-xs text-on-surface-variant">{{ t('order.show.appealModal.uploadHint') }}</p>
+                        <button
+                            type="button"
+                            class="mt-2 w-full rounded-xl border border-dashed border-outline-variant px-3 py-4 text-sm"
+                            @click="openAppealFilePicker"
+                        >
+                            {{ appealFilesLabel }}
+                        </button>
+                        <input
+                            ref="appealFileInput"
+                            type="file"
+                            accept="image/*,.pdf"
+                            multiple
+                            class="sr-only"
+                            @change="onAppealFilesSelected"
+                        />
+                    </div>
+
+                    <p class="order-modal__text mt-3 text-xs">{{ t('order.show.appealModal.privacyNote') }}</p>
+                    <p v-if="appealForm.errors.form || appealForm.errors.reason" class="mt-2 text-sm text-error">
+                        {{ appealForm.errors.form || appealForm.errors.reason }}
                     </p>
-                    <Link :href="chatUrl" class="btn-primary order-modal__confirm" @click="showAppealModal = false">
-                        {{ t('order.show.appealModal.openChat') }}
-                    </Link>
+
+                    <button
+                        type="button"
+                        class="btn-primary order-modal__confirm"
+                        :disabled="!appealForm.reason || appealForm.processing"
+                        @click="submitAppeal"
+                    >
+                        {{ appealForm.processing ? t('order.show.appealModal.submitting') : t('order.show.appealModal.submit') }}
+                    </button>
                     <button type="button" class="order-modal__back" @click="showAppealModal = false">
                         {{ t('order.show.appealModal.back') }}
                     </button>

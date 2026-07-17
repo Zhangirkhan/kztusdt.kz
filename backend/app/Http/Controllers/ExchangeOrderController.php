@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateExchangeOrderRequest;
+use App\Http\Requests\StoreOrderAppealRequest;
 use App\Http\Requests\UploadPaymentProofRequest;
 use App\Models\ExchangeOrder;
+use App\Models\OrderAppeal;
 use App\Services\ExchangeListingService;
 use App\Services\ExchangeOrderService;
+use App\Services\OrderAppealService;
 use App\Services\UserBankCardService;
 use App\Support\AppLog;
+use App\Support\AppealPresenter;
 use App\Support\PaymentProofPresenter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +33,7 @@ final class ExchangeOrderController extends Controller
         private readonly ExchangeOrderService $exchangeOrderService,
         private readonly UserBankCardService $bankCardService,
         private readonly ExchangeListingService $listingService,
+        private readonly OrderAppealService $orderAppealService,
     ) {}
 
     public function store(CreateExchangeOrderRequest $request): RedirectResponse
@@ -89,7 +94,7 @@ final class ExchangeOrderController extends Controller
     {
         abort_unless($order->user_id === $request->user()->id, 403);
 
-        $order->load('fiatPaymentRequest');
+        $order->load(['fiatPaymentRequest', 'openAppeal.attachments']);
 
         return Inertia::render('Exchange/OrderShow', [
             'order' => $order,
@@ -107,6 +112,9 @@ final class ExchangeOrderController extends Controller
                 $order->fiatPaymentRequest,
                 route('exchange.orders.proof.show', ['locale' => $locale, 'order' => $order]),
             ),
+            'activeAppeal' => AppealPresenter::appealPayload($order->openAppeal),
+            'canAppeal' => $this->orderAppealService->canOpenAppeal($order, OrderAppeal::SIDE_CLIENT),
+            'appealReasons' => $this->orderAppealService->allowedReasons($order, OrderAppeal::SIDE_CLIENT),
         ]);
     }
 
@@ -141,6 +149,10 @@ final class ExchangeOrderController extends Controller
         $confirmationDeadline = $order->payment_marked_at !== null
             ? $order->payment_marked_at->copy()->addMinutes($confirmationMinutes)->toIso8601String()
             : null;
+
+        if ($order->isSell() && $order->kzt_sent_at !== null) {
+            $confirmationDeadline = $order->kzt_sent_at->copy()->addMinutes($confirmationMinutes)->toIso8601String();
+        }
 
         return [
             'payment_term_minutes' => $termMinutes > 0 ? $termMinutes : null,
@@ -221,5 +233,28 @@ final class ExchangeOrderController extends Controller
             'locale' => $locale,
             'order' => $order,
         ])->with('success', 'Получение KZT подтверждено. Заявка завершена.');
+    }
+
+    public function storeAppeal(StoreOrderAppealRequest $request, string $locale, ExchangeOrder $order): RedirectResponse
+    {
+        abort_unless($order->user_id === $request->user()->id, 403);
+
+        try {
+            $this->orderAppealService->openAppeal(
+                $order,
+                $request->user(),
+                OrderAppeal::SIDE_CLIENT,
+                (string) $request->validated('reason'),
+                $request->validated('description'),
+                $request->file('attachments', []),
+            );
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['form' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('exchange.orders.show', [
+            'locale' => $locale,
+            'order' => $order,
+        ])->with('success', 'Апелляция отправлена. Служба поддержки рассмотрит обращение.');
     }
 }

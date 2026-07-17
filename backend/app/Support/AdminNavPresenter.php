@@ -33,7 +33,7 @@ final class AdminNavPresenter
                 'wallets' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'sweeps' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'settings' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
-                'disputes' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin', 'security_officer']),
+                'appeals' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin', 'security_officer']),
                 'audit' => $user->hasAnyRole(['super_admin', 'super_admin_manager']),
                 'subscriptions' => self::canManageSubscriptions($user),
                 'listings' => $user->hasAnyRole(['super_admin', 'super_admin_manager', 'exchange_admin']),

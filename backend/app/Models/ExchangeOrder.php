@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Support\BankCatalog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class ExchangeOrder extends Model
@@ -99,6 +100,16 @@ final class ExchangeOrder extends Model
     public function confirmedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    public function appeals(): HasMany
+    {
+        return $this->hasMany(OrderAppeal::class);
+    }
+
+    public function openAppeal(): HasOne
+    {
+        return $this->hasOne(OrderAppeal::class)->where('status', OrderAppeal::STATUS_OPEN);
     }
 
     public function isBuy(): bool

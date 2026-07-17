@@ -19,7 +19,7 @@ final class ExchangeOrderExpireTest extends TestCase
     use ExchangeTestHelpers;
     use RefreshDatabase;
 
-    public function test_buy_order_is_cancelled_after_payment_term(): void
+    public function test_buy_order_is_not_cancelled_after_payment_term(): void
     {
         $this->fakeExternalApis(500.0);
         $user = $this->createClient();
@@ -40,12 +40,10 @@ final class ExchangeOrderExpireTest extends TestCase
 
         $count = app(ExchangeOrderService::class)->expireOverdue();
 
-        $this->assertSame(1, $count);
+        $this->assertSame(0, $count);
         $order->refresh();
-        $this->assertSame(ExchangeOrder::STATUS_CANCELLED, $order->status);
-        $this->assertSame('Истекло время на завершение сделки', $order->reject_reason);
-        $this->assertNotNull($order->cancelled_at);
-        $this->assertSame(FiatPaymentRequest::STATUS_CANCELLED, $order->fiatPaymentRequest->fresh()->status);
+        $this->assertSame(ExchangeOrder::STATUS_AWAITING_KZT_PAYMENT, $order->status);
+        $this->assertNull($order->cancelled_at);
     }
 
     public function test_buy_order_stays_active_before_payment_term(): void
@@ -100,7 +98,7 @@ final class ExchangeOrderExpireTest extends TestCase
         );
     }
 
-    public function test_sell_order_is_cancelled_after_payment_term(): void
+    public function test_sell_order_is_not_cancelled_after_payment_term(): void
     {
         $this->fakeExternalApis(500.0);
         $user = $this->createClient();
@@ -143,10 +141,10 @@ final class ExchangeOrderExpireTest extends TestCase
 
         $count = app(ExchangeOrderService::class)->expireOverdue();
 
-        $this->assertSame(1, $count);
+        $this->assertSame(0, $count);
         $order->refresh();
-        $this->assertSame(ExchangeOrder::STATUS_CANCELLED, $order->status);
-        $this->assertSame(0, bccomp('200', app(LedgerService::class)->availableBalance($user->id, 'USDT'), 18));
+        $this->assertSame(ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION, $order->status);
+        $this->assertNull($order->cancelled_at);
     }
 
     public function test_expire_command_reports_count(): void
@@ -165,7 +163,7 @@ final class ExchangeOrderExpireTest extends TestCase
         $this->travel(16)->minutes();
 
         $this->artisan('exchange:expire-orders')
-            ->expectsOutput('Expired exchange orders: 1.')
+            ->expectsOutput('Overdue exchange orders (not auto-cancelled): 0.')
             ->assertSuccessful();
     }
 

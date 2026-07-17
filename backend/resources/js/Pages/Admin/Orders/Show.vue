@@ -5,7 +5,7 @@ import AdminPage from '@/shared/ui/admin/AdminPage.vue';
 import PaymentProofPreview from '@/shared/ui/payment-proof/PaymentProofPreview.vue';
 import { statusTagColor } from '@/shared/lib/admin/tagColors';
 import { formatKzt, formatPercent, formatRate, formatUsdt } from '@/utils/formatNumber';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -16,15 +16,38 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    timers: {
+        type: Object,
+        default: () => ({}),
+    },
+    activeAppeal: {
+        type: Object,
+        default: null,
+    },
+    canAppeal: {
+        type: Boolean,
+        default: false,
+    },
+    appealReasons: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const showConfirmModal = ref(false);
 const showPayoutModal = ref(false);
 const showRejectModal = ref(false);
+const showAppealModal = ref(false);
+const appealFileInput = ref(null);
 
 const confirmForm = useForm({});
 const payoutForm = useForm({});
 const rejectForm = useForm({ reason: '' });
+const appealForm = useForm({
+    reason: '',
+    description: '',
+    attachments: [],
+});
 const { t } = useI18n();
 
 const statusLabels = computed(() => ({
@@ -42,19 +65,40 @@ const statusLabels = computed(() => ({
 }));
 
 const isBuy = computed(() => props.order.direction === 'buy');
+const isDispute = computed(() => props.order.status === 'dispute');
+const hasActiveAppeal = computed(() => props.activeAppeal?.status === 'open');
 
 const canConfirmBuy = computed(
-    () => isBuy.value
+    () => !isDispute.value
+        && isBuy.value
         && ['awaiting_kzt_payment', 'payment_proof_uploaded', 'pending_admin_confirmation'].includes(props.order.status),
 );
 
 const canPayoutSell = computed(
-    () => !isBuy.value && props.order.status === 'pending_admin_confirmation',
+    () => !isDispute.value && !isBuy.value && props.order.status === 'pending_admin_confirmation',
 );
 
-const canReject = computed(() => canConfirmBuy.value || canPayoutSell.value);
+const canReject = computed(() => !isDispute.value && (canConfirmBuy.value || canPayoutSell.value));
+const canAppealButton = computed(() => props.canAppeal && !hasActiveAppeal.value);
 
-const hasActions = computed(() => canConfirmBuy.value || canPayoutSell.value || canReject.value);
+const hasActions = computed(() => canConfirmBuy.value || canPayoutSell.value || canReject.value || canAppealButton.value);
+
+const appealReasonOptions = computed(() =>
+    (props.appealReasons ?? []).map((value) => ({
+        value,
+        label: t(`admin.appeals.reasons.${value}`, value),
+    })),
+);
+
+const appealFilesLabel = computed(() => {
+    const count = appealForm.attachments?.length ?? 0;
+
+    if (count === 0) {
+        return t('admin.orders.show.modals.appeal.uploadEmpty');
+    }
+
+    return t('admin.orders.show.modals.appeal.uploadSelected', { count });
+});
 
 function openConfirm() {
     confirmForm.reset();
@@ -90,6 +134,35 @@ function reject() {
     });
 }
 
+function openAppealFilePicker() {
+    appealFileInput.value?.click();
+}
+
+function onAppealFilesSelected(event) {
+    const files = Array.from(event.target.files ?? []).slice(0, 5);
+    appealForm.attachments = files;
+}
+
+function submitAppeal() {
+    if (!appealForm.reason) {
+        return;
+    }
+
+    appealForm.post(`/admin/orders/${props.order.id}/appeal`, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            showAppealModal.value = false;
+            appealForm.reset();
+            appealForm.clearErrors();
+
+            if (appealFileInput.value) {
+                appealFileInput.value.value = '';
+            }
+        },
+    });
+}
+
 function formatDate(value) {
     return value ? new Date(value).toLocaleString('ru-RU') : t('admin.shared.empty');
 }
@@ -109,12 +182,30 @@ function formatDate(value) {
         </template>
 
         <AdminPage>
+            <a-alert
+                v-if="hasActiveAppeal"
+                type="warning"
+                show-icon
+                class="mb-4"
+                :message="t('admin.appeals.statuses.open')"
+                :description="t('admin.appeals.show.description')"
+            >
+                <template v-if="activeAppeal?.id" #action>
+                    <Link :href="`/admin/appeals/${activeAppeal.id}`">
+                        <a-button size="small">{{ t('admin.shared.actions.open') }}</a-button>
+                    </Link>
+                </template>
+            </a-alert>
+
             <div v-if="hasActions" class="admin-ant-sticky-actions">
                 <a-button v-if="canConfirmBuy" type="primary" @click="openConfirm">
                     {{ t('admin.orders.show.actions.confirmPayment') }}
                 </a-button>
                 <a-button v-if="canPayoutSell" type="primary" @click="openPayout">
                     {{ t('admin.orders.show.actions.completePayout') }}
+                </a-button>
+                <a-button v-if="canAppealButton" @click="showAppealModal = true">
+                    {{ t('admin.orders.show.actions.appeal') }}
                 </a-button>
                 <a-button v-if="canReject" danger @click="showRejectModal = true">
                     {{ t('admin.orders.show.actions.reject') }}
@@ -235,6 +326,54 @@ function formatDate(value) {
                             v-model:value="rejectForm.reason"
                             :rows="3"
                             :placeholder="t('admin.orders.show.modals.reject.reasonPlaceholder')"
+                        />
+                    </a-form-item>
+                </a-form>
+            </a-modal>
+
+            <a-modal
+                v-model:open="showAppealModal"
+                :title="t('admin.orders.show.modals.appeal.title')"
+                :ok-text="t('admin.orders.show.modals.appeal.submit')"
+                :cancel-text="t('admin.shared.actions.cancel')"
+                :confirm-loading="appealForm.processing"
+                :ok-button-props="{ disabled: !appealForm.reason }"
+                width="520px"
+                destroy-on-close
+                @ok="submitAppeal"
+            >
+                <a-typography-paragraph>{{ t('admin.orders.show.modals.appeal.text') }}</a-typography-paragraph>
+
+                <a-form layout="vertical">
+                    <a-form-item :label="t('admin.orders.show.modals.appeal.reasonLabel')" required>
+                        <a-radio-group v-model:value="appealForm.reason" class="flex flex-col gap-2">
+                            <a-radio v-for="option in appealReasonOptions" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </a-radio>
+                        </a-radio-group>
+                    </a-form-item>
+
+                    <a-form-item :label="t('admin.orders.show.modals.appeal.descriptionLabel')">
+                        <a-textarea
+                            v-model:value="appealForm.description"
+                            :rows="4"
+                            maxlength="500"
+                            :placeholder="t('admin.orders.show.modals.appeal.descriptionPlaceholder')"
+                        />
+                    </a-form-item>
+
+                    <a-form-item :label="t('admin.orders.show.modals.appeal.uploadLabel')">
+                        <a-typography-text type="secondary" class="block mb-2">
+                            {{ t('admin.orders.show.modals.appeal.uploadHint') }}
+                        </a-typography-text>
+                        <a-button @click="openAppealFilePicker">{{ appealFilesLabel }}</a-button>
+                        <input
+                            ref="appealFileInput"
+                            type="file"
+                            accept="image/*,.pdf"
+                            multiple
+                            class="sr-only"
+                            @change="onAppealFilesSelected"
                         />
                     </a-form-item>
                 </a-form>

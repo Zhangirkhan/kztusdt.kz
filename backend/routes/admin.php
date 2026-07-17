@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Admin\AuditAdminController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\DisputeAdminController;
+use App\Http\Controllers\Admin\AppealAdminController;
 use App\Http\Controllers\Admin\FinanceAdminController;
 use App\Http\Controllers\Admin\KycReviewController;
 use App\Http\Controllers\Admin\ListingController;
@@ -48,7 +48,6 @@ Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manage
         Route::get('/finance', [FinanceAdminController::class, 'index'])->name('finance.index');
         Route::get('/settings', [SettingsAdminController::class, 'index'])->name('settings.index');
         Route::get('/audit', [AuditAdminController::class, 'index'])->name('audit.index');
-        Route::get('/disputes', [DisputeAdminController::class, 'index'])->name('disputes.index');
         Route::get('/kyc', [KycReviewController::class, 'index'])->name('kyc.index');
         Route::get('/kyc/{kycProfile}', [KycReviewController::class, 'show'])->name('kyc.show');
         Route::post('/kyc/{kycProfile}/approve', [KycReviewController::class, 'approve'])->name('kyc.approve');
@@ -94,6 +93,11 @@ Route::middleware(['auth', 'role:super_admin,super_admin_manager,exchange_admin,
         Route::post('/orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->name('orders.confirm');
         Route::post('/orders/{order}/mark-kzt-sent', [OrderController::class, 'markKztSent'])->name('orders.kzt-sent');
         Route::post('/orders/{order}/reject', [OrderController::class, 'reject'])->name('orders.reject');
+        Route::post('/orders/{order}/appeal', [OrderController::class, 'storeAppeal'])->name('orders.appeal');
+
+        Route::get('/appeals', [AppealAdminController::class, 'index'])->name('appeals.index');
+        Route::get('/appeals/{appeal}', [AppealAdminController::class, 'show'])->name('appeals.show');
+        Route::get('/appeals/{appeal}/attachments/{attachment}', [AppealAdminController::class, 'attachment'])->name('appeals.attachments.show');
     });
 
 Route::middleware(['auth', 'role:super_admin'])

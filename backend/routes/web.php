@@ -154,6 +154,7 @@ Route::prefix('{locale}')
                 Route::post('/exchange/orders/{order}/mark-paid', [ExchangeOrderController::class, 'markPaid'])->name('exchange.orders.mark-paid');
                 Route::post('/exchange/orders/{order}/mark-received', [ExchangeOrderController::class, 'markReceived'])->name('exchange.orders.mark-received');
                 Route::post('/exchange/orders/{order}/cancel', [ExchangeOrderController::class, 'cancel'])->name('exchange.orders.cancel');
+                Route::post('/exchange/orders/{order}/appeal', [ExchangeOrderController::class, 'storeAppeal'])->name('exchange.orders.appeal');
                 Route::get('/support/chat', [SupportChatPageController::class, 'show'])->name('support.chat');
             });
 

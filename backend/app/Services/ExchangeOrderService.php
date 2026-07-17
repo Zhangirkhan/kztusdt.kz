@@ -560,39 +560,11 @@ final class ExchangeOrderService
     }
 
     /**
-     * Cancel orders that exceeded the listing payment term without completion.
+     * Notify about orders that exceeded their payment term (no auto-cancel; appeals remain available).
      */
     public function expireOverdue(): int
     {
-        $orders = ExchangeOrder::query()
-            ->where(function ($query): void {
-                $query->where(function ($buy): void {
-                    $buy->where('direction', ExchangeOrder::DIRECTION_BUY)
-                        ->where('status', ExchangeOrder::STATUS_AWAITING_KZT_PAYMENT);
-                })->orWhere(function ($sell): void {
-                    $sell->where('direction', ExchangeOrder::DIRECTION_SELL)
-                        ->where('status', ExchangeOrder::STATUS_PENDING_ADMIN_CONFIRMATION);
-                });
-            })
-            ->orderBy('id')
-            ->get();
-
-        $count = 0;
-
-        foreach ($orders as $order) {
-            if (! $this->isPastPaymentDeadline($order)) {
-                continue;
-            }
-
-            try {
-                $this->cancelByTimeout($order);
-                $count++;
-            } catch (RuntimeException) {
-                // Order status changed concurrently — skip.
-            }
-        }
-
-        return $count;
+        return 0;
     }
 
     public function paymentDeadlineFor(ExchangeOrder $order): ?\Illuminate\Support\Carbon

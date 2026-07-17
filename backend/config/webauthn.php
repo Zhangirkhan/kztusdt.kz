@@ -146,7 +146,9 @@ return [
     |
     */
 
-    'log' => null,
+    // Use null channel so verbose webauthn assertion logging cannot break auth
+    // if daily log files are created with wrong ownership (e.g. artisan as root).
+    'log' => 'null',
 
     /*
     |--------------------------------------------------------------------------
