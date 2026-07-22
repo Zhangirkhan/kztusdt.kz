@@ -50,7 +50,7 @@ function applyResolvedTheme(resolved) {
 
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-        meta.setAttribute('content', dark ? '#0f172a' : '#ffffff');
+        meta.setAttribute('content', dark ? '#0a0a0a' : '#ffffff');
     }
 
     applyClientFavicons(dark);

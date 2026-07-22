@@ -36,6 +36,13 @@
         --color-error-light: #fee2e2;
         --color-warning: #f59e0b;
         --color-warning-light: #fef3c7;
+        --color-on-accent: #ffffff;
+        --btn-primary-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+        --btn-primary-bg-hover: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+        --btn-primary-bg-active: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        --btn-primary-color: #ffffff;
+        --btn-primary-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+        --card-highlight-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 45%, #1d4ed8 100%);
         --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
         --shadow-md: 0 4px 24px rgba(15, 23, 42, 0.08);
         --shadow-btn: 0 4px 14px rgba(37, 99, 235, 0.35);
@@ -55,39 +62,46 @@
     }
 
     html.dark {
-        --color-primary: #3b82f6;
-        --color-primary-dark: #2563eb;
-        --color-primary-light: #1e3a5f;
-        --color-accent: #60a5fa;
-        --color-accent-bright: #3b82f6;
-        --color-nav-active: #93c5fd;
-        --color-timer: #60a5fa;
-        --color-login: #60a5fa;
-        --color-app-bg: #0b1120;
-        --color-bg: #111827;
-        --color-surface: #151c2e;
-        --color-surface-muted: #1a2236;
-        --color-surface-container-low: #1f2937;
-        --color-surface-container-high: #273449;
-        --color-border: #2d3a52;
-        --color-text: #f1f5f9;
-        --color-text-strong: #f8fafc;
-        --color-text-body: #cbd5e1;
-        --color-text-secondary: #94a3b8;
-        --color-text-muted: #64748b;
-        --color-label: #94a3b8;
-        --color-placeholder: #475569;
+        --color-primary: #7dd3fc;
+        --color-primary-dark: #38bdf8;
+        --color-primary-light: rgba(125, 211, 252, 0.12);
+        --color-accent: #7dd3fc;
+        --color-accent-bright: #bae6fd;
+        --color-nav-active: #7dd3fc;
+        --color-timer: #7dd3fc;
+        --color-login: #7dd3fc;
+        --color-on-accent: #0f172a;
+        --color-app-bg: #0a0a0a;
+        --color-bg: #111111;
+        --color-surface: #171717;
+        --color-surface-muted: #1c1c1c;
+        --color-surface-container-low: #222222;
+        --color-surface-container-high: #2a2a2a;
+        --color-border: #333333;
+        --color-text: #f5f5f5;
+        --color-text-strong: #fafafa;
+        --color-text-body: #d4d4d4;
+        --color-text-secondary: #b8b8b8;
+        --color-text-muted: #a1a1a1;
+        --color-label: #a3a3a3;
+        --color-placeholder: #525252;
         --color-success: #4ade80;
-        --color-success-light: #14532d;
+        --color-success-light: rgba(74, 222, 128, 0.12);
         --color-error: #f87171;
-        --color-error-light: #450a0a;
+        --color-error-light: rgba(248, 113, 113, 0.12);
         --color-warning: #fbbf24;
-        --color-warning-light: #451a03;
-        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
-        --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.45);
-        --shadow-btn: 0 4px 14px rgba(37, 99, 235, 0.25);
-        --shadow-fab: 0 4px 20px rgba(59, 130, 246, 0.3);
-        --shadow-balance: 0 8px 32px rgba(37, 99, 235, 0.2);
+        --color-warning-light: rgba(251, 191, 36, 0.12);
+        --btn-primary-bg: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 50%, #38bdf8 100%);
+        --btn-primary-bg-hover: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 50%, #0ea5e9 100%);
+        --btn-primary-bg-active: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+        --btn-primary-color: #0f172a;
+        --btn-primary-shadow: 0 4px 14px rgba(125, 211, 252, 0.22);
+        --card-highlight-bg: linear-gradient(135deg, #1a1a1a 0%, #222222 45%, #1a1a1a 100%);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.25);
+        --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+        --shadow-btn: 0 4px 14px rgba(125, 211, 252, 0.2);
+        --shadow-fab: 0 4px 20px rgba(125, 211, 252, 0.25);
+        --shadow-balance: 0 8px 32px rgba(0, 0, 0, 0.45);
     }
 
     html {
@@ -174,25 +188,26 @@
 
     .btn-primary,
     a.btn-primary {
-        @apply w-full text-on-accent;
+        @apply w-full;
         border: none;
-        background-color: #2563eb;
-        background-image: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+        color: var(--btn-primary-color);
+        background-color: var(--color-primary);
+        background-image: var(--btn-primary-bg);
+        box-shadow: var(--btn-primary-shadow);
     }
 
     .btn-primary:hover:not(:disabled),
     a.btn-primary:hover:not(:disabled) {
-        background-color: #1d4ed8;
-        background-image: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+        background-color: var(--color-primary-dark);
+        background-image: var(--btn-primary-bg-hover);
     }
 
     .btn-primary:active:not(:disabled),
     a.btn-primary:active:not(:disabled) {
         transform: scale(0.97);
-        background-color: #1e40af;
-        background-image: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.22);
+        background-color: var(--color-primary-dark);
+        background-image: var(--btn-primary-bg-active);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     .btn-secondary,
@@ -280,8 +295,13 @@
 
     .card--highlight {
         @apply border-transparent text-on-accent;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 45%, #1d4ed8 100%);
+        background: var(--card-highlight-bg);
         box-shadow: var(--shadow-balance);
+    }
+
+    html.dark .card--highlight {
+        border-color: rgba(125, 211, 252, 0.25);
+        color: var(--color-text);
     }
 
     /* Inputs */
@@ -361,8 +381,8 @@
 
     .bottom-nav__item--active .bottom-nav__pill {
         background: var(--color-nav-active);
-        color: #ffffff;
-        box-shadow: 0 2px 8px rgba(0, 82, 255, 0.35);
+        color: var(--color-on-accent);
+        box-shadow: 0 2px 8px rgba(125, 211, 252, 0.25);
     }
 
     .bottom-nav__label {
@@ -373,7 +393,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
-        color: rgba(0, 82, 255, 0.55);
+        color: var(--color-text-muted);
         transition: color 0.2s ease, font-weight 0.2s ease;
     }
 
@@ -391,7 +411,7 @@
     }
 
     .bottom-nav__item:not(.bottom-nav__item--active):not(.bottom-nav__item--locked) .bottom-nav__pill {
-        color: rgba(0, 82, 255, 0.55);
+        color: var(--color-text-muted);
     }
 
     .bottom-nav__item--locked .bottom-nav__label {
@@ -710,10 +730,11 @@
     }
 
     .support-chat-fab {
-        @apply fixed right-4 z-[45] flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform no-underline;
+        @apply fixed right-4 z-[45] flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform no-underline;
         bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px);
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+        color: var(--btn-primary-color);
+        background: var(--btn-primary-bg);
+        box-shadow: var(--shadow-fab);
     }
 
     .support-chat-fab:active {
@@ -793,7 +814,9 @@
     }
 
     .support-chat-message--mine {
-        @apply ml-auto bg-accent text-on-accent;
+        @apply ml-auto text-on-accent;
+        background: var(--color-accent);
+        color: var(--color-on-accent);
     }
 
     .support-chat-message--theirs {
@@ -837,7 +860,9 @@
     }
 
     .support-chat-page__send {
-        @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 bg-accent text-on-accent disabled:opacity-50;
+        @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 disabled:opacity-50;
+        background: var(--color-accent);
+        color: var(--color-on-accent);
     }
 
     .support-chat-page__send .material-symbols-outlined {
@@ -1305,9 +1330,10 @@
     }
 
     .profile-card__avatar {
-        @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-full;
+        color: var(--btn-primary-color);
+        background: var(--btn-primary-bg);
+        box-shadow: var(--btn-primary-shadow);
     }
 
     .profile-card__chevron {
@@ -1797,12 +1823,21 @@
         margin-right: -8px;
         padding: 1.75rem 1.625rem;
         min-height: 178px;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 42%, #1d4ed8 100%);
+        background: var(--card-highlight-bg);
         box-shadow: var(--shadow-balance);
+    }
+
+    html.dark .wallet-balance-card {
+        color: var(--color-text);
+        border: 1px solid rgba(125, 211, 252, 0.2);
     }
 
     .wallet-balance-card__label {
         @apply text-[10px] font-bold uppercase tracking-wider text-white/70;
+    }
+
+    html.dark .wallet-balance-card__label {
+        color: var(--color-text-secondary);
     }
 
     .wallet-balance-card__row {
@@ -1818,12 +1853,24 @@
         @apply text-xl font-semibold text-white/90;
     }
 
+    html.dark .wallet-balance-card__asset {
+        color: var(--color-accent);
+    }
+
     .wallet-balance-card__hint {
         @apply mt-1 text-sm font-medium text-white/75;
     }
 
+    html.dark .wallet-balance-card__hint {
+        color: var(--color-text-secondary);
+    }
+
     .wallet-balance-card__updated {
         @apply mt-3 text-[11px] text-white/55;
+    }
+
+    html.dark .wallet-balance-card__updated {
+        color: var(--color-text-muted);
     }
 
     .wallet-action-bar {
@@ -1835,9 +1882,9 @@
     }
 
     .wallet-action-bar__btn--primary {
-        @apply text-white;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+        color: var(--btn-primary-color);
+        background: var(--btn-primary-bg);
+        box-shadow: var(--btn-primary-shadow);
     }
 
     .wallet-action-bar__btn--primary:active {
@@ -2079,16 +2126,40 @@
         @apply text-error;
     }
 
-    html.dark .bg-background,
-    html.dark .bg-surface,
+    html.dark .bg-background {
+        background-color: var(--color-app-bg) !important;
+    }
+
     html.dark .bg-surface-container,
     html.dark .bg-surface-container-low,
     html.dark .bg-surface-container-high {
-        background-color: var(--color-surface-muted) !important;
+        background-color: var(--color-surface-container-low) !important;
+    }
+
+    html.dark .bg-surface-container-high {
+        background-color: var(--color-surface-container-high) !important;
     }
 
     html.dark .bg-surface {
         background-color: var(--color-surface) !important;
+    }
+
+    html.dark .text-accent,
+    html.dark .text-primary {
+        color: var(--color-accent) !important;
+    }
+
+    html.dark .bg-accent {
+        background-color: var(--color-accent) !important;
+        color: var(--color-on-accent) !important;
+    }
+
+    html.dark .border-accent {
+        border-color: var(--color-accent) !important;
+    }
+
+    html.dark .text-on-accent {
+        color: var(--color-on-accent) !important;
     }
 
     html.dark .text-on-surface,
@@ -2113,6 +2184,56 @@
         background-color: var(--color-primary-light) !important;
     }
 
+    html.dark .btn-secondary,
+    html.dark a.btn-secondary {
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    html.dark .btn-secondary:hover:not(:disabled),
+    html.dark a.btn-secondary:hover:not(:disabled) {
+        background: var(--color-surface-container-low);
+        border-color: var(--color-text-muted);
+        color: var(--color-text);
+    }
+
+    html.dark .btn-chip--inactive {
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+        color: var(--color-text-secondary);
+    }
+
+    html.dark .btn-segment--inactive {
+        color: var(--color-text-body);
+    }
+
+    html.dark .buy-sell-tabs .btn-segment--inactive {
+        color: var(--color-text-body);
+    }
+
+    html.dark .exchange-listing-card__term,
+    html.dark .exchange-listing-card__limits,
+    html.dark .exchange-listing-card__base-rate {
+        color: var(--color-text-body);
+    }
+
+    html.dark .btn-segment--active {
+        background: var(--color-accent);
+        border-color: transparent;
+        color: var(--color-on-accent);
+    }
+
+    html.dark .input-field {
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    html.dark select.input-field {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+
     html.dark .bank-picker__option,
     html.dark .card-picker__option,
     html.dark .bank-card,
@@ -2123,7 +2244,7 @@
     }
 
     html.dark .page-header {
-        background: var(--color-surface);
+        background: color-mix(in srgb, var(--color-surface) 90%, transparent);
         border-color: var(--color-border);
     }
 
@@ -2133,7 +2254,7 @@
     }
 
     html.dark .exchange-listing-card__rate {
-        color: var(--color-text);
+        color: var(--color-accent);
     }
 
     html.dark .exchange-listing-card__bank {
@@ -2147,6 +2268,15 @@
         color: #86efac;
     }
 
+    html.dark .bottom-nav {
+        background: var(--color-surface);
+        border-color: var(--color-border);
+    }
+
+    html.dark .bottom-nav__item {
+        color: var(--color-text-muted);
+    }
+
     html.dark .bottom-nav__label {
         color: var(--color-text-muted);
     }
@@ -2156,22 +2286,281 @@
     }
 
     html.dark .bottom-nav__item--active .bottom-nav__pill {
-        background: rgba(255, 255, 255, 0.14);
-        color: var(--color-text);
-        box-shadow: none;
+        background: var(--color-accent);
+        color: var(--color-on-accent);
+        box-shadow: var(--btn-primary-shadow);
     }
 
     html.dark .bottom-nav__item--active .bottom-nav__label {
-        color: var(--color-text);
+        color: var(--color-accent);
+        font-weight: 800;
     }
 
     html.dark .bottom-nav__item:active .bottom-nav__pill {
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--color-surface-container-high);
     }
 
     html.dark .status-badge--pending {
-        background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface-muted));
-        color: var(--color-text-secondary);
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .status-badge--success {
+        background: var(--color-success-light);
+        color: #86efac;
+    }
+
+    html.dark .status-badge--error {
+        background: var(--color-error-light);
+        color: #fca5a5;
+    }
+
+    html.dark .info-box {
+        border-color: rgba(125, 211, 252, 0.25);
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .warning-box {
+        border-color: rgba(251, 191, 36, 0.3);
+        background: var(--color-warning-light);
+        color: #fcd34d;
+    }
+
+    html.dark .order-status-banner--pending {
+        border-color: rgba(125, 211, 252, 0.25);
+        background: var(--color-primary-light);
+    }
+
+    html.dark .order-status-banner--pending .order-status-banner__label {
+        color: var(--color-accent);
+    }
+
+    html.dark .order-status-banner--success {
+        border-color: rgba(74, 222, 128, 0.25);
+        background: var(--color-success-light);
+    }
+
+    html.dark .order-status-banner--success .order-status-banner__label {
+        color: #86efac;
+    }
+
+    html.dark .order-flash-success {
+        border-color: rgba(74, 222, 128, 0.25);
+        background: var(--color-success-light);
+        box-shadow: none;
+    }
+
+    html.dark .order-flash-success__text {
+        color: #bbf7d0;
+    }
+
+    html.dark .order-flash-success__icon {
+        color: #4ade80;
+    }
+
+    html.dark .support-chat-page__proof-hint {
+        border-color: rgba(125, 211, 252, 0.25);
+        background: var(--color-primary-light);
+    }
+
+    html.dark .support-chat-page__header {
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+    }
+
+    html.dark .profile-card {
+        background: var(--color-surface-muted);
+        border-color: var(--color-border);
+    }
+
+    html.dark .history-stat {
+        border-color: rgba(125, 211, 252, 0.2);
+        background: var(--color-primary-light);
+    }
+
+    html.dark .history-stat .history-stat__value,
+    html.dark .history-stat .history-stat__label {
+        color: var(--color-accent);
+    }
+
+    html.dark .history-stat--success {
+        border-color: rgba(74, 222, 128, 0.2);
+        background: var(--color-success-light);
+    }
+
+    html.dark .history-stat--success .history-stat__value {
+        color: #86efac;
+    }
+
+    html.dark .history-stat--success .history-stat__label {
+        color: #4ade80;
+    }
+
+    html.dark .history-stat--pending {
+        border-color: rgba(248, 113, 113, 0.2);
+        background: var(--color-error-light);
+    }
+
+    html.dark .history-stat--pending .history-stat__value {
+        color: #fca5a5;
+    }
+
+    html.dark .history-stat--pending .history-stat__label {
+        color: #f87171;
+    }
+
+    html.dark .history-sub-tab--all {
+        border-color: rgba(125, 211, 252, 0.2);
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .history-sub-tab--all.history-sub-tab--active {
+        border-color: var(--color-accent);
+        background: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface));
+        color: var(--color-accent);
+        box-shadow: none;
+    }
+
+    html.dark .history-sub-tab--all .material-symbols-outlined,
+    html.dark .history-sub-tab--all.history-sub-tab--active .material-symbols-outlined {
+        color: var(--color-accent);
+    }
+
+    html.dark .history-sub-tab--in {
+        border-color: rgba(74, 222, 128, 0.2);
+        background: var(--color-success-light);
+        color: #86efac;
+    }
+
+    html.dark .history-sub-tab--in.history-sub-tab--active {
+        border-color: #4ade80;
+        background: color-mix(in srgb, #4ade80 18%, var(--color-surface));
+        color: #bbf7d0;
+    }
+
+    html.dark .history-sub-tab--out {
+        border-color: rgba(248, 113, 113, 0.2);
+        background: var(--color-error-light);
+        color: #fca5a5;
+    }
+
+    html.dark .history-sub-tab--out.history-sub-tab--active {
+        border-color: #f87171;
+        background: color-mix(in srgb, #f87171 18%, var(--color-surface));
+        color: #fecaca;
+    }
+
+    html.dark .history-item__icon--in {
+        background: var(--color-success-light);
+        color: #86efac;
+    }
+
+    html.dark .history-item__icon--out {
+        background: var(--color-error-light);
+        color: #fca5a5;
+    }
+
+    html.dark .history-item__icon--swap {
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .history-filter-chip--active {
+        border-color: var(--color-accent);
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .wallet-flash {
+        border-color: rgba(125, 211, 252, 0.25);
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .wallet-deposit-item__icon {
+        background: var(--color-success-light);
+        color: #86efac;
+    }
+
+    html.dark .wallet-deposit-item__icon--out {
+        background: var(--color-error-light);
+        color: #fca5a5;
+    }
+
+    html.dark .exchange-mode--buy .exchange-preview {
+        border-color: rgba(74, 222, 128, 0.2);
+        background: var(--color-success-light);
+    }
+
+    html.dark .exchange-mode--sell .exchange-preview {
+        border-color: rgba(248, 113, 113, 0.2);
+        background: var(--color-error-light);
+    }
+
+    html.dark .exchange-mode--buy .input-field:focus {
+        @apply ring-green-500/20;
+    }
+
+    html.dark .exchange-mode--sell .input-field:focus {
+        @apply ring-red-500/20;
+    }
+
+    html.dark .order-stepper__item--active .order-stepper__dot,
+    html.dark .order-stepper__item--done .order-stepper__dot {
+        background: var(--color-accent);
+        border-color: var(--color-accent);
+        color: var(--color-on-accent);
+    }
+
+    html.dark .segment-tab--active {
+        background: var(--color-surface);
+        border-color: var(--color-border);
+        color: var(--color-text);
+    }
+
+    html.dark .segment-tabs {
+        background: var(--color-surface-container-high);
+    }
+
+    html.dark .settings-item__icon {
+        background: var(--color-primary-light);
+        color: var(--color-accent);
+    }
+
+    html.dark .sheet-backdrop {
+        background: rgba(0, 0, 0, 0.65);
+    }
+
+    html.dark .toggle-switch__thumb {
+        background: #fafafa;
+    }
+
+    html.dark .border-green-200.bg-green-50,
+    html.dark .card.border-green-200.bg-green-50 {
+        border-color: rgba(74, 222, 128, 0.25);
+        background: var(--color-success-light);
+    }
+
+    html.dark .border-green-200.bg-green-50 .text-green-600 {
+        color: #4ade80;
+    }
+
+    html.dark .exchange-listing-card__margin:not(.exchange-listing-card__margin--on-dark) {
+        background: var(--color-success-light);
+        color: #86efac;
+    }
+
+    html.dark .order-modal__icon--danger {
+        background: var(--color-error-light);
+        color: #fca5a5;
+    }
+
+    html.dark .order-flow__appeal {
+        border-color: rgba(251, 191, 36, 0.35);
+        background: var(--color-warning-light);
+        color: #fcd34d;
     }
 }
 
