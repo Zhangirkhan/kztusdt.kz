@@ -178,36 +178,48 @@
         <script>
             (function () {
                 var isAdmin = document.documentElement.dataset.adminSurface === 'true';
+                var recoveryKey = isAdmin ? 'kztusdt_admin_boot_recovery' : 'kztusdt_client_boot_recovery';
+                var bootTimeoutMs = 30000;
 
                 function hardReload() {
+                    var jobs = [];
+
                     try {
                         localStorage.removeItem('kztusdt_admin_asset_v');
                         localStorage.removeItem('kztusdt_client_asset_v');
                         localStorage.removeItem('kztusdt_admin_build_etag');
                         localStorage.removeItem('kztusdt_client_build_etag');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v5');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v5');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v6');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v6');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v7');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v7');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v8');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v8');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v9');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v9');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v10');
+                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v10');
+                        sessionStorage.removeItem('kztusdt_admin_boot_recovery');
+                        sessionStorage.removeItem('kztusdt_client_boot_recovery');
                     } catch (error) {}
 
-                    if ('caches' in window) {
-                        caches.keys().then(function (keys) {
-                            return Promise.all(keys.map(function (key) { return caches.delete(key); }));
-                        }).finally(function () {
-                            window.location.reload();
-                        });
-
-                        return;
+                    if ('serviceWorker' in navigator) {
+                        jobs.push(
+                            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                                return Promise.all(registrations.map(function (registration) {
+                                    return registration.unregister();
+                                }));
+                            })
+                        );
                     }
 
-                    window.location.reload();
+                    if ('caches' in window) {
+                        jobs.push(
+                            caches.keys().then(function (keys) {
+                                return Promise.all(keys.map(function (key) {
+                                    return caches.delete(key);
+                                }));
+                            })
+                        );
+                    }
+
+                    Promise.all(jobs).finally(function () {
+                        var url = new URL(window.location.href);
+                        url.searchParams.set('_', String(Date.now()));
+                        window.location.replace(url.toString());
+                    });
                 }
 
                 function showBootFailure() {
@@ -236,15 +248,43 @@
                     }
                 }
 
+                function tryAutoRecovery() {
+                    try {
+                        if (sessionStorage.getItem(recoveryKey) === '1') {
+                            return false;
+                        }
+
+                        sessionStorage.setItem(recoveryKey, '1');
+                    } catch (error) {
+                        return false;
+                    }
+
+                    hardReload();
+
+                    return true;
+                }
+
                 window.addEventListener('error', function (event) {
                     var target = event.target;
 
                     if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
-                        showBootFailure();
+                        if (!tryAutoRecovery()) {
+                            showBootFailure();
+                        }
                     }
                 }, true);
 
-                window.setTimeout(showBootFailure, 10000);
+                window.setTimeout(function () {
+                    var splash = document.getElementById('app-boot-splash');
+
+                    if (!splash || splash.dataset.failed === '1') {
+                        return;
+                    }
+
+                    if (!tryAutoRecovery()) {
+                        showBootFailure();
+                    }
+                }, bootTimeoutMs);
             })();
         </script>
     </body>

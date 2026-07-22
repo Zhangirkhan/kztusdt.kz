@@ -107,13 +107,6 @@ final class ProfileController extends Controller
         return Inertia::render('Profile/Security');
     }
 
-    public function language(Request $request): Response
-    {
-        return Inertia::render('Profile/Language', [
-            'profile' => $this->profileService->profilePayload($request->user()),
-        ]);
-    }
-
     public function notifications(Request $request): Response
     {
         return Inertia::render('Profile/Notifications', [

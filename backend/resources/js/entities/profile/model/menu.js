@@ -1,7 +1,7 @@
 import { i18n } from '@/i18n';
 import { localizedPathFor } from '@/utils/localizedPath';
 
-export function buildProfileMenuItems(languageLabel, canUseWallet = true, locale = 'ru') {
+export function buildProfileMenuItems(canUseWallet = true, locale = 'ru') {
     return [
         { href: localizedPathFor(locale, '/profile/personal'), icon: 'badge', labelKey: 'profile.menu.personal' },
         {
@@ -11,7 +11,6 @@ export function buildProfileMenuItems(languageLabel, canUseWallet = true, locale
             locked: !canUseWallet,
         },
         { href: localizedPathFor(locale, '/profile/security'), icon: 'security', labelKey: 'profile.menu.security' },
-        { href: localizedPathFor(locale, '/profile/language'), icon: 'translate', labelKey: 'profile.menu.language', value: languageLabel },
         { href: localizedPathFor(locale, '/profile/appearance'), icon: 'dark_mode', labelKey: 'profile.menu.appearance' },
         { href: localizedPathFor(locale, '/profile/notifications'), icon: 'notifications', labelKey: 'profile.menu.notifications' },
         { href: localizedPathFor(locale, '/profile/referrals'), icon: 'group_add', labelKey: 'profile.menu.referrals' },

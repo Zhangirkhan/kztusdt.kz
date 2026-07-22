@@ -18,6 +18,11 @@ function applyZiggy(ziggy) {
 }
 
 function removeBootSplash() {
+    try {
+        sessionStorage.removeItem('kztusdt_admin_boot_recovery');
+        sessionStorage.removeItem('kztusdt_client_boot_recovery');
+    } catch (error) {}
+
     document.getElementById('app-boot-splash')?.remove();
 }
 

@@ -48,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT,
         );
+        $middleware->prepend(\App\Http\Middleware\PreventHtmlCaching::class);
         $middleware->web(prepend: [
             \App\Http\Middleware\ResetZiggyRouteGenerator::class,
             \App\Http\Middleware\AttachRequestLogContext::class,

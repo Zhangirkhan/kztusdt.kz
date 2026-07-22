@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { applyLocale } from '@/i18n';
 import { route } from '../../../vendor/tightenco/ziggy';
 
-const props = defineProps({
+defineProps({
     showLabel: {
         type: Boolean,
         default: false,
@@ -18,12 +18,6 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    /** segment - compact tabs; list - selectable list */
-    variant: {
-        type: String,
-        default: 'segment',
-        validator: (value) => ['segment', 'list'].includes(value),
-    },
 });
 
 const page = usePage();
@@ -33,16 +27,6 @@ const pendingLocale = ref('');
 
 const currentLocale = computed(() => pendingLocale.value || page.props.locale?.current || 'ru');
 const options = computed(() => page.props.locale?.options ?? []);
-
-const nativeHints = {
-    ru: 'RU',
-    kk: 'KK',
-    en: 'EN',
-};
-
-function optionHint(option) {
-    return nativeHints[option.code] ?? String(option.code).toUpperCase();
-}
 
 function switchLocale(code) {
     if (code === currentLocale.value || switchingLocale.value) {
@@ -65,11 +49,9 @@ function switchLocale(code) {
             },
             onFinish: () => {
                 switchingLocale.value = '';
-                // Keep pending until page.props catches up, then clear.
                 if ((page.props.locale?.current ?? '') === code) {
                     pendingLocale.value = '';
                 } else {
-                    // Inertia may have already navigated; clear after a tick.
                     requestAnimationFrame(() => {
                         pendingLocale.value = '';
                     });
@@ -81,45 +63,7 @@ function switchLocale(code) {
 </script>
 
 <template>
-    <!-- List: radio-style rows for Profile → Language -->
-    <div v-if="variant === 'list'" class="w-full">
-        <p v-if="showLabel" class="mb-3 text-label-caps uppercase text-text-dim">
-            {{ t('locale.label') }}
-        </p>
-        <div
-            class="settings-list"
-            role="radiogroup"
-            :aria-label="t('locale.label')"
-            :aria-busy="Boolean(switchingLocale)"
-        >
-            <button
-                v-for="option in options"
-                :key="option.code"
-                type="button"
-                role="radio"
-                class="settings-item w-full"
-                :class="switchingLocale === option.code ? 'cursor-wait opacity-70' : ''"
-                :aria-checked="option.code === currentLocale"
-                :aria-label="option.label"
-                :disabled="switchingLocale === option.code"
-                @click="switchLocale(option.code)"
-            >
-                <span class="settings-item__icon text-xs font-bold tracking-wide">
-                    {{ optionHint(option) }}
-                </span>
-                <span
-                    v-if="option.code === currentLocale"
-                    class="material-symbols-outlined ml-auto text-xl text-accent"
-                    aria-hidden="true"
-                >
-                    check
-                </span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Segment: compact tabs (landing / auth / admin) -->
-    <div v-else :class="compact ? '' : 'w-full'">
+    <div :class="compact ? '' : 'w-full'">
         <p v-if="showLabel" class="mb-2 text-label-caps uppercase text-text-dim">
             {{ t('locale.label') }}
         </p>
@@ -138,16 +82,17 @@ function switchLocale(code) {
                 :class="[
                     compact ? (codeOnly ? 'min-w-11' : 'min-w-[5.5rem]') : 'flex-1',
                     option.code === currentLocale
-                        ? 'border-outline-variant bg-background text-on-surface'
+                        ? 'border-outline-variant bg-background text-on-surface shadow-sm'
                         : 'border-transparent text-text-dim hover:bg-surface-container-low hover:text-on-surface',
                     switchingLocale === option.code ? 'cursor-wait opacity-70' : '',
                 ]"
                 :disabled="switchingLocale === option.code"
                 :aria-pressed="option.code === currentLocale"
+                :aria-label="option.label"
                 @click="switchLocale(option.code)"
             >
                 <span class="whitespace-nowrap">
-                    {{ codeOnly ? option.code : option.label }}
+                    {{ codeOnly ? option.code.toUpperCase() : option.label }}
                 </span>
             </button>
         </div>

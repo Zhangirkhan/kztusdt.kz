@@ -40,9 +40,11 @@ final class KycAccessTest extends TestCase
     {
         $user = $this->createUnverifiedClient();
 
-        foreach (['/profile', '/profile/personal', '/profile/security', '/profile/language', '/profile/notifications', '/profile/support', '/kyc'] as $uri) {
+        foreach (['/profile', '/profile/personal', '/profile/security', '/profile/notifications', '/profile/support', '/kyc'] as $uri) {
             $this->actingAs($user)->get($uri)->assertOk();
         }
+
+        $this->actingAs($user)->get('/profile/language')->assertRedirect(route('profile.show', ['locale' => 'ru']));
     }
 
     public function test_pending_kyc_user_gets_pending_message_on_wallet(): void

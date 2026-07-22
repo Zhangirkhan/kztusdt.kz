@@ -180,7 +180,9 @@ Route::prefix('{locale}')
                 Route::delete('/profile/bank/cards/{card}', [ProfileController::class, 'destroyBankCard'])->name('profile.bank.cards.destroy');
             });
             Route::get('/profile/security', [ProfileController::class, 'security'])->name('profile.security');
-            Route::get('/profile/language', [ProfileController::class, 'language'])->name('profile.language');
+            Route::get('/profile/language', fn (Request $request) => redirect()->route('profile.show', [
+                'locale' => $request->route('locale'),
+            ]))->name('profile.language');
             Route::get('/profile/appearance', [ProfileController::class, 'appearance'])->name('profile.appearance');
             Route::get('/profile/notifications', [ProfileController::class, 'notifications'])->name('profile.notifications');
             Route::patch('/profile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications.update');

@@ -9,21 +9,14 @@ export function useProfileMenu() {
 
     const canUseWallet = computed(() => page.props.auth?.user?.can_use_wallet ?? false);
 
-    const languageLabel = computed(() => {
-        const options = page.props.locale?.options ?? [];
-        const current = page.props.locale?.current ?? 'ru';
-
-        return options.find((item) => item.code === current)?.label ?? t('locale.label');
-    });
-
     const locale = computed(() => page.props.locale?.current ?? 'ru');
 
     const menuItems = computed(() =>
-        buildProfileMenuItems(languageLabel.value, canUseWallet.value, locale.value).map((item) => ({
+        buildProfileMenuItems(canUseWallet.value, locale.value).map((item) => ({
             ...item,
             label: item.labelKey ? t(item.labelKey) : item.label,
         })),
     );
 
-    return { menuItems, languageLabel, canUseWallet };
+    return { menuItems, canUseWallet };
 }

@@ -6,6 +6,7 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
     build: {
         sourcemap: false,
+        emptyOutDir: false,
     },
     resolve: {
         alias: {

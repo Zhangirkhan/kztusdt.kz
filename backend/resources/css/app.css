@@ -1527,6 +1527,18 @@
         @apply bg-surface-container-high text-text-dim;
     }
 
+    .settings-item--control {
+        @apply cursor-default;
+    }
+
+    .settings-item--control:hover {
+        background: var(--color-surface);
+    }
+
+    .locale-switcher--inline {
+        @apply max-w-[9.5rem];
+    }
+
     .version-text {
         @apply mt-4 text-center text-xs uppercase tracking-wider text-text-dim;
     }
