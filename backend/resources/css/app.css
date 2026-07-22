@@ -1942,16 +1942,18 @@
 
     .wallet-warning {
         @apply mt-6 flex gap-3 rounded-xl border p-4;
-        border-color: #fde68a;
-        background: var(--color-warning-light);
+        border-color: color-mix(in srgb, var(--color-warning) 35%, var(--color-border));
+        background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface));
     }
 
     .wallet-warning__icon {
-        @apply shrink-0 text-lg text-warning;
+        @apply shrink-0 text-lg;
+        color: var(--color-warning);
     }
 
     .wallet-warning__text {
-        @apply text-[11px] font-medium leading-relaxed text-amber-800;
+        @apply text-[13px] font-medium leading-relaxed;
+        color: var(--color-text-body);
     }
 
     .wallet-warning__text strong {

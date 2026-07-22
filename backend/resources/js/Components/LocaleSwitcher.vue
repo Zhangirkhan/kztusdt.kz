@@ -34,21 +34,11 @@ const pendingLocale = ref('');
 const currentLocale = computed(() => pendingLocale.value || page.props.locale?.current || 'ru');
 const options = computed(() => page.props.locale?.options ?? []);
 
-const nativeNames = {
-    ru: 'Russian',
-    kk: 'Kazakh',
-    en: 'English',
-};
-
 const nativeHints = {
     ru: 'RU',
     kk: 'KK',
     en: 'EN',
 };
-
-function optionLabel(option) {
-    return nativeNames[option.code] ?? option.label;
-}
 
 function optionHint(option) {
     return nativeHints[option.code] ?? String(option.code).toUpperCase();
@@ -110,16 +100,16 @@ function switchLocale(code) {
                 class="settings-item w-full"
                 :class="switchingLocale === option.code ? 'cursor-wait opacity-70' : ''"
                 :aria-checked="option.code === currentLocale"
+                :aria-label="option.label"
                 :disabled="switchingLocale === option.code"
                 @click="switchLocale(option.code)"
             >
                 <span class="settings-item__icon text-xs font-bold tracking-wide">
                     {{ optionHint(option) }}
                 </span>
-                <span class="settings-item__label">{{ optionLabel(option) }}</span>
                 <span
                     v-if="option.code === currentLocale"
-                    class="material-symbols-outlined text-xl text-accent"
+                    class="material-symbols-outlined ml-auto text-xl text-accent"
                     aria-hidden="true"
                 >
                     check
