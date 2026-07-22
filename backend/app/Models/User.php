@@ -10,9 +10,11 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
@@ -43,6 +45,7 @@ use LaravelWebauthn\WebauthnAuthenticatable;
     'bank_holder',
     'bank_account',
     'notification_preferences',
+    'referral_code',
 ])]
 #[Hidden(['password', 'remember_token'])]
 final class User extends Authenticatable
@@ -67,6 +70,36 @@ final class User extends Authenticatable
     public function telegramAccount(): HasOne
     {
         return $this->hasOne(UserTelegramAccount::class);
+    }
+
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'referred_by_user_id');
+    }
+
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(self::class, 'referred_by_user_id');
+    }
+
+    public function referralBenefits(): HasMany
+    {
+        return $this->hasMany(UserReferralBenefit::class);
+    }
+
+    public function ensureReferralCode(): string
+    {
+        if (is_string($this->referral_code) && $this->referral_code !== '') {
+            return $this->referral_code;
+        }
+
+        do {
+            $code = Str::upper(Str::random(8));
+        } while (self::query()->where('referral_code', $code)->exists());
+
+        $this->forceFill(['referral_code' => $code])->save();
+
+        return $code;
     }
 
     public function kycProfile(): HasOne

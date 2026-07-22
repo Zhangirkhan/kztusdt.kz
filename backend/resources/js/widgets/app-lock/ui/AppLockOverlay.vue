@@ -345,7 +345,7 @@ onMounted(() => {
     padding: 28px 20px 20px;
     border-radius: 24px;
     background: var(--color-surface, #fff);
-    color: var(--color-on-surface, #0f172a);
+    color: var(--color-text, #0f172a);
     box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
 }
 
@@ -365,6 +365,7 @@ onMounted(() => {
     text-align: center;
     font-size: 22px;
     font-weight: 700;
+    color: var(--color-text-strong, var(--color-text, #0f172a));
 }
 
 .app-lock-overlay__subtitle {

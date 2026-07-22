@@ -14,6 +14,7 @@ export function buildProfileMenuItems(languageLabel, canUseWallet = true, locale
         { href: localizedPathFor(locale, '/profile/language'), icon: 'translate', labelKey: 'profile.menu.language', value: languageLabel },
         { href: localizedPathFor(locale, '/profile/appearance'), icon: 'dark_mode', labelKey: 'profile.menu.appearance' },
         { href: localizedPathFor(locale, '/profile/notifications'), icon: 'notifications', labelKey: 'profile.menu.notifications' },
+        { href: localizedPathFor(locale, '/profile/referrals'), icon: 'group_add', labelKey: 'profile.menu.referrals' },
         { href: localizedPathFor(locale, '/profile/support'), icon: 'support_agent', labelKey: 'profile.menu.support' },
     ];
 }

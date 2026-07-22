@@ -44,6 +44,8 @@ Route::middleware(['auth', 'role:super_admin,security_officer,super_admin_manage
         Route::get('/users/{user}', [UserAdminController::class, 'show'])->name('users.show');
         Route::patch('/users/{user}/status', [UserAdminController::class, 'updateStatus'])->name('users.status');
         Route::patch('/users/{user}/manual-kyc', [UserAdminController::class, 'updateManualKyc'])->name('users.manual-kyc');
+        Route::post('/users/{user}/referral-benefits', [UserAdminController::class, 'storeReferralBenefit'])->name('users.referral-benefits.store');
+        Route::patch('/users/{user}/referral-benefits/{benefit}', [UserAdminController::class, 'deactivateReferralBenefit'])->name('users.referral-benefits.deactivate');
         Route::post('/users/{user}/kyc/manual-approve', [UserAdminController::class, 'manualKycApprove'])->name('users.kyc.manual-approve');
         Route::get('/finance', [FinanceAdminController::class, 'index'])->name('finance.index');
         Route::get('/settings', [SettingsAdminController::class, 'index'])->name('settings.index');

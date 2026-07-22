@@ -8,9 +8,11 @@ use App\Http\Requests\StartPhoneAuthRequest;
 use App\Models\User;
 use App\Services\CaptchaService;
 use App\Services\PhoneAuthService;
+use App\Services\ReferralService;
 use App\Support\CompanyPresenter;
 use App\Support\RegistrationResume;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,13 +23,16 @@ final class PhoneAuthPageController extends Controller
     public function __construct(
         private readonly PhoneAuthService $phoneAuthService,
         private readonly CaptchaService $captchaService,
+        private readonly ReferralService $referralService,
     ) {}
 
-    public function show(): Response|RedirectResponse
+    public function show(Request $request): Response|RedirectResponse
     {
         if (Auth::check()) {
             return $this->redirectAfterAuth(Auth::user());
         }
+
+        $this->referralService->captureFromRequest($request);
 
         return Inertia::render('Auth/Phone', [
             'companyIntro' => CompanyPresenter::intro(),

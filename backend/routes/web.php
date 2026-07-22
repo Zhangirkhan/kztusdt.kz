@@ -185,6 +185,7 @@ Route::prefix('{locale}')
             Route::get('/profile/notifications', [ProfileController::class, 'notifications'])->name('profile.notifications');
             Route::patch('/profile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications.update');
             Route::get('/profile/support', [ProfileController::class, 'support'])->name('profile.support');
+            Route::get('/profile/referrals', [ProfileController::class, 'referrals'])->name('profile.referrals');
             Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         });
 

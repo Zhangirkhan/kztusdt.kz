@@ -32,6 +32,7 @@ final class AuthSession extends Model
         'expires_at',
         'verified_at',
         'user_id',
+        'referred_by_user_id',
     ];
 
     protected $hidden = [
@@ -52,6 +53,11 @@ final class AuthSession extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referred_by_user_id');
     }
 
     public function isExpired(): bool

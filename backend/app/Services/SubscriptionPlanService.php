@@ -96,20 +96,24 @@ final class SubscriptionPlanService
     public function feePercentFor(User $user): float
     {
         if ($user->has_subscription) {
-            return $this->primarySubscriptionPlan()->fee_percent;
+            $base = $this->primarySubscriptionPlan()->fee_percent;
+        } else {
+            $active = $user->subscriptions()
+                ->active()
+                ->with('plan')
+                ->latest('expires_at')
+                ->first();
+
+            if ($active instanceof Subscription && $active->plan instanceof SubscriptionPlan) {
+                $base = $active->plan->fee_percent;
+            } else {
+                $base = $this->defaultPlan()->fee_percent;
+            }
         }
 
-        $active = $user->subscriptions()
-            ->active()
-            ->with('plan')
-            ->latest('expires_at')
-            ->first();
+        $discount = app(ReferralService::class)->activeFeeDiscount($user);
 
-        if ($active instanceof Subscription && $active->plan instanceof SubscriptionPlan) {
-            return $active->plan->fee_percent;
-        }
-
-        return $this->defaultPlan()->fee_percent;
+        return max(0, $base - $discount);
     }
 
     public function currentPlanFor(User $user): SubscriptionPlan

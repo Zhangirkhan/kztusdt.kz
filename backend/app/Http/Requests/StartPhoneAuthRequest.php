@@ -33,6 +33,7 @@ final class StartPhoneAuthRequest extends FormRequest
             'client_type' => ['required', Rule::in(ClientType::values())],
             'iin' => [Rule::requiredIf(! $isLegalEntity), 'nullable', 'string', new Iin],
             'phone' => ['required', 'string', 'min:10', 'max:50'],
+            'ref' => ['nullable', 'string', 'max:16'],
         ];
 
         if ($this->routeIs('auth.phone.store')) {

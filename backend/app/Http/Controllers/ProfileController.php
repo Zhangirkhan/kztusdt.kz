@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UpdateUserBankCardRequest;
 use App\Models\UserBankCard;
 use App\Services\ProfileService;
+use App\Services\ReferralService;
 use App\Services\UserBankCardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ final class ProfileController extends Controller
     public function __construct(
         private readonly ProfileService $profileService,
         private readonly UserBankCardService $bankCardService,
+        private readonly ReferralService $referralService,
     ) {}
 
     public function show(Request $request): Response
@@ -125,6 +127,15 @@ final class ProfileController extends Controller
             'supportEmail' => config('company.support_email'),
             'supportPhone' => config('company.support_phone'),
             'companyName' => config('company.name'),
+        ]);
+    }
+
+    public function referrals(Request $request): Response
+    {
+        $locale = (string) $request->route('locale', 'ru');
+
+        return Inertia::render('Profile/Referrals', [
+            'referral' => $this->referralService->profilePayload($request->user(), $locale),
         ]);
     }
 

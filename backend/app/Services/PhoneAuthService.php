@@ -17,6 +17,7 @@ final class PhoneAuthService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly WhatsAppOtpService $whatsappOtp,
+        private readonly ReferralService $referralService,
     ) {}
 
     /**
@@ -90,6 +91,7 @@ final class PhoneAuthService
             'code_attempts' => 0,
             'status' => 'pending',
             'expires_at' => now()->addSeconds($expiresIn),
+            'referred_by_user_id' => $this->referralService->resolveReferrerIdFromRequest(request()),
         ]);
 
         $this->auditLogService->log(
@@ -143,6 +145,7 @@ final class PhoneAuthService
             'code_attempts' => 0,
             'status' => 'pending',
             'expires_at' => now()->addSeconds($ttl),
+            'referred_by_user_id' => $this->referralService->resolveReferrerIdFromRequest(request()),
         ]);
 
         $this->auditLogService->log(
@@ -301,6 +304,8 @@ final class PhoneAuthService
                     'phone_verified_at' => now(),
                     'kyc_status' => 'none',
                 ]);
+
+                $this->referralService->applyToNewUser($user, $locked->referred_by_user_id);
             } else {
                 $attributes = [
                     'phone_verified' => true,

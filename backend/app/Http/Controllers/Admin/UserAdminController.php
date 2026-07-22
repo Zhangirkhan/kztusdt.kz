@@ -6,9 +6,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminManualKycRequest;
+use App\Http\Requests\AdminReferralBenefitRequest;
 use App\Models\User;
+use App\Models\UserReferralBenefit;
 use App\Services\AuditLogService;
 use App\Services\KycService;
+use App\Services\ReferralService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,6 +22,7 @@ final class UserAdminController extends Controller
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly KycService $kycService,
+        private readonly ReferralService $referralService,
     ) {}
 
     public function index(Request $request): Response
@@ -105,8 +109,59 @@ final class UserAdminController extends Controller
                     'withdrawals' => $user->withdrawals_count,
                     'deposits' => $user->deposits_count,
                 ],
+                'referral' => $this->referralService->adminPayload($user),
             ],
         ]);
+    }
+
+    public function storeReferralBenefit(AdminReferralBenefitRequest $request, User $user): RedirectResponse
+    {
+        $benefit = $this->referralService->upsertBenefit(
+            $user,
+            $request->validated(),
+            $request->user(),
+        );
+
+        $this->auditLogService->log(
+            action: 'admin.user.referral_benefit_updated',
+            userId: $request->user()?->id,
+            entityType: 'user_referral_benefit',
+            entityId: $benefit->id,
+            payload: [
+                'user_id' => $user->id,
+                'type' => $benefit->type,
+                'value' => $benefit->value,
+                'is_active' => $benefit->is_active,
+            ],
+            request: $request,
+        );
+
+        return redirect()
+            ->route('admin.users.show', $user)
+            ->with('success', 'Реферальный бонус сохранён.');
+    }
+
+    public function deactivateReferralBenefit(Request $request, User $user, UserReferralBenefit $benefit): RedirectResponse
+    {
+        abort_unless((int) $benefit->user_id === (int) $user->id, 404);
+
+        $this->referralService->deactivateBenefit($benefit);
+
+        $this->auditLogService->log(
+            action: 'admin.user.referral_benefit_updated',
+            userId: $request->user()?->id,
+            entityType: 'user_referral_benefit',
+            entityId: $benefit->id,
+            payload: [
+                'user_id' => $user->id,
+                'is_active' => false,
+            ],
+            request: $request,
+        );
+
+        return redirect()
+            ->route('admin.users.show', $user)
+            ->with('success', 'Реферальный бонус отключён.');
     }
 
     public function updateStatus(Request $request, User $user): RedirectResponse

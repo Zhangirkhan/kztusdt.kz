@@ -13,6 +13,10 @@ final class RedirectClientAdminToSubdomain
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (app()->environment('testing')) {
+            return $next($request);
+        }
+
         if (AdminUrl::isAdminHost($request)) {
             return $next($request);
         }

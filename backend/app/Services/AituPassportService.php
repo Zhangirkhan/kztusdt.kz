@@ -587,7 +587,7 @@ final class AituPassportService
 
         $name = (string) ($claims['name'] ?? $claims['given_name'] ?? 'User '.$phone);
 
-        return User::query()->create([
+        $user = User::query()->create([
             'name' => $name,
             'email' => 'aitu_'.Str::lower(Str::random(16)).'@exchange.local',
             'password' => bcrypt(Str::random(32)),
@@ -596,6 +596,10 @@ final class AituPassportService
             'phone_verified_at' => now(),
             'kyc_status' => 'none',
         ]);
+
+        app(ReferralService::class)->applyToNewUser($user);
+
+        return $user;
     }
 
     /**

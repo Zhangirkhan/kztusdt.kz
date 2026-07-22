@@ -69,6 +69,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/auth/aitu/validate',
         ]);
 
+        $middleware->encryptCookies(except: [
+            'referral_code',
+        ]);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
             'no_security_pwa' => \App\Http\Middleware\RedirectSecurityFromPwa::class,

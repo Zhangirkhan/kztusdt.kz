@@ -212,6 +212,7 @@ export default {
             cards: {
                 profile: 'Профиль',
                 activity: 'Активность',
+                referrals: 'Реферальная программа',
             },
             labels: {
                 clientType: 'Тип клиента',
@@ -238,6 +239,33 @@ export default {
                 roles: 'Роли',
             },
             openKycApplication: 'Открыть KYC заявку →',
+            referrals: {
+                code: 'Реферальный код',
+                link: 'Ссылка',
+                count: 'Приглашено',
+                referredBy: 'Пригласил',
+                empty: 'Рефералов пока нет',
+                benefitTitle: 'Персональный бонус',
+                benefitValue: 'Скидка на комиссию, %',
+                benefitValuePlaceholder: '0 — без скидки',
+                benefitActive: 'Активен',
+                benefitNote: 'Заметка',
+                saveBenefit: 'Сохранить бонус',
+                deactivateBenefit: 'Отключить',
+                columns: {
+                    user: 'Клиент',
+                    phone: 'Телефон',
+                    kyc: 'KYC',
+                    activity: 'Активность',
+                    registered: 'Регистрация',
+                },
+                benefitColumns: {
+                    type: 'Тип',
+                    value: 'Значение',
+                    note: 'Заметка',
+                    status: 'Статус',
+                },
+            },
             modal: {
                 title: 'Статус аккаунта',
                 statusLabel: 'Статус',
