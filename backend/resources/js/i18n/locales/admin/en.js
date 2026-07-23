@@ -212,6 +212,7 @@ export default {
             cards: {
                 profile: 'Profile',
                 activity: 'Activity',
+                dueDiligence: 'AML questionnaire',
             },
             labels: {
                 clientType: 'Client type',
@@ -236,6 +237,21 @@ export default {
                 deposits: 'Deposits',
                 kycProfile: 'KYC profile',
                 roles: 'Roles',
+            },
+            dueDiligence: {
+                status: 'Status',
+                submitted: 'Submitted',
+                required: 'Required',
+                notRequired: 'Not required',
+                requiredAt: 'Requested at',
+                submittedAt: 'Submitted at',
+                sourceOfFunds: 'Source of funds',
+                occupation: 'Occupation',
+                industry: 'Industry',
+                annualIncome: 'Annual income',
+                platformPurpose: 'Platform purpose',
+                other: 'Details',
+                empty: 'Questionnaire not submitted yet',
             },
             openKycApplication: 'Open KYC application →',
             modal: {

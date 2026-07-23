@@ -7,8 +7,10 @@ namespace App\Http\Middleware;
 use App\Support\AdminNavPresenter;
 use App\Support\AdminUrl;
 use App\Support\CompanyPresenter;
+use App\Support\DueDiligenceOptions;
 use App\Support\LocaleManager;
 use App\Support\SeoPresenter;
+use App\Services\DueDiligenceService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -36,7 +38,7 @@ final class HandleInertiaRequests extends Middleware
         $user = $request->user();
 
         if ($user !== null) {
-            $user->loadMissing('roles:id,code');
+            $user->loadMissing('roles:id,code', 'dueDiligenceProfile');
         }
 
         return [
@@ -73,6 +75,12 @@ final class HandleInertiaRequests extends Middleware
                 (new Ziggy(AdminNavPresenter::ziggyGroup($user)))->toArray(),
                 ['url' => $request->getSchemeAndHttpHost()],
             ),
+            'dueDiligence' => fn () => $user === null ? null : [
+                'threshold' => app(DueDiligenceService::class)->threshold(),
+                'submitted' => $user->dueDiligenceProfile !== null,
+                'blocking' => app(DueDiligenceService::class)->requiresBlockingQuestionnaire($user),
+                'options' => DueDiligenceOptions::forFrontend(),
+            ],
         ];
     }
 }

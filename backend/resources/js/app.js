@@ -23,6 +23,14 @@ function removeBootSplash() {
         sessionStorage.removeItem('kztusdt_client_boot_recovery');
     } catch (error) {}
 
+    try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('_')) {
+            url.searchParams.delete('_');
+            window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+        }
+    } catch (error) {}
+
     document.getElementById('app-boot-splash')?.remove();
 }
 

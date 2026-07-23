@@ -37,6 +37,7 @@ final class WithdrawalService
         private readonly AuditLogService $auditLogService,
         private readonly UserNotificationService $notifier,
         private readonly WithdrawalBroadcasterRegistry $broadcasters,
+        private readonly DueDiligenceService $dueDiligenceService,
     ) {}
 
     public function create(User $user, string $toAddress, string $amount, ?string $network = null): Withdrawal
@@ -56,6 +57,10 @@ final class WithdrawalService
 
         if (bccomp($amount, $min, 8) < 0) {
             throw new RuntimeException("Минимальная сумма вывода — {$min} {$asset}.");
+        }
+
+        if ($this->dueDiligenceService->requiresQuestionnaireForWithdrawal($user, $amount)) {
+            throw new RuntimeException('Для вывода от 10 000 USDT заполните анкету о происхождении средств.');
         }
 
         $feePercent = number_format($user->feePercent(), 4, '.', '');

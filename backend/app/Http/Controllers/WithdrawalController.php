@@ -40,9 +40,11 @@ final class WithdrawalController extends Controller
             $message = $exception->getMessage();
             $field = str_contains($message, 'адрес') || str_contains($message, 'Адрес')
                 ? 'to_address'
-                : (str_contains($message, 'сумм') || str_contains($message, 'Сумм') || str_contains($message, 'баланс') || str_contains($message, 'средств')
-                    ? 'amount'
-                    : 'form');
+                : (str_contains($message, 'анкет')
+                    ? 'form'
+                    : (str_contains($message, 'сумм') || str_contains($message, 'Сумм') || str_contains($message, 'баланс') || str_contains($message, 'средств')
+                        ? 'amount'
+                        : 'form'));
 
             return back()->withErrors([$field => $message]);
         }

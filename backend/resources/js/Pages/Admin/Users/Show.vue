@@ -34,6 +34,17 @@ const referralBenefitForm = useForm({
 
 const canManualApprove = computed(() => props.user.kyc_status !== 'approved');
 
+const dueDiligence = computed(() => props.user.due_diligence ?? null);
+const dueDiligenceProfile = computed(() => dueDiligence.value?.profile ?? null);
+
+function dueDiligenceOption(group, value) {
+    if (!value) {
+        return t('admin.shared.empty');
+    }
+
+    return t(`dueDiligence.options.${group}.${value}`, value);
+}
+
 const statusLabels = computed(() => ({
     active: t('admin.users.index.filters.status.active'),
     suspended: t('admin.users.index.filters.status.suspended'),
@@ -155,6 +166,74 @@ function deactivateReferralBenefit(benefitId) {
                             </a-descriptions-item>
                             <a-descriptions-item v-if="user.roles?.length" :label="t('admin.users.show.labels.roles')">{{ user.roles.join(', ') }}</a-descriptions-item>
                         </a-descriptions>
+                    </a-card>
+                </a-col>
+            </a-row>
+
+            <a-row :gutter="[16, 16]" class="admin-ant-block">
+                <a-col :span="24">
+                    <a-card :title="t('admin.users.show.cards.dueDiligence')" size="small">
+                        <a-descriptions :column="{ xs: 1, md: 2 }" size="small">
+                            <a-descriptions-item :label="t('admin.users.show.dueDiligence.status')">
+                                <a-tag v-if="dueDiligenceProfile" color="success">
+                                    {{ t('admin.users.show.dueDiligence.submitted') }}
+                                </a-tag>
+                                <a-tag v-else-if="dueDiligence?.required_at" color="warning">
+                                    {{ t('admin.users.show.dueDiligence.required') }}
+                                </a-tag>
+                                <a-tag v-else color="default">
+                                    {{ t('admin.users.show.dueDiligence.notRequired') }}
+                                </a-tag>
+                            </a-descriptions-item>
+                            <a-descriptions-item
+                                v-if="dueDiligence?.required_at"
+                                :label="t('admin.users.show.dueDiligence.requiredAt')"
+                            >
+                                {{ formatDateTime(dueDiligence.required_at) }}
+                            </a-descriptions-item>
+                            <a-descriptions-item
+                                v-if="dueDiligenceProfile?.submitted_at"
+                                :label="t('admin.users.show.dueDiligence.submittedAt')"
+                            >
+                                {{ formatDateTime(dueDiligenceProfile.submitted_at) }}
+                            </a-descriptions-item>
+                        </a-descriptions>
+
+                        <template v-if="dueDiligenceProfile">
+                            <a-divider style="margin: 12px 0" />
+                            <a-descriptions :column="{ xs: 1, md: 2 }" size="small">
+                                <a-descriptions-item :label="t('admin.users.show.dueDiligence.sourceOfFunds')">
+                                    {{ dueDiligenceOption('sourceOfFunds', dueDiligenceProfile.source_of_funds) }}
+                                    <template v-if="dueDiligenceProfile.source_of_funds_other">
+                                        — {{ dueDiligenceProfile.source_of_funds_other }}
+                                    </template>
+                                </a-descriptions-item>
+                                <a-descriptions-item :label="t('admin.users.show.dueDiligence.occupation')">
+                                    {{ dueDiligenceOption('occupations', dueDiligenceProfile.occupation) }}
+                                </a-descriptions-item>
+                                <a-descriptions-item :label="t('admin.users.show.dueDiligence.industry')">
+                                    {{ dueDiligenceOption('industries', dueDiligenceProfile.industry) }}
+                                    <template v-if="dueDiligenceProfile.industry_other">
+                                        — {{ dueDiligenceProfile.industry_other }}
+                                    </template>
+                                </a-descriptions-item>
+                                <a-descriptions-item :label="t('admin.users.show.dueDiligence.annualIncome')">
+                                    {{ dueDiligenceOption('annualIncomes', dueDiligenceProfile.annual_income) }}
+                                </a-descriptions-item>
+                                <a-descriptions-item :label="t('admin.users.show.dueDiligence.platformPurpose')">
+                                    {{ dueDiligenceOption('platformPurposes', dueDiligenceProfile.platform_purpose) }}
+                                    <template v-if="dueDiligenceProfile.platform_purpose_other">
+                                        — {{ dueDiligenceProfile.platform_purpose_other }}
+                                    </template>
+                                </a-descriptions-item>
+                            </a-descriptions>
+                        </template>
+                        <a-empty
+                            v-else
+                            :description="t('admin.users.show.dueDiligence.empty')"
+                            :image="false"
+                            style="margin: 12px 0 0"
+                        />
                     </a-card>
                 </a-col>
             </a-row>

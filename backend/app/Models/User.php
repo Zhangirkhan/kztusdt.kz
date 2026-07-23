@@ -46,6 +46,7 @@ use LaravelWebauthn\WebauthnAuthenticatable;
     'bank_account',
     'notification_preferences',
     'referral_code',
+    'due_diligence_required_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
 final class User extends Authenticatable
@@ -64,6 +65,7 @@ final class User extends Authenticatable
             'has_subscription' => 'boolean',
             'password' => 'hashed',
             'notification_preferences' => 'array',
+            'due_diligence_required_at' => 'datetime',
         ];
     }
 
@@ -105,6 +107,11 @@ final class User extends Authenticatable
     public function kycProfile(): HasOne
     {
         return $this->hasOne(KycProfile::class);
+    }
+
+    public function dueDiligenceProfile(): HasOne
+    {
+        return $this->hasOne(DueDiligenceProfile::class);
     }
 
     public function auditLogs(): HasMany

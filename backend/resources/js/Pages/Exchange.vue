@@ -595,14 +595,14 @@ async function copyText(text, field) {
                 <div class="buy-sell-tabs mb-stack-element">
                     <button
                         class="btn-segment"
-                        :class="mode === 'buy' ? 'btn-segment--active' : 'btn-segment--inactive'"
+                        :class="mode === 'buy' ? 'btn-segment--active exchange-cta' : 'btn-segment--inactive'"
                         @click="setMode('buy')"
                     >
                         {{ t('exchange.buy') }}
                     </button>
                     <button
                         class="btn-segment"
-                        :class="mode === 'sell' ? 'btn-segment--active' : 'btn-segment--inactive'"
+                        :class="mode === 'sell' ? 'btn-segment--active exchange-cta' : 'btn-segment--inactive'"
                         @click="setMode('sell')"
                     >
                         {{ t('exchange.sell') }}
@@ -646,7 +646,7 @@ async function copyText(text, field) {
                             </span>
                         </div>
 
-                        <button type="button" class="btn-primary exchange-listing-card__action" @click="openListing(listing)">
+                        <button type="button" class="btn-primary exchange-cta exchange-listing-card__action" @click="openListing(listing)">
                             {{ mode === 'buy' ? t('exchange.buy') : t('exchange.sell') }}
                         </button>
                     </article>

@@ -189,10 +189,8 @@
                         localStorage.removeItem('kztusdt_client_asset_v');
                         localStorage.removeItem('kztusdt_admin_build_etag');
                         localStorage.removeItem('kztusdt_client_build_etag');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_admin_v10');
-                        localStorage.removeItem('kztusdt_legacy_cache_purged_client_v10');
-                        sessionStorage.removeItem('kztusdt_admin_boot_recovery');
-                        sessionStorage.removeItem('kztusdt_client_boot_recovery');
+                        // Keep purge + recovery keys: clearing them re-triggers cache wipe
+                        // and allows infinite reload loops (_=timestamp in the URL).
                     } catch (error) {}
 
                     if ('serviceWorker' in navigator) {
@@ -267,10 +265,18 @@
                 window.addEventListener('error', function (event) {
                     var target = event.target;
 
-                    if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
-                        if (!tryAutoRecovery()) {
-                            showBootFailure();
-                        }
+                    if (!target || (target.tagName !== 'SCRIPT' && target.tagName !== 'LINK')) {
+                        return;
+                    }
+
+                    var href = target.src || target.href || '';
+                    // Only recover on failed app bundles — not favicon/manifest/etc.
+                    if (href.indexOf('/build/') === -1) {
+                        return;
+                    }
+
+                    if (!tryAutoRecovery()) {
+                        showBootFailure();
                     }
                 }, true);
 

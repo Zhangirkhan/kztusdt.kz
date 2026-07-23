@@ -212,6 +212,7 @@ export default {
             cards: {
                 profile: 'Профиль',
                 activity: 'Белсенділік',
+                dueDiligence: 'AML сауалнамасы',
             },
             labels: {
                 clientType: 'Клиент түрі',
@@ -236,6 +237,21 @@ export default {
                 deposits: 'Депозиттер',
                 kycProfile: 'KYC профилі',
                 roles: 'Рөлдер',
+            },
+            dueDiligence: {
+                status: 'Күйі',
+                submitted: 'Толтырылған',
+                required: 'Қажет',
+                notRequired: 'Қажет емес',
+                requiredAt: 'Сұралған',
+                submittedAt: 'Жіберілген',
+                sourceOfFunds: 'Қаражат шығу тегі',
+                occupation: 'Қызмет түрі',
+                industry: 'Қызмет саласы',
+                annualIncome: 'Жылдық табыс',
+                platformPurpose: 'Пайдалану мақсаты',
+                other: 'Нақтылау',
+                empty: 'Сауалнама әлі толтырылмаған',
             },
             openKycApplication: 'KYC өтінімін ашу →',
             modal: {

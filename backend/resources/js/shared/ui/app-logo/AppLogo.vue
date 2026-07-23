@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import { useTheme } from '@/composables/useTheme';
 
 const props = defineProps({
     size: {
@@ -15,7 +14,6 @@ const props = defineProps({
 });
 
 const page = usePage();
-const { isDark } = useTheme();
 const companyName = computed(() => page.props.company?.name ?? 'kztusdt.kz');
 const isAdminSurface = computed(() => Boolean(page.props.adminApp?.isSubdomain));
 const logoSrc = computed(() => {
@@ -23,7 +21,7 @@ const logoSrc = computed(() => {
         return '/icons/admin/logo.png?v=1';
     }
 
-    return isDark.value ? '/logo-dark.png?v=5' : '/logo.png?v=5';
+    return '/logo-mark.png?v=1';
 });
 const pixelSize = computed(() =>
     typeof props.size === 'number' ? `${props.size}px` : props.size,

@@ -34,6 +34,8 @@ return [
             'kyc',
             'kyc.*',
             'profile.*',
+            'due-diligence.store',
+            'support.chat',
             'logout',
         ],
         'admin' => [

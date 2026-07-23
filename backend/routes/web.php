@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\CaptchaController;
 use App\Http\Controllers\AituPassportController;
 use App\Http\Controllers\Api\AituPassportLogoutController;
 use App\Http\Controllers\Api\AituPassportValidationController;
@@ -17,7 +18,7 @@ use App\Http\Controllers\ExchangeOrderController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\LegalController;
-use App\Http\Controllers\CaptchaController;
+use App\Http\Controllers\DueDiligenceController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PhoneAuthPageController;
 use App\Http\Controllers\ProfileController;
@@ -189,6 +190,7 @@ Route::prefix('{locale}')
             Route::get('/profile/support', [ProfileController::class, 'support'])->name('profile.support');
             Route::get('/profile/referrals', [ProfileController::class, 'referrals'])->name('profile.referrals');
             Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+            Route::post('/due-diligence', [DueDiligenceController::class, 'store'])->name('due-diligence.store');
         });
 
     });
@@ -231,4 +233,11 @@ Route::get('/{path}', function (Request $request, string $path) {
     }
 
     return redirect()->to(LocaleManager::localizedPath(LocaleManager::resolve($request), '/'.$path));
-})->where('path', '.*');
+})->where(
+    'path',
+    // In testing admin routes are registered without a domain after this catch-all;
+    // exclude them so GET /admin/* can hit routes/admin.php.
+    app()->environment('testing')
+        ? '^(?!admin(?:/|$)|api(?:/|$)|auth/aitu(?:/|$)).*'
+        : '.*',
+);

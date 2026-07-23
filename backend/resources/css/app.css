@@ -307,7 +307,7 @@
     /* Inputs */
     .input-field {
         @apply w-full min-h-[52px] rounded-xl border px-input-padding py-3.5 text-base outline-none transition;
-        background: var(--color-surface-muted);
+        background-color: var(--color-surface-muted);
         border-color: var(--color-border);
         color: var(--color-text);
     }
@@ -322,10 +322,11 @@
         -moz-appearance: none;
         appearance: none;
         padding-right: 3rem;
+        background-color: var(--color-surface-muted);
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 1rem center;
-        background-size: 18px 18px;
+        background-repeat: no-repeat !important;
+        background-position: right 1rem center !important;
+        background-size: 18px 18px !important;
     }
 
     select.input-field:hover {
@@ -477,20 +478,6 @@
         @apply flex gap-1 rounded-2xl border border-outline-variant bg-surface-container p-1;
     }
 
-    .buy-sell-tabs .btn-segment:first-child.btn-segment--active {
-        background: var(--color-success);
-        border-color: transparent;
-        color: #ffffff;
-        box-shadow: none;
-    }
-
-    .buy-sell-tabs .btn-segment:last-child.btn-segment--active {
-        background: var(--color-error);
-        border-color: transparent;
-        color: #ffffff;
-        box-shadow: none;
-    }
-
     .recipient-type-tabs {
         @apply flex gap-1 rounded-2xl border border-outline-variant bg-surface-container p-1;
     }
@@ -526,12 +513,29 @@
         transform: scale(0.97);
     }
 
+    .exchange-mode--buy .buy-sell-tabs .btn-segment--active {
+        background-color: var(--exchange-btn-bg);
+        background-image: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+        border-color: transparent;
+        color: #0f172a;
+        box-shadow: none;
+    }
+
+    .exchange-mode--sell .buy-sell-tabs .btn-segment--active {
+        background-color: var(--exchange-btn-bg);
+        background-image: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
+        border-color: transparent;
+        color: #0f172a;
+        box-shadow: none;
+    }
+
     /* Exchange page — buy (green) / sell (red) mode theming */
     .exchange-mode--buy {
         --exchange-accent: #16a34a;
         --exchange-accent-dark: #15803d;
         --exchange-accent-light: #dcfce7;
         --exchange-btn-shadow: 0 4px 14px rgba(34, 197, 94, 0.28);
+        --exchange-btn-bg: #16a34a;
     }
 
     .exchange-mode--sell {
@@ -539,6 +543,7 @@
         --exchange-accent-dark: #b91c1c;
         --exchange-accent-light: #fee2e2;
         --exchange-btn-shadow: 0 4px 14px rgba(239, 68, 68, 0.28);
+        --exchange-btn-bg: #dc2626;
     }
 
     .card--highlight-exchange {
@@ -550,26 +555,68 @@
     }
 
     .exchange-mode--buy .card--highlight-exchange {
-        background-color: var(--color-success);
+        background-color: var(--exchange-accent);
     }
 
     .exchange-mode--sell .card--highlight-exchange {
-        background-color: var(--color-error);
+        background-color: var(--exchange-accent);
     }
 
+    .exchange-mode--buy .exchange-bank-selected {
+        border-color: color-mix(in srgb, var(--exchange-accent) 35%, transparent);
+        background: var(--exchange-accent-light);
+    }
+
+    .exchange-mode--buy .exchange-bank-selected__change {
+        color: var(--exchange-accent-dark);
+    }
+
+    .exchange-mode--sell .exchange-bank-selected {
+        border-color: color-mix(in srgb, var(--exchange-accent) 35%, transparent);
+        background: var(--exchange-accent-light);
+    }
+
+    .exchange-mode--sell .exchange-bank-selected__change {
+        color: var(--exchange-accent-dark);
+    }
+
+    .exchange-mode--buy .card-picker__option--active {
+        border-color: var(--exchange-accent);
+        background: color-mix(in srgb, var(--exchange-accent-light) 80%, transparent);
+        --tw-ring-color: var(--exchange-accent-light);
+    }
+
+    .exchange-mode--buy .card-picker__check {
+        color: var(--exchange-accent);
+    }
+
+    .exchange-mode--sell .card-picker__option--active {
+        border-color: var(--exchange-accent);
+        background: color-mix(in srgb, var(--exchange-accent-light) 80%, transparent);
+        --tw-ring-color: var(--exchange-accent-light);
+    }
+
+    .exchange-mode--sell .card-picker__check {
+        color: var(--exchange-accent);
+    }
+
+    .exchange-mode--buy .exchange-cta,
     .exchange-mode--buy .btn-primary,
     .exchange-mode--buy a.btn-primary {
-        background-color: #16a34a;
+        background-color: var(--exchange-btn-bg);
         background-image: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+        color: var(--btn-primary-color);
         box-shadow: var(--exchange-btn-shadow);
     }
 
+    .exchange-mode--buy .exchange-cta:hover:not(:disabled),
     .exchange-mode--buy .btn-primary:hover:not(:disabled),
     .exchange-mode--buy a.btn-primary:hover:not(:disabled) {
         background-color: #15803d;
         background-image: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
     }
 
+    .exchange-mode--buy .exchange-cta:active:not(:disabled),
     .exchange-mode--buy .btn-primary:active:not(:disabled),
     .exchange-mode--buy a.btn-primary:active:not(:disabled) {
         background-color: #15803d;
@@ -582,19 +629,23 @@
         @apply ring-green-500/30;
     }
 
+    .exchange-mode--sell .exchange-cta,
     .exchange-mode--sell .btn-primary,
     .exchange-mode--sell a.btn-primary {
-        background-color: #dc2626;
+        background-color: var(--exchange-btn-bg);
         background-image: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
+        color: var(--btn-primary-color);
         box-shadow: var(--exchange-btn-shadow);
     }
 
+    .exchange-mode--sell .exchange-cta:hover:not(:disabled),
     .exchange-mode--sell .btn-primary:hover:not(:disabled),
     .exchange-mode--sell a.btn-primary:hover:not(:disabled) {
         background-color: #b91c1c;
         background-image: linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
     }
 
+    .exchange-mode--sell .exchange-cta:active:not(:disabled),
     .exchange-mode--sell .btn-primary:active:not(:disabled),
     .exchange-mode--sell a.btn-primary:active:not(:disabled) {
         background-color: #b91c1c;
@@ -605,6 +656,10 @@
     .exchange-mode--sell .btn-primary:focus-visible,
     .exchange-mode--sell a.btn-primary:focus-visible {
         @apply ring-red-500/30;
+    }
+
+    .buy-sell-tabs .exchange-cta {
+        box-shadow: none;
     }
 
     .exchange-mode--buy .btn-chip--active {
@@ -1164,7 +1219,7 @@
     }
 
     .exchange-bank-selected {
-        @apply mt-3 flex items-center gap-3 rounded-2xl border-2 border-accent/30 bg-primary-light/40 p-3;
+        @apply mt-3 flex items-center gap-3 rounded-2xl border-2 p-3;
     }
 
     .exchange-bank-selected__label {
@@ -1176,7 +1231,7 @@
     }
 
     .exchange-bank-selected__change {
-        @apply shrink-0 text-sm font-semibold text-accent;
+        @apply shrink-0 text-sm font-semibold;
     }
 
     .payment-proof-card {
@@ -2224,14 +2279,60 @@
         color: var(--color-on-accent);
     }
 
+    /* Exchange listing CTA — same gradient as buy/sell tabs, white label */
+    .exchange-mode--buy .btn-primary.exchange-cta,
+    html.dark .exchange-mode--buy .btn-primary.exchange-cta {
+        background: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #16a34a 100%) !important;
+        color: var(--btn-primary-color) !important;
+        border-color: transparent !important;
+    }
+
+    .exchange-mode--sell .btn-primary.exchange-cta,
+    html.dark .exchange-mode--sell .btn-primary.exchange-cta {
+        background: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%) !important;
+        color: var(--btn-primary-color) !important;
+        border-color: transparent !important;
+    }
+
+    html.dark .exchange-mode--buy .buy-sell-tabs .btn-segment--active {
+        background-color: var(--exchange-btn-bg);
+        background-image: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+        border-color: transparent;
+        color: #0f172a;
+        box-shadow: none;
+    }
+
+    html.dark .exchange-mode--sell .buy-sell-tabs .btn-segment--active {
+        background-color: var(--exchange-btn-bg);
+        background-image: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
+        border-color: transparent;
+        color: #0f172a;
+        box-shadow: none;
+    }
+
+    .exchange-mode--buy .btn-primary,
+    .exchange-mode--buy a.btn-primary,
+    .exchange-mode--sell .btn-primary,
+    .exchange-mode--sell a.btn-primary,
+    html.dark .exchange-mode--buy .btn-primary,
+    html.dark .exchange-mode--buy a.btn-primary,
+    html.dark .exchange-mode--sell .btn-primary,
+    html.dark .exchange-mode--sell a.btn-primary {
+        color: var(--btn-primary-color) !important;
+    }
+
     html.dark .input-field {
-        background: var(--color-surface-muted);
+        background-color: var(--color-surface-muted);
         border-color: var(--color-border);
         color: var(--color-text);
     }
 
     html.dark select.input-field {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-color: var(--color-surface-muted) !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 1rem center !important;
+        background-size: 18px 18px !important;
     }
 
     html.dark .bank-picker__option,

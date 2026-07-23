@@ -4,6 +4,7 @@ import AppIcon from '@/shared/ui/icon/AppIcon.vue';
 import SeoHead from '@/shared/ui/seo-head/SeoHead.vue';
 import NotificationOptIn from '@/Components/NotificationOptIn.vue';
 import AppLockOverlay from '@/widgets/app-lock/ui/AppLockOverlay.vue';
+import DueDiligenceOverlay from '@/widgets/due-diligence-overlay/ui/DueDiligenceOverlay.vue';
 import { useAppLock } from '@/composables/useAppLock';
 import { buildExchangeNavItems } from '@/shared/config/exchange-nav';
 import { Link, usePage } from '@inertiajs/vue3';
@@ -126,5 +127,6 @@ onUnmounted(() => {
         </div>
 
         <AppLockOverlay v-if="isAuthenticated && isLocked" />
+        <DueDiligenceOverlay v-if="isAuthenticated" />
     </div>
 </template>

@@ -71,7 +71,13 @@ final class UserAdminController extends Controller
     public function show(User $user): Response
     {
         $user->loadCount(['exchangeOrders', 'withdrawals', 'deposits'])
-            ->load(['kycProfile:id,user_id,status,first_name,last_name,company_name,document_type,document_number,submitted_at,reviewed_at', 'roles:id,code']);
+            ->load([
+                'kycProfile:id,user_id,status,first_name,last_name,company_name,document_type,document_number,submitted_at,reviewed_at',
+                'roles:id,code',
+                'dueDiligenceProfile',
+            ]);
+
+        $dueDiligenceProfile = $user->dueDiligenceProfile;
 
         return Inertia::render('Admin/Users/Show', [
             'user' => [
@@ -104,6 +110,21 @@ final class UserAdminController extends Controller
                     'name' => $user->kycProfile->company_name
                         ?: trim(($user->kycProfile->first_name ?? '').' '.($user->kycProfile->last_name ?? '')),
                 ] : null,
+                'due_diligence' => [
+                    'required_at' => $user->due_diligence_required_at?->toIso8601String(),
+                    'submitted' => $dueDiligenceProfile !== null,
+                    'profile' => $dueDiligenceProfile ? [
+                        'source_of_funds' => $dueDiligenceProfile->source_of_funds,
+                        'source_of_funds_other' => $dueDiligenceProfile->source_of_funds_other,
+                        'occupation' => $dueDiligenceProfile->occupation,
+                        'industry' => $dueDiligenceProfile->industry,
+                        'industry_other' => $dueDiligenceProfile->industry_other,
+                        'annual_income' => $dueDiligenceProfile->annual_income,
+                        'platform_purpose' => $dueDiligenceProfile->platform_purpose,
+                        'platform_purpose_other' => $dueDiligenceProfile->platform_purpose_other,
+                        'submitted_at' => $dueDiligenceProfile->submitted_at?->toIso8601String(),
+                    ] : null,
+                ],
                 'counts' => [
                     'orders' => $user->exchange_orders_count,
                     'withdrawals' => $user->withdrawals_count,

@@ -23,6 +23,7 @@ final class DepositConfirmationService
     public function __construct(
         private readonly LedgerService $ledgerService,
         private readonly UserNotificationService $notifier,
+        private readonly DueDiligenceService $dueDiligenceService,
     ) {}
 
     public function creditConfirmed(string $network, int $head, int $required): int
@@ -101,6 +102,10 @@ final class DepositConfirmationService
                 'confirmed_at' => $locked->confirmed_at ?? now(),
                 'credited_at' => now(),
             ]);
+
+            if ($this->dueDiligenceService->exceedsThreshold((string) $locked->amount)) {
+                $this->dueDiligenceService->markRequired($locked->user);
+            }
 
             return true;
         });

@@ -15,6 +15,7 @@ import {
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import DueDiligenceForm from '@/features/due-diligence-form/ui/DueDiligenceForm.vue';
 
 const props = defineProps({
     balance: {
@@ -35,6 +36,15 @@ const page = usePage();
 const { t, locale } = useI18n();
 const withdrawalStatusLabels = useWithdrawalStatusLabels();
 const addressTouched = ref(false);
+const showDueDiligenceModal = ref(false);
+
+const dueDiligenceOptions = computed(() => page.props.dueDiligence?.options ?? null);
+const dueDiligenceThreshold = computed(() => props.withdraw.dueDiligenceThreshold ?? page.props.dueDiligence?.threshold ?? 10000);
+const dueDiligenceSubmitted = computed(() => props.withdraw.dueDiligenceSubmitted ?? page.props.dueDiligence?.submitted ?? false);
+const requiresDueDiligence = computed(() => {
+    const amount = parseFloat(form.amount) || 0;
+    return amount >= dueDiligenceThreshold.value && !dueDiligenceSubmitted.value;
+});
 
 const form = useForm({
     network: props.networks[0]?.code ?? 'BEP20',
@@ -123,13 +133,33 @@ function submit() {
         return;
     }
 
+    if (requiresDueDiligence.value) {
+        showDueDiligenceModal.value = true;
+        return;
+    }
+
+    postWithdrawal();
+}
+
+function postWithdrawal() {
     form.post(route('withdraw.store'), {
         preserveScroll: true,
         onSuccess: () => {
             addressTouched.value = false;
             form.reset('to_address', 'amount');
+            showDueDiligenceModal.value = false;
+        },
+        onError: (errors) => {
+            if (errors.form?.includes('анкет')) {
+                showDueDiligenceModal.value = true;
+            }
         },
     });
+}
+
+function onDueDiligenceSubmitted() {
+    showDueDiligenceModal.value = false;
+    postWithdrawal();
 }
 
 function cancelWithdrawal(id) {
@@ -268,6 +298,10 @@ function formatDate(value) {
             </div>
         </div>
 
+        <p v-if="requiresDueDiligence" class="mt-3 text-center text-xs text-warning">
+            {{ t('dueDiligence.withdrawHint', { threshold: dueDiligenceThreshold }) }}
+        </p>
+
         <p v-if="form.errors.form" class="text-sm text-error">{{ form.errors.form }}</p>
 
         <button type="button" class="btn-primary wallet-copy-cta" :disabled="form.processing" @click="submit">
@@ -325,4 +359,54 @@ function formatDate(value) {
             </div>
         </div>
     </section>
+
+    <div v-if="showDueDiligenceModal && dueDiligenceOptions" class="due-diligence-modal">
+        <div class="due-diligence-modal__backdrop" @click.self="showDueDiligenceModal = false" />
+        <div class="due-diligence-modal__panel card">
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-sm font-semibold text-on-surface">{{ t('dueDiligence.withdrawTitle') }}</p>
+                    <p class="mt-1 text-sm text-text-muted">{{ t('dueDiligence.withdrawSubtitle') }}</p>
+                </div>
+                <button type="button" class="text-text-dim" :aria-label="t('dueDiligence.closeAria')" @click="showDueDiligenceModal = false">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <DueDiligenceForm
+                :options="dueDiligenceOptions"
+                compact
+                @submitted="onDueDiligenceSubmitted"
+            />
+        </div>
+    </div>
 </template>
+
+<style scoped>
+.due-diligence-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+}
+
+.due-diligence-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.due-diligence-modal__panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 420px;
+    max-height: calc(100dvh - 32px);
+    overflow: hidden;
+    padding: 20px 16px 16px;
+}
+</style>

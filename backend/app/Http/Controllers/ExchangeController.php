@@ -176,6 +176,8 @@ final class ExchangeController extends Controller
                 'minAmount' => (float) config('withdrawal.min_amount'),
                 'autoLimit' => (float) config('withdrawal.auto_limit'),
                 'withdrawalsEnabled' => (bool) config('withdrawal.enabled'),
+                'dueDiligenceThreshold' => app(\App\Services\DueDiligenceService::class)->threshold(),
+                'dueDiligenceSubmitted' => $user->dueDiligenceProfile()->exists(),
                 'withdrawals' => $withdrawals,
             ],
             'initialTab' => $request->string('tab')->toString() === 'withdraw' ? 'withdraw' : 'deposit',
